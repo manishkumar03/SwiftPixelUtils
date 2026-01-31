@@ -3,6 +3,8 @@ import SwiftPixelUtils
 
 struct TensorToImageView: View {
     @State private var result = "Tap to test tensor to image conversion"
+    @State private var previewImage: PlatformImage?
+    @State private var showImagePreview = false
     
     var body: some View {
         ScrollView {
@@ -30,6 +32,9 @@ struct TensorToImageView: View {
             .padding()
         }
         .navigationTitle("Tensor → Image")
+        .sheet(isPresented: $showImagePreview) {
+            ImagePreviewSheet(image: previewImage, isPresented: $showImagePreview)
+        }
     }
     
     func convertRGBTensor() async {
@@ -60,6 +65,13 @@ struct TensorToImageView: View {
             Output size: \(converted.width)x\(converted.height)
             Processing Time: \(String(format: "%.2f", time))ms
             """
+            
+            #if canImport(UIKit)
+            previewImage = UIImage(cgImage: converted.cgImage)
+            #else
+            previewImage = NSImage(cgImage: converted.cgImage, size: NSSize(width: converted.width, height: converted.height))
+            #endif
+            showImagePreview = true
         } catch {
             result = "❌ Error: \(error.localizedDescription)"
         }
@@ -91,6 +103,13 @@ struct TensorToImageView: View {
             Output size: \(converted.width)x\(converted.height)
             Processing Time: \(String(format: "%.2f", time))ms
             """
+            
+            #if canImport(UIKit)
+            previewImage = UIImage(cgImage: converted.cgImage)
+            #else
+            previewImage = NSImage(cgImage: converted.cgImage, size: NSSize(width: converted.width, height: converted.height))
+            #endif
+            showImagePreview = true
         } catch {
             result = "❌ Error: \(error.localizedDescription)"
         }

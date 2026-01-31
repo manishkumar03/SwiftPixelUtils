@@ -3,6 +3,8 @@ import SwiftPixelUtils
 
 struct MultiCropView: View {
     @State private var result = "Tap to test multi-crop operations"
+    @State private var previewImages: [PlatformImage] = []
+    @State private var showImagesPreview = false
     
     private let sampleImageURL = "https://upload.wikimedia.org/wikipedia/commons/thumb/3/3a/Cat03.jpg/1200px-Cat03.jpg"
     
@@ -48,6 +50,9 @@ struct MultiCropView: View {
             .padding()
         }
         .navigationTitle("Multi-Crop")
+        .sheet(isPresented: $showImagesPreview) {
+            MultiImagePreviewSheet(images: previewImages, isPresented: $showImagesPreview)
+        }
     }
     
     func testFiveCrop() async {
@@ -72,6 +77,28 @@ struct MultiCropView: View {
             
             Processing Time: \(String(format: "%.2f", time))ms
             """
+            
+            // Convert pixel data to images for preview
+            var images: [PlatformImage] = []
+            for crop in crops.crops {
+                let converted = try await TensorToImage.convert(
+                    data: crop.data,
+                    width: crop.width,
+                    height: crop.height,
+                    options: TensorToImageOptions(
+                        channels: crop.channels,
+                        dataLayout: crop.dataLayout,
+                        denormalize: true
+                    )
+                )
+                #if canImport(UIKit)
+                images.append(UIImage(cgImage: converted.cgImage))
+                #else
+                images.append(NSImage(cgImage: converted.cgImage, size: NSSize(width: converted.width, height: converted.height)))
+                #endif
+            }
+            previewImages = images
+            showImagesPreview = true
         } catch {
             result = "❌ Error: \(error.localizedDescription)"
         }
@@ -95,6 +122,28 @@ struct MultiCropView: View {
             
             Processing Time: \(String(format: "%.2f", time))ms
             """
+            
+            // Convert pixel data to images for preview
+            var images: [PlatformImage] = []
+            for crop in crops.crops {
+                let converted = try await TensorToImage.convert(
+                    data: crop.data,
+                    width: crop.width,
+                    height: crop.height,
+                    options: TensorToImageOptions(
+                        channels: crop.channels,
+                        dataLayout: crop.dataLayout,
+                        denormalize: true
+                    )
+                )
+                #if canImport(UIKit)
+                images.append(UIImage(cgImage: converted.cgImage))
+                #else
+                images.append(NSImage(cgImage: converted.cgImage, size: NSSize(width: converted.width, height: converted.height)))
+                #endif
+            }
+            previewImages = images
+            showImagesPreview = true
         } catch {
             result = "❌ Error: \(error.localizedDescription)"
         }
@@ -117,6 +166,28 @@ struct MultiCropView: View {
             
             Processing Time: \(String(format: "%.2f", time))ms
             """
+            
+            // Convert pixel data to images for preview
+            var images: [PlatformImage] = []
+            for patch in grid.patches {
+                let converted = try await TensorToImage.convert(
+                    data: patch.pixelData.data,
+                    width: patch.pixelData.width,
+                    height: patch.pixelData.height,
+                    options: TensorToImageOptions(
+                        channels: patch.pixelData.channels,
+                        dataLayout: patch.pixelData.dataLayout,
+                        denormalize: true
+                    )
+                )
+                #if canImport(UIKit)
+                images.append(UIImage(cgImage: converted.cgImage))
+                #else
+                images.append(NSImage(cgImage: converted.cgImage, size: NSSize(width: converted.width, height: converted.height)))
+                #endif
+            }
+            previewImages = images
+            showImagesPreview = true
         } catch {
             result = "❌ Error: \(error.localizedDescription)"
         }
@@ -140,6 +211,28 @@ struct MultiCropView: View {
             
             Processing Time: \(String(format: "%.2f", time))ms
             """
+            
+            // Convert pixel data to images for preview
+            var images: [PlatformImage] = []
+            for crop in crops.crops {
+                let converted = try await TensorToImage.convert(
+                    data: crop.pixelData.data,
+                    width: crop.pixelData.width,
+                    height: crop.pixelData.height,
+                    options: TensorToImageOptions(
+                        channels: crop.pixelData.channels,
+                        dataLayout: crop.pixelData.dataLayout,
+                        denormalize: true
+                    )
+                )
+                #if canImport(UIKit)
+                images.append(UIImage(cgImage: converted.cgImage))
+                #else
+                images.append(NSImage(cgImage: converted.cgImage, size: NSSize(width: converted.width, height: converted.height)))
+                #endif
+            }
+            previewImages = images
+            showImagesPreview = true
         } catch {
             result = "❌ Error: \(error.localizedDescription)"
         }

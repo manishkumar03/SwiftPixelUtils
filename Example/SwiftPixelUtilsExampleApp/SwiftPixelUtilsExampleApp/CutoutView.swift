@@ -3,6 +3,8 @@ import SwiftPixelUtils
 
 struct CutoutView: View {
     @State private var result = "Tap to test cutout augmentation"
+    @State private var previewImage: PlatformImage?
+    @State private var showImagePreview = false
     
     private let sampleImageURL = "https://upload.wikimedia.org/wikipedia/commons/thumb/3/3a/Cat03.jpg/1200px-Cat03.jpg"
     
@@ -37,6 +39,9 @@ struct CutoutView: View {
             .padding()
         }
         .navigationTitle("Cutout")
+        .sheet(isPresented: $showImagePreview) {
+            ImagePreviewSheet(image: previewImage, isPresented: $showImagePreview)
+        }
     }
     
     func testSingleCutout() async {
@@ -62,6 +67,9 @@ struct CutoutView: View {
             Output size: \(cutout.size.width)x\(cutout.size.height)
             Processing Time: \(String(format: "%.2f", time))ms
             """
+            
+            previewImage = cutout
+            showImagePreview = true
         } catch {
             result = "❌ Error: \(error.localizedDescription)"
         }
@@ -90,6 +98,9 @@ struct CutoutView: View {
             Output size: \(cutout.size.width)x\(cutout.size.height)
             Processing Time: \(String(format: "%.2f", time))ms
             """
+            
+            previewImage = cutout
+            showImagePreview = true
         } catch {
             result = "❌ Error: \(error.localizedDescription)"
         }
@@ -119,6 +130,9 @@ struct CutoutView: View {
             Output size: \(cutout.size.width)x\(cutout.size.height)
             Processing Time: \(String(format: "%.2f", time))ms
             """
+            
+            previewImage = cutout
+            showImagePreview = true
         } catch {
             result = "❌ Error: \(error.localizedDescription)"
         }

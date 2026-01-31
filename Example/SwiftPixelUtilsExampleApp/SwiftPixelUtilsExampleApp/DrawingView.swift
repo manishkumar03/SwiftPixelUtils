@@ -3,6 +3,8 @@ import SwiftPixelUtils
 
 struct DrawingView: View {
     @State private var result = "Tap to test drawing operations"
+    @State private var previewImage: PlatformImage?
+    @State private var showImagePreview = false
     
     private let sampleImageURL = "https://upload.wikimedia.org/wikipedia/commons/thumb/3/3a/Cat03.jpg/1200px-Cat03.jpg"
     
@@ -48,6 +50,9 @@ struct DrawingView: View {
             .padding()
         }
         .navigationTitle("Drawing")
+        .sheet(isPresented: $showImagePreview) {
+            ImagePreviewSheet(image: previewImage, isPresented: $showImagePreview)
+        }
     }
     
     func drawBoxes() async {
@@ -79,6 +84,13 @@ struct DrawingView: View {
             Output size: \(drawn.width)x\(drawn.height)
             Processing Time: \(String(format: "%.2f", time))ms
             """
+            
+            #if canImport(UIKit)
+            previewImage = UIImage(cgImage: drawn.cgImage)
+            #else
+            previewImage = NSImage(cgImage: drawn.cgImage, size: NSSize(width: drawn.width, height: drawn.height))
+            #endif
+            showImagePreview = true
         } catch {
             result = "❌ Error: \(error.localizedDescription)"
         }
@@ -106,6 +118,13 @@ struct DrawingView: View {
             Output size: \(drawn.width)x\(drawn.height)
             Processing Time: \(String(format: "%.2f", time))ms
             """
+            
+            #if canImport(UIKit)
+            previewImage = UIImage(cgImage: drawn.cgImage)
+            #else
+            previewImage = NSImage(cgImage: drawn.cgImage, size: NSSize(width: drawn.width, height: drawn.height))
+            #endif
+            showImagePreview = true
         } catch {
             result = "❌ Error: \(error.localizedDescription)"
         }
@@ -143,6 +162,13 @@ struct DrawingView: View {
             Output size: \(overlaid.width)x\(overlaid.height)
             Processing Time: \(String(format: "%.2f", time))ms
             """
+            
+            #if canImport(UIKit)
+            previewImage = UIImage(cgImage: overlaid.cgImage)
+            #else
+            previewImage = NSImage(cgImage: overlaid.cgImage, size: NSSize(width: overlaid.width, height: overlaid.height))
+            #endif
+            showImagePreview = true
         } catch {
             result = "❌ Error: \(error.localizedDescription)"
         }
@@ -186,6 +212,13 @@ struct DrawingView: View {
             Output size: \(overlaid.width)x\(overlaid.height)
             Processing Time: \(String(format: "%.2f", time))ms
             """
+            
+            #if canImport(UIKit)
+            previewImage = UIImage(cgImage: overlaid.cgImage)
+            #else
+            previewImage = NSImage(cgImage: overlaid.cgImage, size: NSSize(width: overlaid.width, height: overlaid.height))
+            #endif
+            showImagePreview = true
         } catch {
             result = "❌ Error: \(error.localizedDescription)"
         }

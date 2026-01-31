@@ -11,6 +11,10 @@ import SwiftPixelUtils
 struct VideoFrameView: View {
     @State private var result = "Tap to test video frame extraction"
     @State private var isLoading = false
+    @State private var previewImage: PlatformImage?
+    @State private var previewImages: [PlatformImage] = []
+    @State private var showImagePreview = false
+    @State private var showImagesPreview = false
     
     // Public domain sample video (Big Buck Bunny)
     private let sampleVideoURL = "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4"
@@ -72,6 +76,12 @@ struct VideoFrameView: View {
             .padding()
         }
         .navigationTitle("Video Frames")
+        .sheet(isPresented: $showImagePreview) {
+            ImagePreviewSheet(image: previewImage, isPresented: $showImagePreview)
+        }
+        .sheet(isPresented: $showImagesPreview) {
+            MultiImagePreviewSheet(images: previewImages, isPresented: $showImagesPreview)
+        }
     }
     
     func getVideoMetadata() async {
@@ -110,7 +120,8 @@ struct VideoFrameView: View {
             
             let frame = try await VideoFrameExtractor.extractFrame(
                 from: source,
-                at: timestamp
+                at: timestamp,
+                options: VideoFrameExtractionOptions(outputFormat: .base64, jpegQuality: 90)
             )
             
             let time = (CFAbsoluteTimeGetCurrent() - start) * 1000
@@ -122,6 +133,17 @@ struct VideoFrameView: View {
             
             Processing Time: \(String(format: "%.2f", time))ms
             """
+            
+            // Decode base64 to image
+            if let base64String = frame.data as? String,
+               let imageData = Data(base64Encoded: base64String) {
+                #if canImport(UIKit)
+                previewImage = UIImage(data: imageData)
+                #else
+                previewImage = NSImage(data: imageData)
+                #endif
+                showImagePreview = true
+            }
         } catch {
             result = "❌ Error: \(error.localizedDescription)"
         }
@@ -159,6 +181,27 @@ struct VideoFrameView: View {
             
             Processing Time: \(String(format: "%.2f", time))ms
             """
+            
+            // Decode base64 frames to images
+            var images: [PlatformImage] = []
+            for frame in extraction.frames {
+                if let base64String = frame.data as? String,
+                   let imageData = Data(base64Encoded: base64String) {
+                    #if canImport(UIKit)
+                    if let image = UIImage(data: imageData) {
+                        images.append(image)
+                    }
+                    #else
+                    if let image = NSImage(data: imageData) {
+                        images.append(image)
+                    }
+                    #endif
+                }
+            }
+            if !images.isEmpty {
+                previewImages = images
+                showImagesPreview = true
+            }
         } catch {
             result = "❌ Error: \(error.localizedDescription)"
         }
@@ -192,6 +235,27 @@ struct VideoFrameView: View {
             
             Processing Time: \(String(format: "%.2f", time))ms
             """
+            
+            // Decode base64 frames to images
+            var images: [PlatformImage] = []
+            for frame in extraction.frames {
+                if let base64String = frame.data as? String,
+                   let imageData = Data(base64Encoded: base64String) {
+                    #if canImport(UIKit)
+                    if let image = UIImage(data: imageData) {
+                        images.append(image)
+                    }
+                    #else
+                    if let image = NSImage(data: imageData) {
+                        images.append(image)
+                    }
+                    #endif
+                }
+            }
+            if !images.isEmpty {
+                previewImages = images
+                showImagesPreview = true
+            }
         } catch {
             result = "❌ Error: \(error.localizedDescription)"
         }

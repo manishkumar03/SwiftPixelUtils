@@ -10,6 +10,8 @@ import SwiftPixelUtils
 
 struct IndividualAugmentationsView: View {
     @State private var result = "Tap to apply individual augmentations"
+    @State private var previewImage: PlatformImage?
+    @State private var showImagePreview = false
     
     private let sampleImageURL = "https://picsum.photos/seed/vision1/400/400"
     
@@ -143,6 +145,9 @@ struct IndividualAugmentationsView: View {
             .padding()
         }
         .navigationTitle("Individual Augmentations")
+        .sheet(isPresented: $showImagePreview) {
+            ImagePreviewSheet(image: previewImage, isPresented: $showImagePreview)
+        }
     }
     
     func testRotate(degrees: Double) async {
@@ -161,6 +166,9 @@ struct IndividualAugmentationsView: View {
             Output Size: \(Int(size.width))x\(Int(size.height))
             Processing Time: \(String(format: "%.2f", time))ms
             """
+            
+            previewImage = rotated
+            showImagePreview = true
         } catch {
             result = "❌ Error: \(error.localizedDescription)"
         }
@@ -181,6 +189,9 @@ struct IndividualAugmentationsView: View {
             Output Size: \(Int(size.width))x\(Int(size.height))
             Processing Time: \(String(format: "%.2f", time))ms
             """
+            
+            previewImage = flipped
+            showImagePreview = true
         } catch {
             result = "❌ Error: \(error.localizedDescription)"
         }
@@ -201,6 +212,9 @@ struct IndividualAugmentationsView: View {
             Output Size: \(Int(size.width))x\(Int(size.height))
             Processing Time: \(String(format: "%.2f", time))ms
             """
+            
+            previewImage = flipped
+            showImagePreview = true
         } catch {
             result = "❌ Error: \(error.localizedDescription)"
         }
@@ -222,6 +236,9 @@ struct IndividualAugmentationsView: View {
             Output Size: \(Int(size.width))x\(Int(size.height))
             Processing Time: \(String(format: "%.2f", time))ms
             """
+            
+            previewImage = adjusted
+            showImagePreview = true
         } catch {
             result = "❌ Error: \(error.localizedDescription)"
         }
@@ -243,6 +260,9 @@ struct IndividualAugmentationsView: View {
             Output Size: \(Int(size.width))x\(Int(size.height))
             Processing Time: \(String(format: "%.2f", time))ms
             """
+            
+            previewImage = adjusted
+            showImagePreview = true
         } catch {
             result = "❌ Error: \(error.localizedDescription)"
         }
@@ -264,6 +284,9 @@ struct IndividualAugmentationsView: View {
             Output Size: \(Int(size.width))x\(Int(size.height))
             Processing Time: \(String(format: "%.2f", time))ms
             """
+            
+            previewImage = adjusted
+            showImagePreview = true
         } catch {
             result = "❌ Error: \(error.localizedDescription)"
         }
@@ -290,6 +313,9 @@ struct IndividualAugmentationsView: View {
             Output Size: \(Int(size.width))x\(Int(size.height))
             Processing Time: \(String(format: "%.2f", time))ms
             """
+            
+            previewImage = blurred
+            showImagePreview = true
         } catch {
             result = "❌ Error: \(error.localizedDescription)"
         }

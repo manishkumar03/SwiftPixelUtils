@@ -5,22 +5,50 @@ import PackageDescription
 
 let package = Package(
     name: "SwiftPixelUtils",
+    platforms: [
+        .iOS(.v15),
+        .macOS(.v12),
+        .tvOS(.v15),
+        .watchOS(.v8)
+    ],
     products: [
-        // Products define the executables and libraries a package produces, making them visible to other packages.
+        // High-performance image preprocessing library for ML/AI inference pipelines
+        // Native implementations using Core Image, Accelerate, and Core ML
         .library(
             name: "SwiftPixelUtils",
             targets: ["SwiftPixelUtils"]
         ),
     ],
+    dependencies: [
+        // No external dependencies - uses only Apple frameworks:
+        // - CoreImage for image processing
+        // - Accelerate for high-performance math operations
+        // - CoreGraphics for image manipulation
+        // - CoreML for ML model integration (optional)
+    ],
     targets: [
-        // Targets are the basic building blocks of a package, defining a module or a test suite.
-        // Targets can depend on other targets in this package and products from dependencies.
+        // Main library target containing all image processing utilities
         .target(
-            name: "SwiftPixelUtils"
+            name: "SwiftPixelUtils",
+            dependencies: [],
+            path: "Sources/SwiftPixelUtils",
+            resources: [
+                // Label databases for ML model inference
+                // Contains class labels for ImageNet, CIFAR-100, Places365, ADE20K
+                .process("Resources")
+            ],
+            swiftSettings: [
+                .enableUpcomingFeature("BareSlashRegexLiterals"),
+                .enableUpcomingFeature("ConciseMagicFile")
+            ]
         ),
+        
+        // Test suite for SwiftPixelUtils
         .testTarget(
             name: "SwiftPixelUtilsTests",
-            dependencies: ["SwiftPixelUtils"]
+            dependencies: ["SwiftPixelUtils"],
+            path: "Tests/SwiftPixelUtilsTests"
         ),
-    ]
+    ],
+    swiftLanguageModes: [.v5]
 )

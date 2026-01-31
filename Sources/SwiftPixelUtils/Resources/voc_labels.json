@@ -1,0 +1,29 @@
+{
+  "dataset": "voc",
+  "version": "2012",
+  "description": "PASCAL VOC with background - 21 class labels for detection and segmentation",
+  "num_classes": 21,
+  "labels": [
+    "background",
+    "aeroplane",
+    "bicycle",
+    "bird",
+    "boat",
+    "bottle",
+    "bus",
+    "car",
+    "cat",
+    "chair",
+    "cow",
+    "diningtable",
+    "dog",
+    "horse",
+    "motorbike",
+    "person",
+    "pottedplant",
+    "sheep",
+    "sofa",
+    "train",
+    "tvmonitor"
+  ]
+}

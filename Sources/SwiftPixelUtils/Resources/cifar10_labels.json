@@ -1,0 +1,18 @@
+{
+  "dataset": "cifar10",
+  "version": "standard",
+  "description": "CIFAR-10 classification - 10 class labels",
+  "num_classes": 10,
+  "labels": [
+    "airplane",
+    "automobile",
+    "bird",
+    "cat",
+    "deer",
+    "dog",
+    "frog",
+    "horse",
+    "ship",
+    "truck"
+  ]
+}

@@ -13,6 +13,12 @@ struct MoreFeaturesView: View {
     var body: some View {
         NavigationView {
             List {
+                Section("Inference Post-Processing") {
+                    NavigationLink(destination: InferenceUtilitiesView()) {
+                        Label("Inference Utilities", systemImage: "brain")
+                    }
+                }
+                
                 Section("Data Processing") {
                     NavigationLink(destination: LabelDatabaseView()) {
                         Label("Label Database", systemImage: "tag")
@@ -109,6 +115,8 @@ struct AboutView: View {
                         FeatureRow(icon: "rectangle.center.inset.filled", title: "Letterbox", description: "YOLO-style padding with transforms")
                         FeatureRow(icon: "number.circle", title: "Quantization", description: "Float to int8/uint8/int16")
                         FeatureRow(icon: "rectangle.split.3x3", title: "Multi-Crop", description: "Five-crop, ten-crop, grid, random")
+                        FeatureRow(icon: "brain", title: "Inference Utils", description: "Softmax, Sigmoid, Soft-NMS, Top-K, CoreML")
+                        FeatureRow(icon: "cpu", title: "CoreML Integration", description: "MLMultiArray conversion, CVPixelBuffer")
                     }
                 }
                 

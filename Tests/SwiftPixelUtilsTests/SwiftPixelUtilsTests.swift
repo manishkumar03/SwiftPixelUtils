@@ -373,4 +373,165 @@ final class SwiftPixelUtilsTests: XCTestCase {
         XCTAssertEqual(imagenetInfo.name, "imagenet")
         XCTAssertGreaterThanOrEqual(imagenetInfo.numClasses, 999)
     }
+    
+    // MARK: - Inference Utilities Tests
+    
+    func testActivationSoftmax() throws {
+        let logits: [Float] = [-1.0, 2.0, 0.5, -0.3]
+        let probs = ActivationFunctions.softmax(logits)
+        
+        // Sum should be 1.0
+        let sum = probs.reduce(0, +)
+        XCTAssertEqual(sum, 1.0, accuracy: 0.0001)
+        
+        // Highest logit (index 1) should have highest probability
+        XCTAssertEqual(probs.firstIndex(of: probs.max()!), 1)
+    }
+    
+    func testActivationSigmoid() throws {
+        let logits: [Float] = [-2.0, 0.0, 2.0]
+        let probs = ActivationFunctions.sigmoid(logits)
+        
+        // sigmoid(0) should be 0.5
+        XCTAssertEqual(probs[1], 0.5, accuracy: 0.001)
+        
+        // sigmoid(-2) < 0.5 < sigmoid(2)
+        XCTAssertLessThan(probs[0], 0.5)
+        XCTAssertGreaterThan(probs[2], 0.5)
+        
+        // Values should be in (0, 1) range
+        for prob in probs {
+            XCTAssertGreaterThan(prob, 0)
+            XCTAssertLessThan(prob, 1)
+        }
+    }
+    
+    func testTopKExtraction() throws {
+        let scores: [Float] = [0.1, 0.8, 0.05, 0.3, 0.9]
+        let top3 = TopKExtractor.extractTopK(values: scores, k: 3)
+        
+        XCTAssertEqual(top3.indices.count, 3)
+        XCTAssertEqual(top3.indices[0], 4)  // 0.9
+        XCTAssertEqual(top3.indices[1], 1)  // 0.8
+        XCTAssertEqual(top3.indices[2], 3)  // 0.3
+        
+        XCTAssertEqual(top3.values[0], 0.9, accuracy: 0.001)
+        XCTAssertEqual(top3.values[1], 0.8, accuracy: 0.001)
+        XCTAssertEqual(top3.values[2], 0.3, accuracy: 0.001)
+    }
+    
+    func testArgmax() throws {
+        let scores: [Float] = [0.15, 0.72, 0.08, 0.95, 0.43]
+        guard let (idx, val) = TopKExtractor.argmax(scores) else {
+            XCTFail("Argmax returned nil")
+            return
+        }
+        
+        XCTAssertEqual(idx, 3)
+        XCTAssertEqual(val, 0.95, accuracy: 0.001)
+    }
+    
+    func testArgmin() throws {
+        let scores: [Float] = [0.15, 0.72, 0.08, 0.95, 0.43]
+        guard let (idx, val) = TopKExtractor.argmin(scores) else {
+            XCTFail("Argmin returned nil")
+            return
+        }
+        
+        XCTAssertEqual(idx, 2)
+        XCTAssertEqual(val, 0.08, accuracy: 0.001)
+    }
+    
+    func testSoftNMS() throws {
+        let detections = [
+            Detection(box: [10, 10, 50, 50], score: 0.9, classIndex: 0),
+            Detection(box: [12, 12, 52, 52], score: 0.85, classIndex: 0), // Overlaps
+            Detection(box: [100, 100, 150, 150], score: 0.8, classIndex: 1), // Isolated
+        ]
+        
+        let filtered = NMSVariants.softNMS(
+            detections: detections,
+            iouThreshold: 0.5,
+            scoreThreshold: 0.3,
+            mode: .linear
+        )
+        
+        // Soft-NMS reduces scores instead of removing boxes
+        // High-confidence and isolated detections should remain
+        XCTAssertGreaterThanOrEqual(filtered.count, 2)
+        XCTAssertEqual(filtered[0].score, 0.9, accuracy: 0.001) // Top score unchanged
+    }
+    
+    func testConfidenceFiltering() throws {
+        let detections = [
+            Detection(box: [10, 10, 50, 50], score: 0.95, classIndex: 0),
+            Detection(box: [60, 60, 100, 100], score: 0.45, classIndex: 0),
+            Detection(box: [110, 110, 150, 150], score: 0.72, classIndex: 1),
+        ]
+        
+        let filtered = ConfidenceFilter.filter(detections: detections, minConfidence: 0.5)
+        
+        XCTAssertEqual(filtered.count, 2)
+        XCTAssertTrue(filtered.allSatisfy { $0.score >= 0.5 })
+    }
+    
+    func testMaskThreshold() throws {
+        let probMask: [Float] = [0.2, 0.6, 0.8, 0.3, 0.9, 0.4]
+        let binary = MaskUtilities.threshold(mask: probMask, threshold: 0.5)
+        
+        XCTAssertEqual(binary, [0, 1, 1, 0, 1, 0])
+    }
+    
+    func testMaskResize() throws {
+        let mask: [Float] = [
+            1.0, 0.0,
+            0.0, 1.0
+        ]
+        
+        let resized = MaskUtilities.resizeMask(
+            mask: mask,
+            sourceWidth: 2,
+            sourceHeight: 2,
+            targetWidth: 4,
+            targetHeight: 4
+        )
+        
+        XCTAssertEqual(resized.width, 4)
+        XCTAssertEqual(resized.height, 4)
+        XCTAssertEqual(resized.mask.count, 16)
+    }
+    
+    func testMaskIoU() throws {
+        let mask1: [Float] = [1, 1, 0, 0, 1, 1, 0, 0, 0]
+        let mask2: [Float] = [0, 1, 1, 0, 1, 1, 0, 0, 0]
+        
+        let iou = MaskUtilities.maskIoU(mask1: mask1, mask2: mask2)
+        
+        // Intersection: 3, Union: 5
+        XCTAssertEqual(iou, 0.6, accuracy: 0.001)
+    }
+    
+    func testMaskArea() throws {
+        let mask: [Float] = [1, 1, 0, 1, 0, 0, 1, 1, 1]
+        let area = MaskUtilities.computeArea(mask: mask)
+        
+        XCTAssertEqual(area, 6)
+    }
+    
+    #if canImport(CoreML)
+    func testCoreMLConversion() throws {
+        let data: [Float] = Array(repeating: 0.5, count: 48) // 1x3x4x4
+        let shape = [1, 3, 4, 4]
+        
+        let multiArray = try CoreMLConversion.toMLMultiArray(data: data, shape: shape)
+        
+        XCTAssertEqual(multiArray.shape.map { $0.intValue }, shape)
+        XCTAssertEqual(multiArray.count, 48)
+        
+        // Round trip
+        let (roundTripData, roundTripShape) = CoreMLConversion.fromMLMultiArray(multiArray)
+        XCTAssertEqual(roundTripShape, shape)
+        XCTAssertEqual(roundTripData.count, data.count)
+    }
+    #endif
 }

@@ -18,7 +18,7 @@ High-performance Swift library for image preprocessing optimized for ML/AI infer
 ## ✨ Features
 
 - 🚀 **High Performance**: Native implementations using Apple frameworks (Core Image, Accelerate, vImage, Core ML)
-- 🤖 **Simplified ML APIs**: One-line preprocessing (`getModelInput`) and postprocessing (`ClassificationOutput`, `DetectionOutput`) for all major frameworks
+- 🤖 **Simplified ML APIs**: One-line preprocessing (`getModelInput`) and postprocessing (`ClassificationOutput`, `DetectionOutput`, `SegmentationOutput`) for all major frameworks
 - 🔢 **Raw Pixel Data**: Extract pixel values as typed arrays (Float, Int32, UInt8) ready for ML inference
 - 🎨 **Multiple Color Formats**: RGB, RGBA, BGR, BGRA, Grayscale, HSV, HSL, LAB, YUV, YCbCr
 - 📐 **Flexible Resizing**: Cover, contain, stretch, and letterbox strategies
@@ -385,6 +385,117 @@ func detectObjects(_ image: UIImage) async throws -> UIImage? {
     )
     
     return UIImage(cgImage: drawingResult.cgImage, scale: image.scale, orientation: image.imageOrientation)
+}
+```
+
+### `SegmentationOutput.process()` - One-Line Segmentation Postprocessing
+
+Process semantic segmentation model output (DeepLabV3, etc.) with automatic parsing and visualization:
+
+```swift
+// Process DeepLabV3 output in one line
+let result = try SegmentationOutput.process(
+    floatOutput: outputArray,
+    format: .logits(height: 257, width: 257, numClasses: 21),
+    labels: .voc
+)
+
+// Get detected classes with coverage percentages
+for item in result.classSummary {
+    print("\(item.label): \(String(format: "%.1f%%", item.percentage))")
+}
+
+// Access the class mask
+let classAtCenter = result.classAt(x: 128, y: 128)
+print("Class at center: \(result.labels?[classAtCenter] ?? "unknown")")
+```
+
+#### Supported Segmentation Formats
+- `.logits(height:width:numClasses:)` - Raw logits in NHWC format (DeepLabV3)
+- `.logitsNCHW(height:width:numClasses:)` - Raw logits in NCHW format (PyTorch)
+- `.probabilities(height:width:numClasses:)` - Softmax probabilities (NHWC)
+- `.probabilitiesNCHW(height:width:numClasses:)` - Softmax probabilities (NCHW)
+- `.argmax(height:width:numClasses:)` - Pre-computed class indices
+
+#### Label Sources for Segmentation
+- `.voc` - Pascal VOC (21 classes with background)
+- `.ade20k` - ADE20K (150 classes)
+- `.cityscapes` - Cityscapes (19 classes)
+- `.custom([String])` - Your own label array
+- `.none` - Returns "class_N" as labels
+
+#### Visualizing Segmentation Results
+
+Overlay colored segmentation mask on the original image:
+
+```swift
+// Overlay segmentation on image
+let overlay = try Drawing.overlaySegmentation(
+    on: .uiImage(image),
+    segmentation: result,
+    palette: .voc,           // Pascal VOC colors
+    alpha: 0.5,              // 50% opacity
+    excludeBackground: true  // Don't color background pixels
+)
+
+// Or create a standalone colored mask
+let coloredMask = result.toColoredCGImage(palette: .voc)
+```
+
+#### Color Palettes
+
+Built-in color palettes for common datasets:
+- `SegmentationColorPalette.voc` - Pascal VOC (21 colors)
+- `SegmentationColorPalette.ade20k` - ADE20K (150 colors)
+- `SegmentationColorPalette.cityscapes` - Cityscapes (19 colors)
+- `SegmentationColorPalette.rainbow(numClasses:)` - Generate custom palette
+
+### Complete TFLite Segmentation Example
+
+Here's a complete example for DeepLabV3 semantic segmentation:
+
+```swift
+import SwiftPixelUtils
+import TensorFlowLite
+
+func segmentImage(_ image: UIImage) async throws -> UIImage? {
+    let modelSize = 257
+    
+    // 1. Preprocess
+    let input = try await PixelExtractor.getModelInput(
+        source: .uiImage(image),
+        framework: .tfliteFloat,
+        width: modelSize,
+        height: modelSize
+    )
+    
+    // 2. Run inference
+    let interpreter = try Interpreter(modelPath: deeplabModelPath)
+    try interpreter.allocateTensors()
+    try interpreter.copy(input.data, toInputAt: 0)
+    try interpreter.invoke()
+    
+    // 3. Get output
+    let output = try interpreter.output(at: 0)
+    let floatOutput = output.data.withUnsafeBytes { Array($0.bindMemory(to: Float.self)) }
+    
+    // 4. Postprocess - one line
+    let result = try SegmentationOutput.process(
+        floatOutput: floatOutput,
+        format: .logits(height: modelSize, width: modelSize, numClasses: 21),
+        labels: .voc
+    )
+    
+    // 5. Visualize - overlay on original image
+    let overlay = try Drawing.overlaySegmentation(
+        on: .uiImage(image),
+        segmentation: result,
+        palette: .voc,
+        alpha: 0.5,
+        excludeBackground: true
+    )
+    
+    return UIImage(cgImage: overlay.cgImage, scale: image.scale, orientation: image.imageOrientation)
 }
 ```
 
@@ -898,7 +1009,7 @@ public enum PixelUtilsError: Error {
 
 | Tip | Description |
 |-----|-------------|
-| 🤖 Simplified APIs | Use `getModelInput()`, `ClassificationOutput.process()`, and `DetectionOutput.process()` for the easiest integration |
+| 🤖 Simplified APIs | Use `getModelInput()`, `ClassificationOutput.process()`, `DetectionOutput.process()`, and `SegmentationOutput.process()` for the easiest integration |
 | 🎯 Resize Strategies | Use letterbox for YOLO, cover for classification models |
 | 📦 Batch Processing | Process multiple images concurrently for better performance |
 | ⚙️ Model Presets | Pre-configured settings are optimized for each model |

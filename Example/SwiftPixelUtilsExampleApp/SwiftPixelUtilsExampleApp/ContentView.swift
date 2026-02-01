@@ -112,6 +112,33 @@ struct InferenceTabView: View {
             } footer: {
                 Text("Detect and locate objects with bounding boxes")
             }
+            
+            // MARK: - Semantic Segmentation Section
+            Section {
+                NavigationLink {
+                    SegmentationView()
+                } label: {
+                    HStack(spacing: 12) {
+                        Image(systemName: "square.grid.3x3.fill")
+                            .font(.title2)
+                            .foregroundColor(.purple)
+                            .frame(width: 32)
+                        
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("DeepLabV3")
+                                .font(.headline)
+                            Text("TFLite • 21 VOC Classes • Float32")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                    .padding(.vertical, 4)
+                }
+            } header: {
+                Label("Semantic Segmentation", systemImage: "square.grid.3x3.fill")
+            } footer: {
+                Text("Pixel-wise classification into semantic categories")
+            }
         }
         .listStyle(.insetGrouped)
         .navigationTitle("ML Inference")

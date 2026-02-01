@@ -61,7 +61,7 @@ struct YOLODetectionView: View {
     // Sample images from Resources folder
     private let sampleImages = ["dogBoat", "street", "twoBuses"]
     
-    @State private var selectedImage: String = "dog"
+    @State private var selectedImage: String = "dogBoat"
     @State private var loadedImage: UIImage?
     @State private var annotatedImage: UIImage?  // Image with bounding boxes drawn
     @State private var isRunning = false

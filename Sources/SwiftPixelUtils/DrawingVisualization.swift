@@ -673,9 +673,9 @@ public enum Drawing {
         )
     }
     
-    // MARK: - Private Helpers
+    // MARK: - Internal Helpers
     
-    private static func loadCGImage(from source: ImageSource) throws -> CGImage {
+    static func loadCGImage(from source: ImageSource) throws -> CGImage {
         switch source {
         case .cgImage(let cgImage):
             return cgImage
@@ -728,7 +728,7 @@ public enum Drawing {
         }
     }
     
-    private static func encodeToBase64PNG(_ cgImage: CGImage) throws -> String {
+    static func encodeToBase64PNG(_ cgImage: CGImage) throws -> String {
         #if canImport(UIKit)
         let uiImage = UIImage(cgImage: cgImage)
         guard let data = uiImage.pngData() else {

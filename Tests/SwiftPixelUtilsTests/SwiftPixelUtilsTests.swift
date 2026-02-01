@@ -656,4 +656,104 @@ final class SwiftPixelUtilsTests: XCTestCase {
         let carsByLabel = result.filter(byLabel: "Car")  // Case insensitive
         XCTAssertEqual(carsByLabel.count, 1)
     }
+    
+    // MARK: - Segmentation Output Tests
+    
+    func testSegmentationOutputBasic() throws {
+        // Create a simple 4x4 segmentation with 3 classes
+        // Shape: [1, 4, 4, 3] (NHWC) = 48 floats
+        let height = 4
+        let width = 4
+        let numClasses = 3
+        
+        var logits = [Float](repeating: 0, count: height * width * numClasses)
+        
+        // Make specific pixels belong to specific classes by setting higher logits
+        // Row 0,1: Class 0 (background)
+        // Row 2,3: Class 1 (person)
+        for y in 0..<height {
+            for x in 0..<width {
+                let pixelBase = (y * width + x) * numClasses
+                if y < 2 {
+                    logits[pixelBase + 0] = 5.0  // Class 0
+                    logits[pixelBase + 1] = 0.0
+                    logits[pixelBase + 2] = 0.0
+                } else {
+                    logits[pixelBase + 0] = 0.0
+                    logits[pixelBase + 1] = 5.0  // Class 1
+                    logits[pixelBase + 2] = 0.0
+                }
+            }
+        }
+        
+        let result = try SegmentationOutput.process(
+            floatOutput: logits,
+            format: .logits(height: height, width: width, numClasses: numClasses),
+            labels: .custom(["background", "person", "car"])
+        )
+        
+        // Verify dimensions
+        XCTAssertEqual(result.width, width)
+        XCTAssertEqual(result.height, height)
+        XCTAssertEqual(result.numClasses, numClasses)
+        
+        // Verify class mask
+        XCTAssertEqual(result.classMask.count, height * width)
+        XCTAssertEqual(result.classAt(x: 0, y: 0), 0)  // Background
+        XCTAssertEqual(result.classAt(x: 0, y: 2), 1)  // Person
+        
+        // Verify class counts
+        XCTAssertEqual(result.classPixelCounts[0], 8)  // Top half: 4*2 = 8 pixels
+        XCTAssertEqual(result.classPixelCounts[1], 8)  // Bottom half: 4*2 = 8 pixels
+        
+        // Verify presentClasses excludes background
+        XCTAssertEqual(result.presentClasses, [1])
+        
+        // Verify class summary
+        XCTAssertEqual(result.classSummary.count, 1)  // Only non-background
+        XCTAssertEqual(result.classSummary[0].label, "person")
+        XCTAssertEqual(result.classSummary[0].percentage, 50.0, accuracy: 0.1)
+    }
+    
+    func testSegmentationBinaryMask() throws {
+        let height = 2
+        let width = 2
+        let numClasses = 2
+        
+        // Create logits: top-left = class 1, rest = class 0
+        var logits = [Float](repeating: 0, count: height * width * numClasses)
+        logits[0] = 0.0; logits[1] = 5.0  // Pixel (0,0): Class 1
+        logits[2] = 5.0; logits[3] = 0.0  // Pixel (1,0): Class 0
+        logits[4] = 5.0; logits[5] = 0.0  // Pixel (0,1): Class 0
+        logits[6] = 5.0; logits[7] = 0.0  // Pixel (1,1): Class 0
+        
+        let result = try SegmentationOutput.process(
+            floatOutput: logits,
+            format: .logits(height: height, width: width, numClasses: numClasses),
+            labels: .none
+        )
+        
+        let binaryMask = result.binaryMask(forClass: 1)
+        XCTAssertEqual(binaryMask, [1.0, 0.0, 0.0, 0.0])
+    }
+    
+    func testSegmentationColorPalettes() throws {
+        // Test VOC palette has correct number of colors
+        XCTAssertEqual(SegmentationColorPalette.voc.colors.count, 21)
+        
+        // Test color cycling
+        let color0 = SegmentationColorPalette.voc.color(forClassIndex: 0)
+        let color21 = SegmentationColorPalette.voc.color(forClassIndex: 21)
+        XCTAssertEqual(color0.r, color21.r)  // Should cycle back
+        
+        // Test rainbow palette generation
+        let rainbow = SegmentationColorPalette.rainbow(numClasses: 10)
+        XCTAssertEqual(rainbow.colors.count, 10)
+        
+        // First color should be black (background)
+        let bg = rainbow.color(forClassIndex: 0)
+        XCTAssertEqual(bg.r, 0)
+        XCTAssertEqual(bg.g, 0)
+        XCTAssertEqual(bg.b, 0)
+    }
 }

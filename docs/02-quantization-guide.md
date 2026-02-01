@@ -51,6 +51,17 @@ A comprehensive reference for model quantization theory, implementation, and usa
   - [When to Be Careful](#when-to-be-careful)
   - [Measuring Quantization Impact](#measuring-quantization-impact)
 - [SwiftPixelUtils Quantization API](#swiftpixelutils-quantization-api)
+  - [Quantizer Class](#quantizer-class)
+  - [Per-Channel Quantization](#per-channel-quantization)
+    - [Understanding Data Layouts](#understanding-data-layouts)
+    - [Per-Channel Quantization Options](#per-channel-quantization-options)
+    - [Per-Channel Quantize](#per-channel-quantize)
+    - [Per-Channel Dequantize](#per-channel-dequantize)
+    - [HWC Layout Example](#hwc-layout-example)
+    - [Per-Channel vs Per-Tensor Comparison](#per-channel-vs-per-tensor-comparison)
+    - [PerChannelCalibrationResult](#perchannelcalibrationresult)
+  - [Convenience Methods](#convenience-methods)
+  - [Custom Quantization Configuration](#custom-quantization-configuration)
 - [Practical Examples](#practical-examples)
 - [Troubleshooting](#troubleshooting)
 - [Mathematical Foundations](#mathematical-foundations)
@@ -1009,16 +1020,165 @@ let dequantized = Quantizer.dequantize(
 
 ### Per-Channel Quantization
 
+Per-channel quantization provides better accuracy than per-tensor quantization when different channels have significantly different value ranges. SwiftPixelUtils supports both **CHW** (channels-first) and **HWC** (channels-last) data layouts.
+
+#### Understanding Data Layouts
+
+```
+CHW Layout (Channels-first, used by PyTorch, ONNX):
+┌──────────────────────────────────────────┐
+│ Channel 0: [all H×W values contiguously] │
+│ Channel 1: [all H×W values contiguously] │
+│ Channel 2: [all H×W values contiguously] │
+└──────────────────────────────────────────┘
+channelAxis = 0, spatialSize = H × W
+
+HWC Layout (Channels-last, used by TensorFlow, Core ML):
+┌───────────────────────────────────────────────┐
+│ Pixel[0,0]: [R, G, B]                         │
+│ Pixel[0,1]: [R, G, B]                         │
+│ ... (interleaved by pixel)                    │
+└───────────────────────────────────────────────┘
+channelAxis = 2 (or numChannels - 1)
+```
+
+#### Per-Channel Quantization Options
+
 ```swift
-// Per-channel quantization (different scale/zp per channel)
-let perChannelQuantized = Quantizer.quantizePerChannel(
-    floatData,                        // [Float]
-    to: .int8,
-    scales: [0.0039, 0.0041, 0.0038], // Per RGB channel
-    zeroPoints: [0, 0, 0],
-    channelAxis: 2,                    // Channel dimension index
-    shape: [224, 224, 3]              // Tensor shape
+// Configure per-channel options
+let perChannelOptions = QuantizationOptions(
+    mode: .asymmetric,
+    channelAxis: 0,           // 0 for CHW, 2 for HWC
+    numChannels: 3,           // Number of channels (e.g., RGB = 3)
+    spatialSize: 224 * 224    // H × W for CHW layout
 )
+```
+
+#### Per-Channel Quantize
+
+```swift
+// Example: Per-channel quantize RGB data in CHW layout
+let rgbData: [Float] = [
+    // R channel: values in [0, 0.3]
+    0.1, 0.2, 0.15, 0.25,
+    // G channel: values in [0.4, 0.6]
+    0.5, 0.45, 0.55, 0.48,
+    // B channel: values in [-10, 10]
+    -5.0, 8.0, -3.0, 7.0
+]
+
+// Per-channel calibration for optimal parameters
+let calibrationResult = Quantizer.calibratePerChannel(
+    rgbData,
+    options: QuantizationOptions(
+        mode: .asymmetric,
+        channelAxis: 0,
+        numChannels: 3,
+        spatialSize: 4
+    ),
+    targetDtype: .int8
+)
+
+// Access per-channel parameters
+print("Per-channel scales: \(calibrationResult.scales)")
+print("Per-channel zero points: \(calibrationResult.zeroPoints)")
+print("Per-channel min/max: \(calibrationResult.channelRanges)")
+
+// Quantize with per-channel parameters
+let result = Quantizer.quantizeToInt8(
+    rgbData,
+    scales: calibrationResult.scales,
+    zeroPoints: calibrationResult.zeroPoints,
+    options: perChannelOptions
+)
+```
+
+#### Per-Channel Dequantize
+
+```swift
+// Dequantize back to float with per-channel parameters
+let dequantized = Quantizer.dequantizeInt8(
+    result.dataInt8,
+    scales: calibrationResult.scales,
+    zeroPoints: calibrationResult.zeroPoints,
+    options: perChannelOptions
+)
+```
+
+#### HWC Layout Example
+
+```swift
+// For HWC layout (interleaved channels)
+let hwcOptions = QuantizationOptions(
+    mode: .asymmetric,
+    channelAxis: 2,    // Last dimension
+    numChannels: 3,
+    spatialSize: nil   // Not needed for HWC layout
+)
+
+let hwcData: [Float] = [
+    // Pixel 0: R, G, B
+    0.1, 0.5, -5.0,
+    // Pixel 1: R, G, B
+    0.2, 0.45, 8.0,
+    // ... etc
+]
+
+// Calibrate and quantize
+let hwcCalibration = Quantizer.calibratePerChannel(
+    hwcData,
+    options: hwcOptions,
+    targetDtype: .uint8
+)
+
+let hwcResult = Quantizer.quantizeToUInt8(
+    hwcData,
+    scales: hwcCalibration.scales,
+    zeroPoints: hwcCalibration.zeroPoints,
+    options: hwcOptions
+)
+```
+
+#### Per-Channel vs Per-Tensor Comparison
+
+Per-channel quantization excels when channels have different value ranges:
+
+```swift
+// Data with different ranges per channel
+let mixedRangeData: [Float] = [
+    // R: [0, 0.3], G: [0.4, 0.6], B: [-10, 10]
+    ...
+]
+
+// Per-tensor: Single scale must cover ALL channels
+// Scale = (10 - (-10)) / 255 = 0.078
+// Fine details in R and G channels are lost!
+
+// Per-channel: Each channel gets optimal parameters
+// R: scale = 0.00118, captures fine 0-0.3 range
+// G: scale = 0.00078, captures fine 0.4-0.6 range
+// B: scale = 0.078, handles wide -10 to 10 range
+
+// Typical accuracy improvement: 30-50% lower quantization error
+```
+
+#### PerChannelCalibrationResult
+
+The calibration result provides detailed information:
+
+```swift
+struct PerChannelCalibrationResult {
+    let scales: [Float]           // Scale per channel
+    let zeroPoints: [Int]         // Zero point per channel
+    let channelRanges: [(Float, Float)]  // (min, max) per channel
+}
+
+// Example usage
+let result = Quantizer.calibratePerChannel(data, options: options, targetDtype: .int8)
+
+for (i, (min, max)) in result.channelRanges.enumerated() {
+    print("Channel \(i): range [\(min), \(max)], scale=\(result.scales[i]), zp=\(result.zeroPoints[i])")
+}
 ```
 
 ### Convenience Methods

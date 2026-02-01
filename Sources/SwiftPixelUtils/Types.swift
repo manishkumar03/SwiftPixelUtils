@@ -1144,35 +1144,100 @@ public struct Detection {
 // MARK: - Quantization
 
 /// Quantization mode
-public enum QuantizationMode: String {
+///
+/// Determines how scale and zero point are applied across the tensor.
+///
+/// ## Comparison
+///
+/// | Mode | Scale/ZeroPoint | Accuracy | Use Case |
+/// |------|-----------------|----------|----------|
+/// | **Per-Tensor** | Single value | Lower | Activations, simple models |
+/// | **Per-Channel** | One per channel | Higher | Weights, conv layers |
+///
+/// ## Per-Channel Details
+///
+/// Per-channel quantization uses separate parameters for each channel:
+/// ```
+/// For channel c:
+///   quantized[c] = round(float[c] / scale[c]) + zeroPoint[c]
+/// ```
+///
+/// This preserves per-channel value distributions better than per-tensor,
+/// which is especially important for convolution weights where different
+/// filters may have very different value ranges.
+public enum QuantizationMode: String, Codable {
+    /// Single scale/zeroPoint for entire tensor
     case perTensor
+    /// Separate scale/zeroPoint per channel (axis 0 by default)
     case perChannel
 }
 
 /// Data type for quantization
-public enum QuantizationDType: String {
+public enum QuantizationDType: String, Codable {
     case int8
     case uint8
     case int16
 }
 
 /// Quantization options
+///
+/// ## Per-Tensor Example
+/// ```swift
+/// QuantizationOptions(
+///     mode: .perTensor,
+///     dtype: .int8,
+///     scale: [0.00784],      // Single scale
+///     zeroPoint: [0]         // Single zero point
+/// )
+/// ```
+///
+/// ## Per-Channel Example
+/// ```swift
+/// // For 3-channel RGB data
+/// QuantizationOptions(
+///     mode: .perChannel,
+///     dtype: .int8,
+///     scale: [0.0078, 0.0082, 0.0075],      // One per channel
+///     zeroPoint: [0, 0, 0],                  // One per channel
+///     channelAxis: 0,                        // Channel dimension
+///     numChannels: 3,
+///     spatialSize: 224 * 224                 // H * W
+/// )
+/// ```
 public struct QuantizationOptions {
     public let mode: QuantizationMode
     public let dtype: QuantizationDType
     public let scale: [Float]
     public let zeroPoint: [Int]
     
+    /// The axis along which channels are arranged (for per-channel mode)
+    /// - For CHW layout: axis = 0 (channels are first dimension)
+    /// - For HWC layout: axis = 2 (channels are last dimension)
+    public let channelAxis: Int
+    
+    /// Number of channels (required for per-channel mode with auto-calibration)
+    public let numChannels: Int?
+    
+    /// Spatial size (H * W) for per-channel mode
+    /// Required when channelAxis = 0 (CHW layout)
+    public let spatialSize: Int?
+    
     public init(
         mode: QuantizationMode,
         dtype: QuantizationDType,
         scale: [Float],
-        zeroPoint: [Int]
+        zeroPoint: [Int],
+        channelAxis: Int = 0,
+        numChannels: Int? = nil,
+        spatialSize: Int? = nil
     ) {
         self.mode = mode
         self.dtype = dtype
         self.scale = scale
         self.zeroPoint = zeroPoint
+        self.channelAxis = channelAxis
+        self.numChannels = numChannels
+        self.spatialSize = spatialSize
     }
 }
 

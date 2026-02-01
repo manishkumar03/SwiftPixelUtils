@@ -60,6 +60,34 @@ import Accelerate
 ///
 /// - **Pros**: More accurate, better preserves per-channel distributions
 /// - **Cons**: More metadata, slightly more complex inference
+/// - **Use case**: Convolution weights, models with varying channel ranges
+///
+/// ## Per-Channel Usage
+///
+/// ```swift
+/// // Calibrate per-channel
+/// let perChannelParams = Quantizer.calibratePerChannel(
+///     data: floatPixels,
+///     numChannels: 3,
+///     spatialSize: 224 * 224,  // H * W
+///     channelAxis: 0,          // CHW layout
+///     dtype: .int8
+/// )
+///
+/// // Quantize with per-channel parameters
+/// let result = try Quantizer.quantize(
+///     data: floatPixels,
+///     options: QuantizationOptions(
+///         mode: .perChannel,
+///         dtype: .int8,
+///         scale: perChannelParams.scales,
+///         zeroPoint: perChannelParams.zeroPoints,
+///         channelAxis: 0,
+///         numChannels: 3,
+///         spatialSize: 224 * 224
+///     )
+/// )
+/// ```
 ///
 /// ## Usage
 ///
@@ -155,10 +183,21 @@ public enum Quantizer {
         
         let scale = options.scale
         let zeroPoint = options.zeroPoint
+        let numChannels = options.numChannels
+        let spatialSize = options.spatialSize
+        let channelAxis = options.channelAxis
         
         switch options.dtype {
         case .int8:
-            let result = quantizeToInt8(data: data, scale: scale, zeroPoint: zeroPoint, mode: options.mode)
+            let result = quantizeToInt8(
+                data: data,
+                scale: scale,
+                zeroPoint: zeroPoint,
+                mode: options.mode,
+                numChannels: numChannels,
+                spatialSize: spatialSize,
+                channelAxis: channelAxis
+            )
             return QuantizationResult(
                 int8Data: result.data,
                 uint8Data: nil,
@@ -166,11 +205,22 @@ public enum Quantizer {
                 scale: result.scale,
                 zeroPoint: result.zeroPoint,
                 dtype: .int8,
-                mode: options.mode
+                mode: options.mode,
+                numChannels: numChannels,
+                spatialSize: spatialSize,
+                channelAxis: channelAxis
             )
             
         case .uint8:
-            let result = quantizeToUInt8(data: data, scale: scale, zeroPoint: zeroPoint, mode: options.mode)
+            let result = quantizeToUInt8(
+                data: data,
+                scale: scale,
+                zeroPoint: zeroPoint,
+                mode: options.mode,
+                numChannels: numChannels,
+                spatialSize: spatialSize,
+                channelAxis: channelAxis
+            )
             return QuantizationResult(
                 int8Data: nil,
                 uint8Data: result.data,
@@ -178,11 +228,22 @@ public enum Quantizer {
                 scale: result.scale,
                 zeroPoint: result.zeroPoint,
                 dtype: .uint8,
-                mode: options.mode
+                mode: options.mode,
+                numChannels: numChannels,
+                spatialSize: spatialSize,
+                channelAxis: channelAxis
             )
             
         case .int16:
-            let result = quantizeToInt16(data: data, scale: scale, zeroPoint: zeroPoint, mode: options.mode)
+            let result = quantizeToInt16(
+                data: data,
+                scale: scale,
+                zeroPoint: zeroPoint,
+                mode: options.mode,
+                numChannels: numChannels,
+                spatialSize: spatialSize,
+                channelAxis: channelAxis
+            )
             return QuantizationResult(
                 int8Data: nil,
                 uint8Data: nil,
@@ -190,7 +251,10 @@ public enum Quantizer {
                 scale: result.scale,
                 zeroPoint: result.zeroPoint,
                 dtype: .int16,
-                mode: options.mode
+                mode: options.mode,
+                numChannels: numChannels,
+                spatialSize: spatialSize,
+                channelAxis: channelAxis
             )
         }
     }
@@ -206,6 +270,21 @@ public enum Quantizer {
     /// float_value = (quantized - zero_point) × scale
     /// ```
     ///
+    /// ## Per-Channel Dequantization
+    ///
+    /// For per-channel mode, provide the same parameters used during quantization:
+    /// ```swift
+    /// let restored = try Quantizer.dequantize(
+    ///     int8Data: quantized.int8Data,
+    ///     scale: quantized.scale,
+    ///     zeroPoint: quantized.zeroPoint,
+    ///     mode: .perChannel,
+    ///     numChannels: 3,
+    ///     spatialSize: 224 * 224,
+    ///     channelAxis: 0
+    /// )
+    /// ```
+    ///
     /// - Parameters:
     ///   - int8Data: Int8 data to dequantize (optional)
     ///   - uint8Data: UInt8 data to dequantize (optional)
@@ -213,6 +292,9 @@ public enum Quantizer {
     ///   - scale: Scale factor(s) used during quantization
     ///   - zeroPoint: Zero point(s) used during quantization
     ///   - mode: Quantization mode (perTensor or perChannel)
+    ///   - numChannels: Number of channels (required for perChannel mode)
+    ///   - spatialSize: Spatial size H×W (required for perChannel mode with CHW layout)
+    ///   - channelAxis: Channel axis (0 for CHW, 2 for HWC)
     /// - Returns: Dequantized float data
     /// - Throws: ``PixelUtilsError`` if dequantization fails
     public static func dequantize(
@@ -221,14 +303,41 @@ public enum Quantizer {
         int16Data: [Int16]? = nil,
         scale: [Float],
         zeroPoint: [Int],
-        mode: QuantizationMode = .perTensor
+        mode: QuantizationMode = .perTensor,
+        numChannels: Int? = nil,
+        spatialSize: Int? = nil,
+        channelAxis: Int = 0
     ) throws -> [Float] {
         if let int8Data = int8Data {
-            return dequantizeInt8(data: int8Data, scale: scale, zeroPoint: zeroPoint, mode: mode)
+            return dequantizeInt8(
+                data: int8Data,
+                scale: scale,
+                zeroPoint: zeroPoint,
+                mode: mode,
+                numChannels: numChannels,
+                spatialSize: spatialSize,
+                channelAxis: channelAxis
+            )
         } else if let uint8Data = uint8Data {
-            return dequantizeUInt8(data: uint8Data, scale: scale, zeroPoint: zeroPoint, mode: mode)
+            return dequantizeUInt8(
+                data: uint8Data,
+                scale: scale,
+                zeroPoint: zeroPoint,
+                mode: mode,
+                numChannels: numChannels,
+                spatialSize: spatialSize,
+                channelAxis: channelAxis
+            )
         } else if let int16Data = int16Data {
-            return dequantizeInt16(data: int16Data, scale: scale, zeroPoint: zeroPoint, mode: mode)
+            return dequantizeInt16(
+                data: int16Data,
+                scale: scale,
+                zeroPoint: zeroPoint,
+                mode: mode,
+                numChannels: numChannels,
+                spatialSize: spatialSize,
+                channelAxis: channelAxis
+            )
         } else {
             throw PixelUtilsError.invalidOptions("No quantized data provided")
         }
@@ -236,7 +345,7 @@ public enum Quantizer {
     
     // MARK: - Calibration
     
-    /// Computes optimal scale and zero point from calibration data.
+    /// Computes optimal scale and zero point from calibration data (per-tensor).
     ///
     /// Run representative data through your model and collect activation ranges,
     /// then use this function to compute quantization parameters.
@@ -298,30 +407,193 @@ public enum Quantizer {
         }
     }
     
+    // MARK: - Per-Channel Calibration
+    
+    /// Result from per-channel calibration
+    public struct PerChannelCalibrationResult {
+        /// Scale factors, one per channel
+        public let scales: [Float]
+        /// Zero points, one per channel
+        public let zeroPoints: [Int]
+        /// Number of channels
+        public let numChannels: Int
+        /// Min values per channel (for debugging)
+        public let minValues: [Float]
+        /// Max values per channel (for debugging)
+        public let maxValues: [Float]
+    }
+    
+    /// Computes optimal scale and zero point for each channel.
+    ///
+    /// Per-channel quantization provides better accuracy than per-tensor by
+    /// computing separate quantization parameters for each channel, preserving
+    /// the unique value distribution of each channel.
+    ///
+    /// ## Data Layout
+    ///
+    /// For CHW layout (channelAxis = 0):
+    /// ```
+    /// data = [R₀, R₁, ..., Rₙ, G₀, G₁, ..., Gₙ, B₀, B₁, ..., Bₙ]
+    ///        |--- channel 0 ---|--- channel 1 ---|--- channel 2 ---|
+    /// ```
+    ///
+    /// For HWC layout (channelAxis = 2):
+    /// ```
+    /// data = [R₀, G₀, B₀, R₁, G₁, B₁, ...]
+    ///        |pixel 0| |pixel 1| ...
+    /// ```
+    ///
+    /// - Parameters:
+    ///   - data: Calibration data (flattened tensor)
+    ///   - numChannels: Number of channels (e.g., 3 for RGB)
+    ///   - spatialSize: Spatial size (H × W) for CHW layout, or total pixels for HWC
+    ///   - channelAxis: Axis along which channels are arranged (0 for CHW, 2 for HWC)
+    ///   - dtype: Target data type
+    ///   - symmetric: Whether to use symmetric quantization (default: false)
+    /// - Returns: ``PerChannelCalibrationResult`` with per-channel parameters
+    public static func calibratePerChannel(
+        data: [Float],
+        numChannels: Int,
+        spatialSize: Int,
+        channelAxis: Int = 0,
+        dtype: QuantizationDType,
+        symmetric: Bool = false
+    ) -> PerChannelCalibrationResult {
+        guard !data.isEmpty, numChannels > 0, spatialSize > 0 else {
+            return PerChannelCalibrationResult(
+                scales: [1.0],
+                zeroPoints: [0],
+                numChannels: 1,
+                minValues: [0],
+                maxValues: [0]
+            )
+        }
+        
+        var scales = [Float](repeating: 1.0, count: numChannels)
+        var zeroPoints = [Int](repeating: 0, count: numChannels)
+        var minValues = [Float](repeating: Float.greatestFiniteMagnitude, count: numChannels)
+        var maxValues = [Float](repeating: -Float.greatestFiniteMagnitude, count: numChannels)
+        
+        // Calculate min/max per channel
+        if channelAxis == 0 {
+            // CHW layout: channels are contiguous blocks
+            for c in 0..<numChannels {
+                let startIdx = c * spatialSize
+                let endIdx = min(startIdx + spatialSize, data.count)
+                
+                for i in startIdx..<endIdx {
+                    minValues[c] = min(minValues[c], data[i])
+                    maxValues[c] = max(maxValues[c], data[i])
+                }
+            }
+        } else {
+            // HWC layout: channels are interleaved
+            for i in stride(from: 0, to: data.count, by: numChannels) {
+                for c in 0..<numChannels {
+                    let idx = i + c
+                    if idx < data.count {
+                        minValues[c] = min(minValues[c], data[idx])
+                        maxValues[c] = max(maxValues[c], data[idx])
+                    }
+                }
+            }
+        }
+        
+        // Calculate scale and zero point per channel
+        let (qmin, qmax): (Float, Float)
+        switch dtype {
+        case .int8:
+            qmin = -128
+            qmax = 127
+        case .uint8:
+            qmin = 0
+            qmax = 255
+        case .int16:
+            qmin = -32768
+            qmax = 32767
+        }
+        
+        for c in 0..<numChannels {
+            if symmetric {
+                let absMax = max(abs(minValues[c]), abs(maxValues[c]))
+                scales[c] = max(absMax / ((qmax - qmin) / 2), Float.leastNormalMagnitude)
+                zeroPoints[c] = 0
+            } else {
+                let range = maxValues[c] - minValues[c]
+                scales[c] = max(range / (qmax - qmin), Float.leastNormalMagnitude)
+                let zp = Int(round(qmin - minValues[c] / scales[c]))
+                zeroPoints[c] = clamp(zp, Int(qmin), Int(qmax))
+            }
+        }
+        
+        return PerChannelCalibrationResult(
+            scales: scales,
+            zeroPoints: zeroPoints,
+            numChannels: numChannels,
+            minValues: minValues,
+            maxValues: maxValues
+        )
+    }
+    
     // MARK: - Private Helpers - Int8
     
     private static func quantizeToInt8(
         data: [Float],
         scale: [Float],
         zeroPoint: [Int],
-        mode: QuantizationMode
+        mode: QuantizationMode,
+        numChannels: Int? = nil,
+        spatialSize: Int? = nil,
+        channelAxis: Int = 0
     ) -> (data: [Int8], scale: [Float], zeroPoint: [Int]) {
         var result = [Int8](repeating: 0, count: data.count)
         var actualScale = scale
         var actualZeroPoint = zeroPoint
         
-        if scale.isEmpty {
-            let (s, z) = calibrate(data: data, dtype: .int8)
-            actualScale = [s]
-            actualZeroPoint = [z]
-        }
-        
-        let s = actualScale[0]
-        let z = actualZeroPoint[0]
-        
-        for i in 0..<data.count {
-            let quantized = round(data[i] / s) + Float(z)
-            result[i] = Int8(clamp(Int(quantized), -128, 127))
+        if mode == .perChannel, let channels = numChannels, let spatial = spatialSize, scale.count >= channels {
+            // Per-channel quantization
+            if channelAxis == 0 {
+                // CHW layout
+                for c in 0..<channels {
+                    let s = actualScale[c]
+                    let z = actualZeroPoint[c]
+                    let startIdx = c * spatial
+                    let endIdx = min(startIdx + spatial, data.count)
+                    
+                    for i in startIdx..<endIdx {
+                        let quantized = round(data[i] / s) + Float(z)
+                        result[i] = Int8(clamp(Int(quantized), -128, 127))
+                    }
+                }
+            } else {
+                // HWC layout
+                for i in stride(from: 0, to: data.count, by: channels) {
+                    for c in 0..<channels {
+                        let idx = i + c
+                        if idx < data.count {
+                            let s = actualScale[c]
+                            let z = actualZeroPoint[c]
+                            let quantized = round(data[idx] / s) + Float(z)
+                            result[idx] = Int8(clamp(Int(quantized), -128, 127))
+                        }
+                    }
+                }
+            }
+        } else {
+            // Per-tensor quantization
+            if scale.isEmpty {
+                let (s, z) = calibrate(data: data, dtype: .int8)
+                actualScale = [s]
+                actualZeroPoint = [z]
+            }
+            
+            let s = actualScale[0]
+            let z = actualZeroPoint[0]
+            
+            for i in 0..<data.count {
+                let quantized = round(data[i] / s) + Float(z)
+                result[i] = Int8(clamp(Int(quantized), -128, 127))
+            }
         }
         
         return (data: result, scale: actualScale, zeroPoint: actualZeroPoint)
@@ -331,14 +603,48 @@ public enum Quantizer {
         data: [Int8],
         scale: [Float],
         zeroPoint: [Int],
-        mode: QuantizationMode
+        mode: QuantizationMode,
+        numChannels: Int? = nil,
+        spatialSize: Int? = nil,
+        channelAxis: Int = 0
     ) -> [Float] {
         var result = [Float](repeating: 0, count: data.count)
-        let s = scale[0]
-        let z = zeroPoint[0]
         
-        for i in 0..<data.count {
-            result[i] = (Float(data[i]) - Float(z)) * s
+        if mode == .perChannel, let channels = numChannels, let spatial = spatialSize, scale.count >= channels {
+            // Per-channel dequantization
+            if channelAxis == 0 {
+                // CHW layout
+                for c in 0..<channels {
+                    let s = scale[c]
+                    let z = zeroPoint[c]
+                    let startIdx = c * spatial
+                    let endIdx = min(startIdx + spatial, data.count)
+                    
+                    for i in startIdx..<endIdx {
+                        result[i] = (Float(data[i]) - Float(z)) * s
+                    }
+                }
+            } else {
+                // HWC layout
+                for i in stride(from: 0, to: data.count, by: channels) {
+                    for c in 0..<channels {
+                        let idx = i + c
+                        if idx < data.count {
+                            let s = scale[c]
+                            let z = zeroPoint[c]
+                            result[idx] = (Float(data[idx]) - Float(z)) * s
+                        }
+                    }
+                }
+            }
+        } else {
+            // Per-tensor dequantization
+            let s = scale[0]
+            let z = zeroPoint[0]
+            
+            for i in 0..<data.count {
+                result[i] = (Float(data[i]) - Float(z)) * s
+            }
         }
         
         return result
@@ -350,24 +656,59 @@ public enum Quantizer {
         data: [Float],
         scale: [Float],
         zeroPoint: [Int],
-        mode: QuantizationMode
+        mode: QuantizationMode,
+        numChannels: Int? = nil,
+        spatialSize: Int? = nil,
+        channelAxis: Int = 0
     ) -> (data: [UInt8], scale: [Float], zeroPoint: [Int]) {
         var result = [UInt8](repeating: 0, count: data.count)
         var actualScale = scale
         var actualZeroPoint = zeroPoint
         
-        if scale.isEmpty {
-            let (s, z) = calibrate(data: data, dtype: .uint8)
-            actualScale = [s]
-            actualZeroPoint = [z]
-        }
-        
-        let s = actualScale[0]
-        let z = actualZeroPoint[0]
-        
-        for i in 0..<data.count {
-            let quantized = round(data[i] / s) + Float(z)
-            result[i] = UInt8(clamp(Int(quantized), 0, 255))
+        if mode == .perChannel, let channels = numChannels, let spatial = spatialSize, scale.count >= channels {
+            // Per-channel quantization
+            if channelAxis == 0 {
+                // CHW layout
+                for c in 0..<channels {
+                    let s = actualScale[c]
+                    let z = actualZeroPoint[c]
+                    let startIdx = c * spatial
+                    let endIdx = min(startIdx + spatial, data.count)
+                    
+                    for i in startIdx..<endIdx {
+                        let quantized = round(data[i] / s) + Float(z)
+                        result[i] = UInt8(clamp(Int(quantized), 0, 255))
+                    }
+                }
+            } else {
+                // HWC layout
+                for i in stride(from: 0, to: data.count, by: channels) {
+                    for c in 0..<channels {
+                        let idx = i + c
+                        if idx < data.count {
+                            let s = actualScale[c]
+                            let z = actualZeroPoint[c]
+                            let quantized = round(data[idx] / s) + Float(z)
+                            result[idx] = UInt8(clamp(Int(quantized), 0, 255))
+                        }
+                    }
+                }
+            }
+        } else {
+            // Per-tensor quantization
+            if scale.isEmpty {
+                let (s, z) = calibrate(data: data, dtype: .uint8)
+                actualScale = [s]
+                actualZeroPoint = [z]
+            }
+            
+            let s = actualScale[0]
+            let z = actualZeroPoint[0]
+            
+            for i in 0..<data.count {
+                let quantized = round(data[i] / s) + Float(z)
+                result[i] = UInt8(clamp(Int(quantized), 0, 255))
+            }
         }
         
         return (data: result, scale: actualScale, zeroPoint: actualZeroPoint)
@@ -377,14 +718,48 @@ public enum Quantizer {
         data: [UInt8],
         scale: [Float],
         zeroPoint: [Int],
-        mode: QuantizationMode
+        mode: QuantizationMode,
+        numChannels: Int? = nil,
+        spatialSize: Int? = nil,
+        channelAxis: Int = 0
     ) -> [Float] {
         var result = [Float](repeating: 0, count: data.count)
-        let s = scale[0]
-        let z = zeroPoint[0]
         
-        for i in 0..<data.count {
-            result[i] = (Float(data[i]) - Float(z)) * s
+        if mode == .perChannel, let channels = numChannels, let spatial = spatialSize, scale.count >= channels {
+            // Per-channel dequantization
+            if channelAxis == 0 {
+                // CHW layout
+                for c in 0..<channels {
+                    let s = scale[c]
+                    let z = zeroPoint[c]
+                    let startIdx = c * spatial
+                    let endIdx = min(startIdx + spatial, data.count)
+                    
+                    for i in startIdx..<endIdx {
+                        result[i] = (Float(data[i]) - Float(z)) * s
+                    }
+                }
+            } else {
+                // HWC layout
+                for i in stride(from: 0, to: data.count, by: channels) {
+                    for c in 0..<channels {
+                        let idx = i + c
+                        if idx < data.count {
+                            let s = scale[c]
+                            let z = zeroPoint[c]
+                            result[idx] = (Float(data[idx]) - Float(z)) * s
+                        }
+                    }
+                }
+            }
+        } else {
+            // Per-tensor dequantization
+            let s = scale[0]
+            let z = zeroPoint[0]
+            
+            for i in 0..<data.count {
+                result[i] = (Float(data[i]) - Float(z)) * s
+            }
         }
         
         return result
@@ -396,24 +771,59 @@ public enum Quantizer {
         data: [Float],
         scale: [Float],
         zeroPoint: [Int],
-        mode: QuantizationMode
+        mode: QuantizationMode,
+        numChannels: Int? = nil,
+        spatialSize: Int? = nil,
+        channelAxis: Int = 0
     ) -> (data: [Int16], scale: [Float], zeroPoint: [Int]) {
         var result = [Int16](repeating: 0, count: data.count)
         var actualScale = scale
         var actualZeroPoint = zeroPoint
         
-        if scale.isEmpty {
-            let (s, z) = calibrate(data: data, dtype: .int16)
-            actualScale = [s]
-            actualZeroPoint = [z]
-        }
-        
-        let s = actualScale[0]
-        let z = actualZeroPoint[0]
-        
-        for i in 0..<data.count {
-            let quantized = round(data[i] / s) + Float(z)
-            result[i] = Int16(clamp(Int(quantized), -32768, 32767))
+        if mode == .perChannel, let channels = numChannels, let spatial = spatialSize, scale.count >= channels {
+            // Per-channel quantization
+            if channelAxis == 0 {
+                // CHW layout
+                for c in 0..<channels {
+                    let s = actualScale[c]
+                    let z = actualZeroPoint[c]
+                    let startIdx = c * spatial
+                    let endIdx = min(startIdx + spatial, data.count)
+                    
+                    for i in startIdx..<endIdx {
+                        let quantized = round(data[i] / s) + Float(z)
+                        result[i] = Int16(clamp(Int(quantized), -32768, 32767))
+                    }
+                }
+            } else {
+                // HWC layout
+                for i in stride(from: 0, to: data.count, by: channels) {
+                    for c in 0..<channels {
+                        let idx = i + c
+                        if idx < data.count {
+                            let s = actualScale[c]
+                            let z = actualZeroPoint[c]
+                            let quantized = round(data[idx] / s) + Float(z)
+                            result[idx] = Int16(clamp(Int(quantized), -32768, 32767))
+                        }
+                    }
+                }
+            }
+        } else {
+            // Per-tensor quantization
+            if scale.isEmpty {
+                let (s, z) = calibrate(data: data, dtype: .int16)
+                actualScale = [s]
+                actualZeroPoint = [z]
+            }
+            
+            let s = actualScale[0]
+            let z = actualZeroPoint[0]
+            
+            for i in 0..<data.count {
+                let quantized = round(data[i] / s) + Float(z)
+                result[i] = Int16(clamp(Int(quantized), -32768, 32767))
+            }
         }
         
         return (data: result, scale: actualScale, zeroPoint: actualZeroPoint)
@@ -423,14 +833,48 @@ public enum Quantizer {
         data: [Int16],
         scale: [Float],
         zeroPoint: [Int],
-        mode: QuantizationMode
+        mode: QuantizationMode,
+        numChannels: Int? = nil,
+        spatialSize: Int? = nil,
+        channelAxis: Int = 0
     ) -> [Float] {
         var result = [Float](repeating: 0, count: data.count)
-        let s = scale[0]
-        let z = zeroPoint[0]
         
-        for i in 0..<data.count {
-            result[i] = (Float(data[i]) - Float(z)) * s
+        if mode == .perChannel, let channels = numChannels, let spatial = spatialSize, scale.count >= channels {
+            // Per-channel dequantization
+            if channelAxis == 0 {
+                // CHW layout
+                for c in 0..<channels {
+                    let s = scale[c]
+                    let z = zeroPoint[c]
+                    let startIdx = c * spatial
+                    let endIdx = min(startIdx + spatial, data.count)
+                    
+                    for i in startIdx..<endIdx {
+                        result[i] = (Float(data[i]) - Float(z)) * s
+                    }
+                }
+            } else {
+                // HWC layout
+                for i in stride(from: 0, to: data.count, by: channels) {
+                    for c in 0..<channels {
+                        let idx = i + c
+                        if idx < data.count {
+                            let s = scale[c]
+                            let z = zeroPoint[c]
+                            result[idx] = (Float(data[idx]) - Float(z)) * s
+                        }
+                    }
+                }
+            }
+        } else {
+            // Per-tensor dequantization
+            let s = scale[0]
+            let z = zeroPoint[0]
+            
+            for i in 0..<data.count {
+                result[i] = (Float(data[i]) - Float(z)) * s
+            }
         }
         
         return result
@@ -449,6 +893,12 @@ public enum Quantizer {
 ///
 /// Contains the quantized data in the appropriate type, plus the scale and
 /// zero point values needed for dequantization.
+///
+/// ## Per-Channel Results
+///
+/// For per-channel quantization, `scale` and `zeroPoint` arrays contain
+/// one value per channel. Use `numChannels`, `spatialSize`, and `channelAxis`
+/// to correctly interpret the data layout for dequantization.
 public struct QuantizationResult {
     /// Int8 quantized data (nil if dtype is not int8)
     public let int8Data: [Int8]?
@@ -460,9 +910,13 @@ public struct QuantizationResult {
     public let int16Data: [Int16]?
     
     /// Scale factor(s) used for quantization
+    /// - Per-tensor: single value
+    /// - Per-channel: one value per channel
     public let scale: [Float]
     
     /// Zero point(s) used for quantization
+    /// - Per-tensor: single value
+    /// - Per-channel: one value per channel
     public let zeroPoint: [Int]
     
     /// Data type of the quantized values
@@ -471,6 +925,15 @@ public struct QuantizationResult {
     /// Quantization mode (per-tensor or per-channel)
     public let mode: QuantizationMode
     
+    /// Number of channels (for per-channel mode)
+    public let numChannels: Int?
+    
+    /// Spatial size H×W (for per-channel mode with CHW layout)
+    public let spatialSize: Int?
+    
+    /// Channel axis (0 for CHW, 2 for HWC)
+    public let channelAxis: Int
+    
     public init(
         int8Data: [Int8]?,
         uint8Data: [UInt8]?,
@@ -478,7 +941,10 @@ public struct QuantizationResult {
         scale: [Float],
         zeroPoint: [Int],
         dtype: QuantizationDType,
-        mode: QuantizationMode
+        mode: QuantizationMode,
+        numChannels: Int? = nil,
+        spatialSize: Int? = nil,
+        channelAxis: Int = 0
     ) {
         self.int8Data = int8Data
         self.uint8Data = uint8Data
@@ -487,5 +953,8 @@ public struct QuantizationResult {
         self.zeroPoint = zeroPoint
         self.dtype = dtype
         self.mode = mode
+        self.numChannels = numChannels
+        self.spatialSize = spatialSize
+        self.channelAxis = channelAxis
     }
 }

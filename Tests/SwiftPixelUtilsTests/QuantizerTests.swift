@@ -204,26 +204,325 @@ final class QuantizerTests: XCTestCase {
     
     // MARK: - Per-Channel Quantization Tests
     
-    func testPerChannelQuantization() throws {
-        // 3 channels, 4 values each
+    func testPerChannelQuantizationCHWLayout() throws {
+        // 3 channels, 4 values each (CHW layout: all channel 0, then all channel 1, etc.)
+        let numChannels = 3
+        let spatialSize = 4
         let original: [Float] = [
-            0.0, 0.5, 1.0, 0.25,  // Channel 0
-            0.0, 0.25, 0.5, 0.75, // Channel 1
-            0.1, 0.2, 0.3, 0.4    // Channel 2
+            0.0, 0.25, 0.5, 0.75,   // Channel 0 (R)
+            -1.0, -0.5, 0.5, 1.0,   // Channel 1 (G) 
+            -2.0, -1.0, 1.0, 2.0    // Channel 2 (B)
         ]
+        
+        // Calibrate per-channel
+        let params = Quantizer.calibratePerChannel(
+            data: original,
+            numChannels: numChannels,
+            spatialSize: spatialSize,
+            channelAxis: 0,
+            dtype: .int8
+        )
+        
+        XCTAssertEqual(params.numChannels, 3)
+        XCTAssertEqual(params.scales.count, 3)
+        XCTAssertEqual(params.zeroPoints.count, 3)
+        
+        // Verify different scales for different ranges
+        // Channel 2 has largest range, should have largest scale
+        XCTAssertGreaterThan(params.scales[2], params.scales[0])
+        
+        // Quantize
+        let quantized = try Quantizer.quantize(
+            data: original,
+            options: QuantizationOptions(
+                mode: .perChannel,
+                dtype: .int8,
+                scale: params.scales,
+                zeroPoint: params.zeroPoints,
+                channelAxis: 0,
+                numChannels: numChannels,
+                spatialSize: spatialSize
+            )
+        )
+        
+        XCTAssertNotNil(quantized.int8Data)
+        XCTAssertEqual(quantized.int8Data?.count, 12)
+        XCTAssertEqual(quantized.mode, .perChannel)
+    }
+    
+    func testPerChannelQuantizationHWCLayout() throws {
+        // 4 pixels, 3 channels each (HWC layout: interleaved RGBRGBRGB...)
+        let numChannels = 3
+        let spatialSize = 4
+        let original: [Float] = [
+            0.0, -1.0, -2.0,   // Pixel 0: R, G, B
+            0.25, -0.5, -1.0,  // Pixel 1
+            0.5, 0.5, 1.0,     // Pixel 2
+            0.75, 1.0, 2.0     // Pixel 3
+        ]
+        
+        // Calibrate per-channel (HWC)
+        let params = Quantizer.calibratePerChannel(
+            data: original,
+            numChannels: numChannels,
+            spatialSize: spatialSize,
+            channelAxis: 2,  // HWC layout
+            dtype: .int8
+        )
+        
+        XCTAssertEqual(params.scales.count, 3)
+        
+        // Quantize
+        let quantized = try Quantizer.quantize(
+            data: original,
+            options: QuantizationOptions(
+                mode: .perChannel,
+                dtype: .int8,
+                scale: params.scales,
+                zeroPoint: params.zeroPoints,
+                channelAxis: 2,
+                numChannels: numChannels,
+                spatialSize: spatialSize
+            )
+        )
+        
+        XCTAssertNotNil(quantized.int8Data)
+        XCTAssertEqual(quantized.int8Data?.count, 12)
+    }
+    
+    func testPerChannelRoundTripCHW() throws {
+        let numChannels = 3
+        let spatialSize = 4
+        let original: [Float] = [
+            0.0, 0.25, 0.5, 0.75,   // Channel 0
+            -1.0, -0.5, 0.5, 1.0,   // Channel 1
+            -2.0, -1.0, 1.0, 2.0    // Channel 2
+        ]
+        
+        // Calibrate
+        let params = Quantizer.calibratePerChannel(
+            data: original,
+            numChannels: numChannels,
+            spatialSize: spatialSize,
+            channelAxis: 0,
+            dtype: .int8
+        )
+        
+        // Quantize
+        let quantized = try Quantizer.quantize(
+            data: original,
+            options: QuantizationOptions(
+                mode: .perChannel,
+                dtype: .int8,
+                scale: params.scales,
+                zeroPoint: params.zeroPoints,
+                channelAxis: 0,
+                numChannels: numChannels,
+                spatialSize: spatialSize
+            )
+        )
+        
+        // Dequantize
+        let restored = try Quantizer.dequantize(
+            int8Data: quantized.int8Data,
+            scale: quantized.scale,
+            zeroPoint: quantized.zeroPoint,
+            mode: .perChannel,
+            numChannels: numChannels,
+            spatialSize: spatialSize,
+            channelAxis: 0
+        )
+        
+        // Verify round-trip accuracy
+        XCTAssertEqual(restored.count, original.count)
+        for i in 0..<original.count {
+            XCTAssertEqual(restored[i], original[i], accuracy: 0.05)
+        }
+    }
+    
+    func testPerChannelVsPerTensorAccuracy() throws {
+        // Create data where per-channel should clearly outperform per-tensor
+        let numChannels = 3
+        let spatialSize = 4
+        
+        // Deliberately different ranges per channel
+        let rChannel: [Float] = [0.0, 0.1, 0.2, 0.3]       // Range: 0.3
+        let gChannel: [Float] = [-1.0, -0.3, 0.3, 1.0]     // Range: 2.0
+        let bChannel: [Float] = [-10.0, -5.0, 5.0, 10.0]   // Range: 20.0
+        let original = rChannel + gChannel + bChannel
+        
+        // Per-Tensor
+        let tensorParams = Quantizer.calibrate(data: original, dtype: .int8)
+        let tensorQuantized = try Quantizer.quantize(
+            data: original,
+            options: QuantizationOptions(
+                mode: .perTensor,
+                dtype: .int8,
+                scale: [tensorParams.scale],
+                zeroPoint: [tensorParams.zeroPoint]
+            )
+        )
+        let tensorRestored = try Quantizer.dequantize(
+            int8Data: tensorQuantized.int8Data,
+            scale: tensorQuantized.scale,
+            zeroPoint: tensorQuantized.zeroPoint,
+            mode: .perTensor
+        )
+        
+        // Per-Channel
+        let channelParams = Quantizer.calibratePerChannel(
+            data: original,
+            numChannels: numChannels,
+            spatialSize: spatialSize,
+            channelAxis: 0,
+            dtype: .int8
+        )
+        let channelQuantized = try Quantizer.quantize(
+            data: original,
+            options: QuantizationOptions(
+                mode: .perChannel,
+                dtype: .int8,
+                scale: channelParams.scales,
+                zeroPoint: channelParams.zeroPoints,
+                channelAxis: 0,
+                numChannels: numChannels,
+                spatialSize: spatialSize
+            )
+        )
+        let channelRestored = try Quantizer.dequantize(
+            int8Data: channelQuantized.int8Data,
+            scale: channelQuantized.scale,
+            zeroPoint: channelQuantized.zeroPoint,
+            mode: .perChannel,
+            numChannels: numChannels,
+            spatialSize: spatialSize,
+            channelAxis: 0
+        )
+        
+        // Calculate errors
+        let tensorErrors = zip(original, tensorRestored).map { abs($0 - $1) }
+        let channelErrors = zip(original, channelRestored).map { abs($0 - $1) }
+        
+        let tensorAvgError = tensorErrors.reduce(0, +) / Float(tensorErrors.count)
+        let channelAvgError = channelErrors.reduce(0, +) / Float(channelErrors.count)
+        
+        // Per-channel should be more accurate (lower error)
+        XCTAssertLessThan(channelAvgError, tensorAvgError)
+        
+        // Specifically check R channel which has small range
+        let rTensorErrors = zip(rChannel, Array(tensorRestored[0..<spatialSize])).map { abs($0 - $1) }
+        let rChannelErrors = zip(rChannel, Array(channelRestored[0..<spatialSize])).map { abs($0 - $1) }
+        
+        let rTensorAvg = rTensorErrors.reduce(0, +) / Float(rTensorErrors.count)
+        let rChannelAvg = rChannelErrors.reduce(0, +) / Float(rChannelErrors.count)
+        
+        // R channel error should be much lower with per-channel
+        XCTAssertLessThan(rChannelAvg, rTensorAvg)
+    }
+    
+    func testPerChannelCalibrationDetectsRanges() {
+        let numChannels = 3
+        let spatialSize = 4
+        
+        // CHW layout with known ranges
+        let rChannel: [Float] = [0.0, 0.1, 0.2, 0.3]       // min=0, max=0.3
+        let gChannel: [Float] = [-1.0, -0.5, 0.5, 1.0]     // min=-1, max=1
+        let bChannel: [Float] = [-5.0, -2.0, 2.0, 5.0]     // min=-5, max=5
+        let data = rChannel + gChannel + bChannel
+        
+        let params = Quantizer.calibratePerChannel(
+            data: data,
+            numChannels: numChannels,
+            spatialSize: spatialSize,
+            channelAxis: 0,
+            dtype: .int8
+        )
+        
+        // Verify min/max detection
+        XCTAssertEqual(params.minValues[0], 0.0, accuracy: 0.001)
+        XCTAssertEqual(params.maxValues[0], 0.3, accuracy: 0.001)
+        XCTAssertEqual(params.minValues[1], -1.0, accuracy: 0.001)
+        XCTAssertEqual(params.maxValues[1], 1.0, accuracy: 0.001)
+        XCTAssertEqual(params.minValues[2], -5.0, accuracy: 0.001)
+        XCTAssertEqual(params.maxValues[2], 5.0, accuracy: 0.001)
+    }
+    
+    func testPerChannelQuantizationUInt8() throws {
+        let numChannels = 3
+        let spatialSize = 4
+        let original: [Float] = [
+            0.0, 0.25, 0.5, 0.75,
+            0.0, 0.33, 0.66, 1.0,
+            0.1, 0.2, 0.3, 0.4
+        ]
+        
+        let params = Quantizer.calibratePerChannel(
+            data: original,
+            numChannels: numChannels,
+            spatialSize: spatialSize,
+            channelAxis: 0,
+            dtype: .uint8
+        )
         
         let quantized = try Quantizer.quantize(
             data: original,
             options: QuantizationOptions(
                 mode: .perChannel,
                 dtype: .uint8,
-                scale: [Float(1.0 / 255.0), Float(1.0 / 255.0), Float(1.0 / 255.0)],
-                zeroPoint: [0, 0, 0]
+                scale: params.scales,
+                zeroPoint: params.zeroPoints,
+                channelAxis: 0,
+                numChannels: numChannels,
+                spatialSize: spatialSize
             )
         )
         
         XCTAssertNotNil(quantized.uint8Data)
         XCTAssertEqual(quantized.uint8Data?.count, 12)
+        
+        // Verify round-trip
+        let restored = try Quantizer.dequantize(
+            uint8Data: quantized.uint8Data,
+            scale: quantized.scale,
+            zeroPoint: quantized.zeroPoint,
+            mode: .perChannel,
+            numChannels: numChannels,
+            spatialSize: spatialSize,
+            channelAxis: 0
+        )
+        
+        for i in 0..<original.count {
+            XCTAssertEqual(restored[i], original[i], accuracy: 0.02)
+        }
+    }
+    
+    func testPerChannelPerformance() throws {
+        let numChannels = 3
+        let spatialSize = 224 * 224
+        let original = [Float](repeating: 0.5, count: numChannels * spatialSize)
+        
+        let params = Quantizer.calibratePerChannel(
+            data: original,
+            numChannels: numChannels,
+            spatialSize: spatialSize,
+            channelAxis: 0,
+            dtype: .int8
+        )
+        
+        measure {
+            let _ = try? Quantizer.quantize(
+                data: original,
+                options: QuantizationOptions(
+                    mode: .perChannel,
+                    dtype: .int8,
+                    scale: params.scales,
+                    zeroPoint: params.zeroPoints,
+                    channelAxis: 0,
+                    numChannels: numChannels,
+                    spatialSize: spatialSize
+                )
+            )
+        }
     }
     
     // MARK: - Edge Cases

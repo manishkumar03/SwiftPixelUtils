@@ -18,7 +18,7 @@ High-performance Swift library for image preprocessing optimized for ML/AI infer
 ## ✨ Features
 
 - 🚀 **High Performance**: Native implementations using Apple frameworks (Core Image, Accelerate, vImage, Core ML)
-- 🤖 **Simplified ML APIs**: One-line preprocessing (`getModelInput`) and postprocessing (`ClassificationOutput`) for all major frameworks
+- 🤖 **Simplified ML APIs**: One-line preprocessing (`getModelInput`) and postprocessing (`ClassificationOutput`, `DetectionOutput`) for all major frameworks
 - 🔢 **Raw Pixel Data**: Extract pixel values as typed arrays (Float, Int32, UInt8) ready for ML inference
 - 🎨 **Multiple Color Formats**: RGB, RGBA, BGR, BGRA, Grayscale, HSV, HSL, LAB, YUV, YCbCr
 - 📐 **Flexible Resizing**: Cover, contain, stretch, and letterbox strategies
@@ -227,7 +227,73 @@ if let top = result.topPrediction {
 - `.custom([String])` - Your own label array
 - `.none` - Returns "Class N" as labels
 
-### Complete TFLite Example
+### `DetectionOutput.process()` - One-Line Detection Postprocessing
+
+Process object detection model output (YOLO, SSD, etc.) with automatic parsing, NMS, and label mapping:
+
+```swift
+// Process YOLOv5 output in one line
+let result = try DetectionOutput.process(
+    floatOutput: outputArray,
+    format: .yolov5(numClasses: 80),
+    confidenceThreshold: 0.25,
+    iouThreshold: 0.45,
+    maxDetections: 20,
+    labels: .coco,
+    imageSize: originalImage.size,
+    modelInputSize: CGSize(width: 320, height: 320),
+    outputCoordinateSpace: .normalized  // TFLite YOLO outputs 0-1 coords
+)
+
+// Access detections
+for detection in result.detections {
+    print("\(detection.label): \(String(format: "%.1f%%", detection.confidence * 100))")
+    print("  Box: \(detection.boundingBox)")        // Normalized 0-1
+    print("  Pixels: \(detection.pixelBoundingBox!)") // Pixel coordinates
+}
+```
+
+#### Supported Detection Formats
+- `.yolov5(numClasses:)` - YOLOv5 format: [1, N, 5+classes]
+- `.yolov8(numClasses:)` - YOLOv8 format: [1, 4+classes, N]
+- `.yolov8Transposed(numClasses:)` - YOLOv8 already transposed
+- `.ssd(numClasses:)` - SSD MobileNet format
+- `.efficientDet(numClasses:)` - EfficientDet format
+
+#### Output Coordinate Space
+
+Different models output coordinates in different spaces. Use `outputCoordinateSpace` to handle this:
+
+```swift
+// TFLite YOLO models typically output normalized (0-1) coordinates
+outputCoordinateSpace: .normalized
+
+// Original PyTorch YOLO exports output pixel coordinates (0-640)
+outputCoordinateSpace: .pixelSpace  // default
+```
+
+#### Converting to Drawable Boxes
+
+Use `toDrawableBoxes()` to convert detections directly to visualization format:
+
+```swift
+// One-line conversion to drawable boxes
+let boxes = result.toDrawableBoxes(imageSize: image.size)
+
+// Draw on image
+let annotated = try Drawing.drawBoxes(
+    on: .uiImage(image),
+    boxes: boxes,
+    options: BoxDrawingOptions(lineWidth: 3, drawLabels: true, drawScores: true)
+)
+```
+
+The `toDrawableBoxes()` method:
+- Converts normalized coordinates to pixel coordinates
+- Applies `DetectionColorPalette` for per-class colors (20 distinct colors)
+- Returns `[DrawableBox]` ready for `Drawing.drawBoxes()`
+
+### Complete TFLite Classification Example
 
 Here's a complete example using both simplified APIs for image classification:
 
@@ -262,6 +328,63 @@ func classifyImage(_ image: UIImage) async throws -> [ClassificationPrediction] 
     )
     
     return result.predictions
+}
+```
+
+### Complete TFLite YOLO Detection Example
+
+Here's a complete example for YOLOv5 object detection with visualization:
+
+```swift
+import SwiftPixelUtils
+import TensorFlowLite
+
+func detectObjects(_ image: UIImage) async throws -> UIImage? {
+    let modelWidth = 320
+    let modelHeight = 320
+    
+    // 1. Preprocess - use .stretch for YOLO (direct coordinate mapping)
+    let input = try await PixelExtractor.getModelInput(
+        source: .uiImage(image),
+        framework: .tfliteFloat,
+        width: modelWidth,
+        height: modelHeight,
+        resizeStrategy: .stretch
+    )
+    
+    // 2. Run inference
+    let interpreter = try Interpreter(modelPath: yoloModelPath)
+    try interpreter.allocateTensors()
+    try interpreter.copy(input.data, toInputAt: 0)
+    try interpreter.invoke()
+    
+    // 3. Get output as float array
+    let output = try interpreter.output(at: 0)
+    let floatOutput = output.data.withUnsafeBytes { Array($0.bindMemory(to: Float.self)) }
+    
+    // 4. Postprocess - one line with outputCoordinateSpace
+    let result = try DetectionOutput.process(
+        floatOutput: floatOutput,
+        format: .yolov5(numClasses: 80),
+        confidenceThreshold: 0.25,
+        iouThreshold: 0.45,
+        maxDetections: 20,
+        labels: .coco,
+        imageSize: image.size,
+        modelInputSize: CGSize(width: modelWidth, height: modelHeight),
+        outputCoordinateSpace: .normalized  // TFLite YOLO outputs 0-1 coords
+    )
+    
+    // 5. Draw boxes - one line conversion to drawable format
+    let boxes = result.toDrawableBoxes(imageSize: image.size)
+    
+    let drawingResult = try Drawing.drawBoxes(
+        on: .uiImage(image),
+        boxes: boxes,
+        options: BoxDrawingOptions(lineWidth: 4, drawLabels: true, drawScores: true)
+    )
+    
+    return UIImage(cgImage: drawingResult.cgImage, scale: image.scale, orientation: image.imageOrientation)
 }
 ```
 

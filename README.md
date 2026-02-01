@@ -427,7 +427,7 @@ let results = try await PixelExtractor.batchGetPixelData(
 
 ### 🔍 Image Analysis
 
-#### `getImageStatistics(source:)`
+#### `ImageAnalyzer.getStatistics(source:)`
 
 Calculate image statistics for analysis and preprocessing decisions.
 
@@ -440,7 +440,7 @@ print(stats.max) // [r, g, b] maximum values
 print(stats.histogram) // RGB histograms
 ```
 
-#### `getImageMetadata(source:)`
+#### `ImageAnalyzer.getMetadata(source:)`
 
 Get image metadata without loading full pixel data.
 
@@ -453,7 +453,7 @@ print(metadata.colorSpace)
 print(metadata.hasAlpha)
 ```
 
-#### `validateImage(source:options:)`
+#### `ImageAnalyzer.validate(source:options:)`
 
 Validate an image against specified criteria.
 
@@ -469,9 +469,12 @@ let validation = try await ImageAnalyzer.validate(
         aspectRatioTolerance: 0.1
     )
 )
+
+print(validation.isValid)   // true if passes all checks
+print(validation.issues)    // Array of validation issues
 ```
 
-#### `detectBlur(source:threshold:downsampleSize:)`
+#### `ImageAnalyzer.detectBlur(source:threshold:downsampleSize:)`
 
 Detect if an image is blurry using Laplacian variance analysis.
 
@@ -488,14 +491,14 @@ print(result.score) // Laplacian variance score
 
 ### 🎨 Image Augmentation
 
-#### `applyAugmentations(source:augmentations:)`
+#### `ImageAugmentor.applyAugmentations(to:options:)`
 
 Apply image augmentations for data augmentation pipelines.
 
 ```swift
-let augmented = try await ImageAugmentor.apply(
-    source: .file(fileURL),
-    augmentations: AugmentationOptions(
+let augmented = try await ImageAugmentor.applyAugmentations(
+    to: .file(fileURL),
+    options: AugmentationOptions(
         rotation: 15, // Degrees
         horizontalFlip: true,
         verticalFlip: false,
@@ -507,7 +510,7 @@ let augmented = try await ImageAugmentor.apply(
 )
 ```
 
-#### `colorJitter(source:options:)`
+#### `ImageAugmentor.colorJitter(source:options:)`
 
 Apply color jitter augmentation with granular control.
 
@@ -524,7 +527,7 @@ let result = try await ImageAugmentor.colorJitter(
 )
 ```
 
-#### `cutout(source:options:)`
+#### `ImageAugmentor.cutout(source:options:)`
 
 Apply cutout (random erasing) augmentation.
 
@@ -544,7 +547,7 @@ let result = try await ImageAugmentor.cutout(
 
 ### 📦 Bounding Box Utilities
 
-#### `convertBoxFormat(_:from:to:)`
+#### `BoundingBox.convertFormat(_:from:to:)`
 
 Convert between bounding box formats (xyxy, xywh, cxcywh).
 
@@ -558,7 +561,7 @@ let converted = BoundingBox.convertFormat(
 // [[270, 200, 370, 280]] - [x1, y1, x2, y2]
 ```
 
-#### `scaleBoxes(_:from:to:format:)`
+#### `BoundingBox.scale(_:from:to:format:)`
 
 Scale bounding boxes between different image dimensions.
 
@@ -571,7 +574,7 @@ let scaled = BoundingBox.scale(
 )
 ```
 
-#### `clipBoxes(_:imageSize:format:)`
+#### `BoundingBox.clip(_:imageSize:format:)`
 
 Clip bounding boxes to image boundaries.
 
@@ -583,7 +586,7 @@ let clipped = BoundingBox.clip(
 )
 ```
 
-#### `calculateIoU(_:_:format:)`
+#### `BoundingBox.calculateIoU(_:_:format:)`
 
 Calculate Intersection over Union between two boxes.
 
@@ -595,7 +598,7 @@ let iou = BoundingBox.calculateIoU(
 )
 ```
 
-#### `nonMaxSuppression(detections:iouThreshold:scoreThreshold:maxDetections:)`
+#### `BoundingBox.nonMaxSuppression(detections:iouThreshold:scoreThreshold:maxDetections:)`
 
 Apply Non-Maximum Suppression to filter overlapping detections.
 
@@ -610,13 +613,13 @@ let filtered = BoundingBox.nonMaxSuppression(
     detections: detections,
     iouThreshold: 0.5,
     scoreThreshold: 0.3,
-    maxDetections: 100
+    maxDetections: 100  // Optional limit
 )
 ```
 
 ### 🧮 Tensor Operations
 
-#### `extractChannel(data:width:height:channels:channelIndex:dataLayout:)`
+#### `TensorOperations.extractChannel(data:width:height:channels:channelIndex:dataLayout:)`
 
 Extract a single channel from pixel data.
 
@@ -631,7 +634,7 @@ let redChannel = TensorOperations.extractChannel(
 )
 ```
 
-#### `permute(data:shape:order:)`
+#### `TensorOperations.permute(data:shape:order:)`
 
 Transpose/permute tensor dimensions.
 
@@ -644,7 +647,7 @@ let permuted = TensorOperations.permute(
 )
 ```
 
-#### `assembleBatch(results:layout:padToSize:)`
+#### `TensorOperations.assembleBatch(results:layout:padToSize:)`
 
 Assemble multiple results into a batch tensor.
 
@@ -659,89 +662,102 @@ print(batch.shape) // [3, 3, 224, 224] for NCHW
 
 ### 🎯 Quantization
 
-#### `quantize(data:mode:dtype:scale:zeroPoint:)`
+#### `Quantizer.quantize(data:options:)`
 
 Quantize float data to int8/uint8/int16 format.
 
 ```swift
 let quantized = try Quantizer.quantize(
     data: result.data,
-    mode: .perTensor,
-    dtype: .uint8,
-    scale: 0.0078125,
-    zeroPoint: 128
+    options: QuantizationOptions(
+        mode: .perTensor,
+        dtype: .uint8,
+        scale: [0.0078125],
+        zeroPoint: [128]
+    )
 )
 ```
 
-#### `dequantize(data:mode:dtype:scale:zeroPoint:)`
+#### `Quantizer.dequantize(uint8Data:scale:zeroPoint:)` / `dequantize(int8Data:...)`
 
 Convert quantized data back to float.
 
 ```swift
 let dequantized = try Quantizer.dequantize(
-    data: quantized.data,
-    mode: .perTensor,
-    dtype: .int8,
-    scale: 0.0078125,
-    zeroPoint: 0
+    uint8Data: quantizedArray,
+    scale: [0.0078125],
+    zeroPoint: [128]
 )
 ```
 
 ### 🖼️ Letterbox Padding
 
-#### `letterbox(source:targetSize:fillColor:)`
+#### `Letterbox.apply(to:options:)`
 
 Apply letterbox padding to an image.
 
 ```swift
-let result = try await Letterbox.apply(
-    source: .file(fileURL),
-    targetSize: CGSize(width: 640, height: 640),
-    fillColor: [114, 114, 114]
+let options = LetterboxOptions(
+    targetWidth: 640,
+    targetHeight: 640,
+    fillColor: (114, 114, 114),  // YOLO gray
+    scaleUp: true,
+    center: true
 )
 
-print(result.image) // Letterboxed UIImage/NSImage
-print(result.info) // Transform info for reverse mapping
+let result = try await Letterbox.apply(
+    to: .file(fileURL),
+    options: options
+)
+
+print(result.cgImage)      // Letterboxed CGImage
+print(result.scale)        // Scale factor applied
+print(result.offsetX)      // X padding offset
+print(result.offsetY)      // Y padding offset
 ```
 
-#### `reverseLetterbox(boxes:info:format:)`
+#### `Letterbox.reverseTransformBoxes(boxes:scale:offsetX:offsetY:)`
 
 Transform detection boxes back to original image coordinates.
 
 ```swift
-let originalBoxes = Letterbox.reverse(
+let originalBoxes = Letterbox.reverseTransformBoxes(
     boxes: detectedBoxes,
-    info: result.info,
-    format: .xyxy
+    scale: letterboxResult.scale,
+    offsetX: letterboxResult.offsetX,
+    offsetY: letterboxResult.offsetY
 )
 ```
 
 ### 🎨 Drawing & Visualization
 
-#### `drawBoxes(image:boxes:options:)`
+#### `Drawing.drawBoxes(on:boxes:options:)`
 
 Draw bounding boxes with labels on an image.
 
 ```swift
-let visualized = try Drawing.drawBoxes(
-    image: image,
+let result = try Drawing.drawBoxes(
+    on: .uiImage(image),
     boxes: [
-        BoxAnnotation(box: [100, 100, 200, 200], label: "person", score: 0.95, classIndex: 0),
-        BoxAnnotation(box: [300, 150, 400, 350], label: "dog", score: 0.87, classIndex: 16)
+        DrawableBox(box: [100, 100, 200, 200], label: "person", score: 0.95, color: (255, 0, 0, 255)),
+        DrawableBox(box: [300, 150, 400, 350], label: "dog", score: 0.87, color: (0, 255, 0, 255))
     ],
-    options: DrawingOptions(
+    options: BoxDrawingOptions(
         lineWidth: 3,
         fontSize: 14,
-        drawLabels: true
+        drawLabels: true,
+        drawScores: true
     )
 )
+
+let annotatedImage = result.cgImage
 ```
 
 ### 🏷️ Label Database
 
 Built-in label databases for common ML classification and detection models.
 
-#### `getLabel(index:dataset:)`
+#### `LabelDatabase.getLabel(_:dataset:)`
 
 Get a label by its class index.
 
@@ -749,7 +765,7 @@ Get a label by its class index.
 let label = LabelDatabase.getLabel(0, dataset: .coco) // Returns "person"
 ```
 
-#### `getTopLabels(scores:dataset:k:minConfidence:)`
+#### `LabelDatabase.getTopLabels(scores:dataset:k:minConfidence:)`
 
 Get top-K labels from prediction scores.
 
@@ -882,7 +898,7 @@ public enum PixelUtilsError: Error {
 
 | Tip | Description |
 |-----|-------------|
-| 🤖 Simplified APIs | Use `getModelInput()` and `ClassificationOutput.process()` for the easiest integration |
+| 🤖 Simplified APIs | Use `getModelInput()`, `ClassificationOutput.process()`, and `DetectionOutput.process()` for the easiest integration |
 | 🎯 Resize Strategies | Use letterbox for YOLO, cover for classification models |
 | 📦 Batch Processing | Process multiple images concurrently for better performance |
 | ⚙️ Model Presets | Pre-configured settings are optimized for each model |

@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		7941C6A82F2E905B001DD805 /* SwiftPixelUtils in Frameworks */ = {isa = PBXBuildFile; productRef = 7941C6A72F2E905B001DD805 /* SwiftPixelUtils */; };
+		B2C357F1C66384DD6180341A /* Pods_SwiftPixelUtilsExampleApp.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = BEB81E061C551E41E9B08EAC /* Pods_SwiftPixelUtilsExampleApp.framework */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -28,9 +29,12 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		5D2B01C643FBC65B8C3E37DE /* Pods-SwiftPixelUtilsExampleApp.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-SwiftPixelUtilsExampleApp.release.xcconfig"; path = "Target Support Files/Pods-SwiftPixelUtilsExampleApp/Pods-SwiftPixelUtilsExampleApp.release.xcconfig"; sourceTree = "<group>"; };
+		677893A1DEB95A600B617837 /* Pods-SwiftPixelUtilsExampleApp.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-SwiftPixelUtilsExampleApp.debug.xcconfig"; path = "Target Support Files/Pods-SwiftPixelUtilsExampleApp/Pods-SwiftPixelUtilsExampleApp.debug.xcconfig"; sourceTree = "<group>"; };
 		7941C6702F2E8FB3001DD805 /* SwiftPixelUtilsExampleApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SwiftPixelUtilsExampleApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		7941C67D2F2E8FB5001DD805 /* SwiftPixelUtilsExampleAppTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = SwiftPixelUtilsExampleAppTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		7941C6872F2E8FB5001DD805 /* SwiftPixelUtilsExampleAppUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = SwiftPixelUtilsExampleAppUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		BEB81E061C551E41E9B08EAC /* Pods_SwiftPixelUtilsExampleApp.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_SwiftPixelUtilsExampleApp.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -57,6 +61,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				7941C6A82F2E905B001DD805 /* SwiftPixelUtils in Frameworks */,
+				B2C357F1C66384DD6180341A /* Pods_SwiftPixelUtilsExampleApp.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -77,6 +82,14 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		4D860945ADDE0EEEA9062B85 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				BEB81E061C551E41E9B08EAC /* Pods_SwiftPixelUtilsExampleApp.framework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
 		7941C6672F2E8FB3001DD805 = {
 			isa = PBXGroup;
 			children = (
@@ -84,6 +97,8 @@
 				7941C6802F2E8FB5001DD805 /* SwiftPixelUtilsExampleAppTests */,
 				7941C68A2F2E8FB5001DD805 /* SwiftPixelUtilsExampleAppUITests */,
 				7941C6712F2E8FB3001DD805 /* Products */,
+				8CE098FF06B10F4C7A87B42F /* Pods */,
+				4D860945ADDE0EEEA9062B85 /* Frameworks */,
 			);
 			sourceTree = "<group>";
 		};
@@ -97,6 +112,15 @@
 			name = Products;
 			sourceTree = "<group>";
 		};
+		8CE098FF06B10F4C7A87B42F /* Pods */ = {
+			isa = PBXGroup;
+			children = (
+				677893A1DEB95A600B617837 /* Pods-SwiftPixelUtilsExampleApp.debug.xcconfig */,
+				5D2B01C643FBC65B8C3E37DE /* Pods-SwiftPixelUtilsExampleApp.release.xcconfig */,
+			);
+			path = Pods;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -104,9 +128,11 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 7941C6912F2E8FB5001DD805 /* Build configuration list for PBXNativeTarget "SwiftPixelUtilsExampleApp" */;
 			buildPhases = (
+				5A7D54FF2F819F01B07BF26D /* [CP] Check Pods Manifest.lock */,
 				7941C66C2F2E8FB3001DD805 /* Sources */,
 				7941C66D2F2E8FB3001DD805 /* Frameworks */,
 				7941C66E2F2E8FB3001DD805 /* Resources */,
+				5F60A7E23ED12A85F8393ABB /* [CP] Copy Pods Resources */,
 			);
 			buildRules = (
 			);
@@ -140,8 +166,6 @@
 				7941C6802F2E8FB5001DD805 /* SwiftPixelUtilsExampleAppTests */,
 			);
 			name = SwiftPixelUtilsExampleAppTests;
-			packageProductDependencies = (
-			);
 			productName = SwiftPixelUtilsExampleAppTests;
 			productReference = 7941C67D2F2E8FB5001DD805 /* SwiftPixelUtilsExampleAppTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
@@ -163,8 +187,6 @@
 				7941C68A2F2E8FB5001DD805 /* SwiftPixelUtilsExampleAppUITests */,
 			);
 			name = SwiftPixelUtilsExampleAppUITests;
-			packageProductDependencies = (
-			);
 			productName = SwiftPixelUtilsExampleAppUITests;
 			productReference = 7941C6872F2E8FB5001DD805 /* SwiftPixelUtilsExampleAppUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
@@ -239,6 +261,52 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		5A7D54FF2F819F01B07BF26D /* [CP] Check Pods Manifest.lock */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+				"${PODS_PODFILE_DIR_PATH}/Podfile.lock",
+				"${PODS_ROOT}/Manifest.lock",
+			);
+			name = "[CP] Check Pods Manifest.lock";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+				"$(DERIVED_FILE_DIR)/Pods-SwiftPixelUtilsExampleApp-checkManifestLockResult.txt",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "diff \"${PODS_PODFILE_DIR_PATH}/Podfile.lock\" \"${PODS_ROOT}/Manifest.lock\" > /dev/null\nif [ $? != 0 ] ; then\n    # print error to STDERR\n    echo \"error: The sandbox is not in sync with the Podfile.lock. Run 'pod install' or update your CocoaPods installation.\" >&2\n    exit 1\nfi\n# This output is used by Xcode 'outputs' to avoid re-running this script phase.\necho \"SUCCESS\" > \"${SCRIPT_OUTPUT_FILE_0}\"\n";
+			showEnvVarsInLog = 0;
+		};
+		5F60A7E23ED12A85F8393ABB /* [CP] Copy Pods Resources */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+				"${PODS_ROOT}/Target Support Files/Pods-SwiftPixelUtilsExampleApp/Pods-SwiftPixelUtilsExampleApp-resources-${CONFIGURATION}-input-files.xcfilelist",
+			);
+			inputPaths = (
+			);
+			name = "[CP] Copy Pods Resources";
+			outputFileListPaths = (
+				"${PODS_ROOT}/Target Support Files/Pods-SwiftPixelUtilsExampleApp/Pods-SwiftPixelUtilsExampleApp-resources-${CONFIGURATION}-output-files.xcfilelist",
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-SwiftPixelUtilsExampleApp/Pods-SwiftPixelUtilsExampleApp-resources.sh\"\n";
+			showEnvVarsInLog = 0;
+		};
+/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		7941C66C2F2E8FB3001DD805 /* Sources */ = {
@@ -401,6 +469,7 @@
 		};
 		7941C6922F2E8FB5001DD805 /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 677893A1DEB95A600B617837 /* Pods-SwiftPixelUtilsExampleApp.debug.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
@@ -408,6 +477,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = J4VPUT8SM9;
 				ENABLE_PREVIEWS = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -434,6 +504,7 @@
 		};
 		7941C6932F2E8FB5001DD805 /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 5D2B01C643FBC65B8C3E37DE /* Pods-SwiftPixelUtilsExampleApp.release.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
@@ -441,6 +512,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = J4VPUT8SM9;
 				ENABLE_PREVIEWS = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;

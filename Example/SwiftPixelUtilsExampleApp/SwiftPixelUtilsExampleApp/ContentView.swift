@@ -10,6 +10,13 @@ import SwiftUI
 struct ContentView: View {
     var body: some View {
         TabView {
+            NavigationStack {
+                TFLiteInferenceView()
+            }
+            .tabItem {
+                Label("Inference", systemImage: "brain")
+            }
+            
             PixelExtractionView()
                 .tabItem {
                     Label("Pixels", systemImage: "square.grid.3x3")

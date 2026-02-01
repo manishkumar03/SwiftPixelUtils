@@ -532,4 +532,128 @@ final class SwiftPixelUtilsTests: XCTestCase {
         XCTAssertEqual(roundTripData.count, data.count)
     }
     #endif
+    
+    // MARK: - DetectionOutput Tests
+    
+    func testDetectionOutputYOLOv8() throws {
+        // Simulate YOLOv8 output: [1, 84, N] format (4 boxes + 80 classes, 3 detections)
+        // We'll use the transposed format for easier setup: [N, 84]
+        let numClasses = 80
+        let numDetections = 3
+        let stride = 4 + numClasses  // 84
+        
+        var output = [Float](repeating: 0, count: numDetections * stride)
+        
+        // Detection 1: person (class 0) at center (320, 240) with size (100, 200), confidence 0.9
+        output[0] = 320  // cx
+        output[1] = 240  // cy
+        output[2] = 100  // w
+        output[3] = 200  // h
+        output[4] = 0.9  // class 0 (person) confidence
+        
+        // Detection 2: car (class 2) at center (400, 300), confidence 0.7
+        output[stride + 0] = 400
+        output[stride + 1] = 300
+        output[stride + 2] = 150
+        output[stride + 3] = 100
+        output[stride + 6] = 0.7  // class 2 (car) confidence
+        
+        // Detection 3: low confidence detection, should be filtered
+        output[stride * 2 + 0] = 100
+        output[stride * 2 + 1] = 100
+        output[stride * 2 + 2] = 50
+        output[stride * 2 + 3] = 50
+        output[stride * 2 + 4] = 0.1  // below threshold
+        
+        let result = try DetectionOutput.process(
+            floatOutput: output,
+            format: .yolov8Transposed(numClasses: numClasses),
+            confidenceThreshold: 0.5,
+            iouThreshold: 0.45,
+            labels: .coco,
+            modelInputSize: CGSize(width: 640, height: 640)
+        )
+        
+        // Should have 2 detections after confidence filtering
+        XCTAssertEqual(result.detections.count, 2)
+        XCTAssertEqual(result.rawDetectionCount, 3)
+        
+        // Check first detection (highest confidence)
+        let topDetection = result.detections[0]
+        XCTAssertEqual(topDetection.classIndex, 0)
+        XCTAssertEqual(topDetection.label, "person")
+        XCTAssertEqual(topDetection.confidence, 0.9, accuracy: 0.01)
+        
+        // Check second detection
+        let secondDetection = result.detections[1]
+        XCTAssertEqual(secondDetection.classIndex, 2)
+        XCTAssertEqual(secondDetection.label, "car")
+        XCTAssertEqual(secondDetection.confidence, 0.7, accuracy: 0.01)
+    }
+    
+    func testDetectionOutputNMS() throws {
+        // Test NMS by creating overlapping detections
+        let numClasses = 80
+        let stride = 4 + numClasses
+        
+        var output = [Float](repeating: 0, count: 2 * stride)
+        
+        // Two overlapping detections of the same class
+        // Detection 1: high confidence
+        output[0] = 320  // cx
+        output[1] = 240  // cy
+        output[2] = 100  // w
+        output[3] = 100  // h
+        output[4] = 0.9  // class 0 confidence
+        
+        // Detection 2: lower confidence, overlapping significantly
+        output[stride + 0] = 330  // cx (slightly offset)
+        output[stride + 1] = 250  // cy
+        output[stride + 2] = 100  // w
+        output[stride + 3] = 100  // h
+        output[stride + 4] = 0.7  // class 0 confidence
+        
+        let result = try DetectionOutput.process(
+            floatOutput: output,
+            format: .yolov8Transposed(numClasses: numClasses),
+            confidenceThreshold: 0.5,
+            iouThreshold: 0.45,  // Low threshold, should suppress overlapping
+            labels: .coco,
+            modelInputSize: CGSize(width: 640, height: 640)
+        )
+        
+        // NMS should keep only one detection due to high overlap
+        XCTAssertEqual(result.detections.count, 1)
+        XCTAssertEqual(result.detections[0].confidence, 0.9, accuracy: 0.01)
+    }
+    
+    func testDetectionResultFiltering() throws {
+        // Create a DetectionResult with multiple classes
+        let detections = [
+            ObjectDetection(classIndex: 0, label: "person", confidence: 0.9, boundingBox: CGRect(x: 0.1, y: 0.1, width: 0.2, height: 0.3)),
+            ObjectDetection(classIndex: 0, label: "person", confidence: 0.7, boundingBox: CGRect(x: 0.5, y: 0.5, width: 0.2, height: 0.3)),
+            ObjectDetection(classIndex: 2, label: "car", confidence: 0.8, boundingBox: CGRect(x: 0.3, y: 0.3, width: 0.3, height: 0.2))
+        ]
+        
+        let result = DetectionResult(
+            detections: detections,
+            processingTimeMs: 10.0,
+            rawDetectionCount: 100,
+            postConfidenceFilterCount: 10
+        )
+        
+        // Test filtering by class
+        let personDetections = result.filter(byClass: 0)
+        XCTAssertEqual(personDetections.count, 2)
+        
+        let carDetections = result.filter(byClass: 2)
+        XCTAssertEqual(carDetections.count, 1)
+        
+        // Test filtering by label
+        let personsByLabel = result.filter(byLabel: "person")
+        XCTAssertEqual(personsByLabel.count, 2)
+        
+        let carsByLabel = result.filter(byLabel: "Car")  // Case insensitive
+        XCTAssertEqual(carsByLabel.count, 1)
+    }
 }

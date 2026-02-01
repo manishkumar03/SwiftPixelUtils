@@ -9,6 +9,33 @@ import SwiftUI
 import SwiftPixelUtils
 import TensorFlowLite
 
+// MARK: - Task Type Enum
+enum InferenceTask: String, CaseIterable {
+    case classification = "Image Classification"
+    case detection = "Object Detection"
+    
+    var icon: String {
+        switch self {
+        case .classification: return "photo.badge.checkmark"
+        case .detection: return "viewfinder.rectangular"
+        }
+    }
+    
+    var modelName: String {
+        switch self {
+        case .classification: return "mobilenet_v2_quant_tflite"
+        case .detection: return "yolov5s_fp16_tflite"
+        }
+    }
+    
+    var inputSize: Int {
+        switch self {
+        case .classification: return 224
+        case .detection: return 320  // YOLOv5s from neso613 repo uses 320x320
+        }
+    }
+}
+
 struct TFLiteInferenceView: View {
     // Sample images from Resources folder
     private let sampleImages = ["dog", "car", "lion"]
@@ -18,27 +45,62 @@ struct TFLiteInferenceView: View {
     @State private var isRunning = false
     @State private var resultText = "Select an image and tap 'Run Inference'"
     @State private var topPredictions: [(label: String, confidence: Float)] = []
+    @State private var detections: [ObjectDetection] = []
     @State private var inferenceTime: Double = 0
+    @State private var selectedTask: InferenceTask = .classification
     
     /// Load an image from the Resources folder in the bundle
     private func loadBundleImage(named name: String) -> UIImage? {
-        // Try loading from bundle's Resources folder
         if let path = Bundle.main.path(forResource: name, ofType: "jpg", inDirectory: "Resources") {
             return UIImage(contentsOfFile: path)
         }
-        // Fallback to standard bundle resource
         if let path = Bundle.main.path(forResource: name, ofType: "jpg") {
             return UIImage(contentsOfFile: path)
         }
-        // Fallback to asset catalog
         return UIImage(named: name)
     }
     
     var body: some View {
-        ScrollView {
-            VStack(spacing: 20) {
-                // Image Selection
-                GroupBox("Select Image") {
+        List {
+            // MARK: - Task Selection Section
+            Section {
+                ForEach(InferenceTask.allCases, id: \.self) { task in
+                    Button {
+                        selectedTask = task
+                        clearResults()
+                    } label: {
+                        HStack {
+                            Image(systemName: task.icon)
+                                .font(.title2)
+                                .foregroundColor(selectedTask == task ? .blue : .secondary)
+                                .frame(width: 32)
+                            
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(task.rawValue)
+                                    .font(.headline)
+                                    .foregroundColor(.primary)
+                                Text(task == .classification ? "MobileNet V2" : "YOLOv5s")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                            
+                            Spacer()
+                            
+                            if selectedTask == task {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .foregroundColor(.blue)
+                            }
+                        }
+                    }
+                    .buttonStyle(.plain)
+                }
+            } header: {
+                Text("Task")
+            }
+            
+            // MARK: - Image Selection Section
+            Section {
+                ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 12) {
                         ForEach(sampleImages, id: \.self) { imageName in
                             Button {
@@ -50,7 +112,7 @@ struct TFLiteInferenceView: View {
                                         Image(uiImage: uiImage)
                                             .resizable()
                                             .scaledToFill()
-                                            .frame(width: 80, height: 80)
+                                            .frame(width: 70, height: 70)
                                             .clipShape(RoundedRectangle(cornerRadius: 8))
                                             .overlay(
                                                 RoundedRectangle(cornerRadius: 8)
@@ -59,102 +121,122 @@ struct TFLiteInferenceView: View {
                                     } else {
                                         Rectangle()
                                             .fill(Color.gray.opacity(0.3))
-                                            .frame(width: 80, height: 80)
+                                            .frame(width: 70, height: 70)
                                             .clipShape(RoundedRectangle(cornerRadius: 8))
                                     }
                                     Text(imageName.capitalized)
-                                        .font(.caption)
+                                        .font(.caption2)
                                         .foregroundColor(selectedImage == imageName ? .blue : .primary)
                                 }
                             }
                             .buttonStyle(.plain)
                         }
                     }
-                    .padding(.vertical, 8)
+                    .padding(.vertical, 4)
                 }
                 
                 // Selected Image Preview
                 if let image = loadedImage {
-                    GroupBox("Selected Image") {
+                    HStack {
+                        Spacer()
                         Image(uiImage: image)
                             .resizable()
                             .scaledToFit()
-                            .frame(maxHeight: 200)
+                            .frame(maxHeight: 180)
                             .clipShape(RoundedRectangle(cornerRadius: 12))
+                        Spacer()
                     }
                 }
-                
-                // Run Inference Button
+            } header: {
+                Text("Input Image")
+            }
+            
+            // MARK: - Run Inference Section
+            Section {
                 Button {
                     Task {
                         await runInference()
                     }
                 } label: {
                     HStack {
+                        Spacer()
                         if isRunning {
                             ProgressView()
-                                .tint(.white)
+                                .padding(.trailing, 8)
                         }
-                        Text(isRunning ? "Running..." : "Run Inference")
+                        Text(isRunning ? "Running..." : "Run \(selectedTask.rawValue)")
+                            .fontWeight(.semibold)
+                        Spacer()
                     }
-                    .frame(maxWidth: .infinity)
-                    .padding()
                 }
-                .buttonStyle(.borderedProminent)
                 .disabled(isRunning || loadedImage == nil)
-                
-                // Results
-                if !topPredictions.isEmpty {
-                    GroupBox {
-                        VStack(spacing: 0) {
-                            ForEach(Array(topPredictions.enumerated()), id: \.offset) { index, prediction in
-                                PredictionRow(
-                                    rank: index + 1,
-                                    label: prediction.label,
-                                    confidence: prediction.confidence,
-                                    isTop: index == 0
-                                )
-                                
-                                if index < topPredictions.count - 1 {
-                                    Divider()
-                                        .padding(.vertical, 8)
-                                }
-                            }
-                        }
-                        .padding(.vertical, 8)
-                    } label: {
-                        Label("Top Predictions", systemImage: "chart.bar.fill")
-                            .font(.headline)
+            }
+            
+            // MARK: - Results Section
+            if selectedTask == .classification && !topPredictions.isEmpty {
+                Section {
+                    ForEach(Array(topPredictions.enumerated()), id: \.offset) { index, prediction in
+                        PredictionRow(
+                            rank: index + 1,
+                            label: prediction.label,
+                            confidence: prediction.confidence,
+                            isTop: index == 0
+                        )
                     }
-                    
-                    GroupBox("Performance") {
-                        HStack {
-                            Text("Inference Time:")
-                            Spacer()
-                            Text(String(format: "%.2f ms", inferenceTime))
-                                .fontWeight(.medium)
-                        }
-                    }
-                }
-                
-                // Status/Error Text
-                GroupBox("Status") {
-                    Text(resultText)
-                        .font(.system(.caption, design: .monospaced))
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                } header: {
+                    Label("Classification Results", systemImage: "chart.bar.fill")
                 }
             }
-            .padding()
+            
+            if selectedTask == .detection && !detections.isEmpty {
+                Section {
+                    ForEach(Array(detections.enumerated()), id: \.offset) { index, detection in
+                        DetectionRow(detection: detection, rank: index + 1)
+                    }
+                } header: {
+                    Label("Detected Objects (\(detections.count))", systemImage: "viewfinder.rectangular")
+                }
+            }
+            
+            // MARK: - Performance Section
+            if inferenceTime > 0 {
+                Section {
+                    HStack {
+                        Text("Inference Time")
+                        Spacer()
+                        Text(String(format: "%.2f ms", inferenceTime))
+                            .fontWeight(.medium)
+                            .foregroundColor(.blue)
+                    }
+                } header: {
+                    Text("Performance")
+                }
+            }
+            
+            // MARK: - Status Section
+            Section {
+                Text(resultText)
+                    .font(.system(.caption, design: .monospaced))
+            } header: {
+                Text("Status")
+            }
         }
+        .listStyle(.insetGrouped)
         .onAppear {
             loadSelectedImage()
         }
     }
     
+    private func clearResults() {
+        topPredictions = []
+        detections = []
+        inferenceTime = 0
+        resultText = "Tap 'Run \(selectedTask.rawValue)' to process the image"
+    }
+    
     private func loadSelectedImage() {
         loadedImage = loadBundleImage(named: selectedImage)
-        topPredictions = []
-        resultText = "Tap 'Run Inference' to classify the image"
+        clearResults()
     }
     
     private func runInference() async {
@@ -164,50 +246,54 @@ struct TFLiteInferenceView: View {
         }
         
         isRunning = true
-        resultText = "Preprocessing image..."
         topPredictions = []
+        detections = []
+        
+        switch selectedTask {
+        case .classification:
+            await runClassification(image: image)
+        case .detection:
+            await runDetection(image: image)
+        }
+        
+        isRunning = false
+    }
+    
+    // MARK: - Classification Inference
+    private func runClassification(image: UIImage) async {
+        resultText = "Preprocessing image..."
         
         do {
-            // Step 1: Preprocess image using SwiftPixelUtils simplified API
-            // Just specify the framework - all decisions are made automatically!
-            // .tfliteQuantized gives us: 224x224 RGB, UInt8 values (0-255), NHWC layout
             let modelInput = try await PixelExtractor.getModelInput(
                 source: .uiImage(image),
-                framework: .tfliteQuantized,  // One line! Handles everything automatically
+                framework: .tfliteQuantized,
                 width: 224,
                 height: 224
             )
             
-            // modelInput.data is ready to pass directly to the model
             let inputData = modelInput.data
             let preprocessTime = modelInput.processingTimeMs
             
-            resultText = "Preprocessing: \(String(format: "%.2f", preprocessTime)) ms\nLoading model..."
+            resultText = "Loading model..."
             
-            // Step 2: Load TFLite model
             var modelPath: String? = Bundle.main.path(forResource: "mobilenet_v2_quant_tflite", ofType: "tflite", inDirectory: "Resources")
             if modelPath == nil {
                 modelPath = Bundle.main.path(forResource: "mobilenet_v2_quant_tflite", ofType: "tflite")
             }
             
             guard let finalModelPath = modelPath else {
-                resultText = "❌ Model not found. Please add mobilenet_v2_quant_tflite.tflite to the app bundle."
-                isRunning = false
+                resultText = "❌ Model not found"
                 return
             }
             
             let interpreter = try Interpreter(modelPath: finalModelPath)
             try interpreter.allocateTensors()
             
-            // Step 3: Run inference
             let startInference = CFAbsoluteTimeGetCurrent()
-            
             try interpreter.copy(inputData, toInputAt: 0)
             try interpreter.invoke()
-            
             inferenceTime = (CFAbsoluteTimeGetCurrent() - startInference) * 1000
             
-            // Step 4: Process output with one line using ClassificationOutput
             let outputTensor = try interpreter.output(at: 0)
             let quantParams = outputTensor.quantizationParameters
             
@@ -217,29 +303,193 @@ struct TFLiteInferenceView: View {
                     ? .uint8(scale: quantParams!.scale, zeroPoint: quantParams!.zeroPoint)
                     : .none,
                 topK: 5,
-                labels: .imagenet(hasBackgroundClass: true)  // MobileNet has 1001 classes (background + 1000)
+                labels: .imagenet(hasBackgroundClass: true)
             )
             
             await MainActor.run {
                 topPredictions = classificationResult.predictions.map { ($0.label, $0.confidence) }
-                
                 resultText = """
-                ✅ Inference complete!
-                
+                ✅ Classification complete!
                 Model: MobileNet V2 (Quantized)
-                Input: \(modelInput.width)×\(modelInput.height) RGB (\(modelInput.dataType))
-                Output: \(outputTensor.data.count) classes
-                Preprocessing: \(String(format: "%.2f", preprocessTime)) ms
+                Preprocess: \(String(format: "%.2f", preprocessTime)) ms
                 Inference: \(String(format: "%.2f", inferenceTime)) ms
-                Output Processing: \(String(format: "%.2f", classificationResult.processingTimeMs)) ms
                 """
             }
             
         } catch {
             resultText = "❌ Error: \(error.localizedDescription)"
         }
+    }
+    
+    // MARK: - Detection Inference
+    private func runDetection(image: UIImage) async {
+        resultText = "Loading YOLOv5 model..."
         
-        isRunning = false
+        do {
+            var modelPath: String? = Bundle.main.path(forResource: "yolov5s_fp16_tflite", ofType: "tflite", inDirectory: "Resources")
+            if modelPath == nil {
+                modelPath = Bundle.main.path(forResource: "yolov5s_fp16_tflite", ofType: "tflite")
+            }
+            
+            guard let finalModelPath = modelPath else {
+                resultText = "❌ YOLOv5 model not found. Add yolov5s_fp16_tflite.tflite to Resources."
+                return
+            }
+            
+            var options = Interpreter.Options()
+            options.threadCount = 4
+            let interpreter = try Interpreter(modelPath: finalModelPath, options: options)
+            try interpreter.allocateTensors()
+            
+            // Check input tensor type to determine the right preprocessing
+            let inputTensor = try interpreter.input(at: 0)
+            let inputType = inputTensor.dataType
+            let expectedBytes = inputTensor.data.count
+            
+            // Get actual dimensions from model shape [batch, height, width, channels]
+            let inputShape = inputTensor.shape
+            let modelHeight = inputShape.dimensions[1]
+            let modelWidth = inputShape.dimensions[2]
+            let modelChannels = inputShape.dimensions[3]
+            
+            print("Model input - type: \(inputType), shape: \(inputShape), bytes: \(expectedBytes)")
+            print("Model dimensions - \(modelWidth)x\(modelHeight)x\(modelChannels)")
+            
+            // Calculate expected sizes based on ACTUAL model dimensions
+            let pixelCount = modelWidth * modelHeight * modelChannels
+            let uint8Size = pixelCount * 1      // 1 byte per value
+            let float32Size = pixelCount * 4    // 4 bytes per value
+            
+            print("Expected sizes - UInt8: \(uint8Size), Float32: \(float32Size)")
+            
+            resultText = "Preprocessing... (expects \(expectedBytes) bytes)"
+            
+            // Determine framework based on actual byte count AND data type
+            let framework: MLFramework
+            if expectedBytes == uint8Size && inputType == .uInt8 {
+                framework = .tfliteQuantized  // Model expects UInt8 [0-255]
+                print("Detected UInt8 input")
+            } else if expectedBytes == float32Size || inputType == .float32 {
+                framework = .tfliteFloat      // Model expects Float32 [0-1]
+                print("Detected Float32 input")
+            } else {
+                // Default based on data type
+                framework = (inputType == .uInt8) ? .tfliteQuantized : .tfliteFloat
+                print("Fallback detection based on dataType: \(framework)")
+            }
+            
+            let modelInput = try await PixelExtractor.getModelInput(
+                source: .uiImage(image),
+                framework: framework,
+                width: modelWidth,
+                height: modelHeight
+            )
+            
+            let inputData = modelInput.data
+            let preprocessTime = modelInput.processingTimeMs
+            
+            print("Preprocessed input - bytes: \(inputData.count), expected: \(expectedBytes)")
+            
+            // Verify sizes match
+            guard inputData.count == expectedBytes else {
+                resultText = """
+                ❌ Input size mismatch!
+                Got: \(inputData.count) bytes
+                Expected: \(expectedBytes) bytes
+                Model type: \(inputType)
+                Framework: \(framework)
+                Model size: \(modelWidth)x\(modelHeight)
+                
+                The model may need different preprocessing.
+                """
+                return
+            }
+            
+            resultText = "Running inference... (shape: \(inputShape), type: \(inputType))"
+            
+            let startInference = CFAbsoluteTimeGetCurrent()
+            try interpreter.copy(inputData, toInputAt: 0)
+            try interpreter.invoke()
+            inferenceTime = (CFAbsoluteTimeGetCurrent() - startInference) * 1000
+            
+            let outputTensor = try interpreter.output(at: 0)
+            let outputShape = outputTensor.shape
+            
+            let outputData = outputTensor.data
+            let floatOutput = outputData.withUnsafeBytes { buffer in
+                Array(buffer.bindMemory(to: Float.self))
+            }
+            
+            let detectionResult = try DetectionOutput.process(
+                floatOutput: floatOutput,
+                format: .yolov5(numClasses: 80),
+                confidenceThreshold: 0.25,
+                iouThreshold: 0.45,
+                maxDetections: 20,
+                labels: .coco,
+                imageSize: CGSize(width: image.size.width, height: image.size.height),
+                modelInputSize: CGSize(width: Double(modelWidth), height: Double(modelHeight))
+            )
+            
+            await MainActor.run {
+                detections = detectionResult.detections
+                resultText = """
+                ✅ Detection complete!
+                Model: YOLOv5s (FP16)
+                Output shape: \(outputShape)
+                Raw detections: \(detectionResult.rawDetectionCount)
+                After NMS: \(detectionResult.detections.count) objects
+                Preprocess: \(String(format: "%.2f", preprocessTime)) ms
+                Inference: \(String(format: "%.2f", inferenceTime)) ms
+                """
+            }
+            
+        } catch {
+            resultText = "❌ Error: \(error.localizedDescription)"
+        }
+    }
+}
+
+// MARK: - Detection Row Component
+struct DetectionRow: View {
+    let detection: ObjectDetection
+    let rank: Int
+    
+    private var confidenceColor: Color {
+        if detection.confidence > 0.7 { return .green }
+        if detection.confidence > 0.5 { return .blue }
+        if detection.confidence > 0.3 { return .orange }
+        return .red
+    }
+    
+    var body: some View {
+        HStack(spacing: 12) {
+            // Rank badge
+            ZStack {
+                Circle()
+                    .fill(confidenceColor.opacity(0.2))
+                    .frame(width: 32, height: 32)
+                Text("\(rank)")
+                    .font(.system(.subheadline, design: .rounded, weight: .bold))
+                    .foregroundColor(confidenceColor)
+            }
+            
+            VStack(alignment: .leading, spacing: 4) {
+                Text(detection.label)
+                    .font(.headline)
+                
+                Text(String(format: "%.1f%% confidence", detection.confidence * 100))
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            
+            Spacer()
+            
+            Text(String(format: "%.0f%%", detection.confidence * 100))
+                .font(.system(.title3, design: .rounded, weight: .bold))
+                .foregroundColor(confidenceColor)
+        }
+        .padding(.vertical, 4)
     }
 }
 
@@ -269,7 +519,6 @@ struct PredictionRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 12) {
-                // Rank badge
                 ZStack {
                     Circle()
                         .fill(isTop ? rankColor.opacity(0.2) : Color.gray.opacity(0.1))
@@ -279,7 +528,6 @@ struct PredictionRow: View {
                         .foregroundColor(isTop ? rankColor : .secondary)
                 }
                 
-                // Label
                 VStack(alignment: .leading, spacing: 2) {
                     Text(label)
                         .font(.system(.body, weight: isTop ? .semibold : .medium))
@@ -289,20 +537,16 @@ struct PredictionRow: View {
                 
                 Spacer()
                 
-                // Confidence percentage
                 Text(formatConfidence(confidence))
                     .font(.system(.title3, design: .rounded, weight: .bold))
                     .foregroundColor(confidenceColor)
             }
             
-            // Confidence bar
             GeometryReader { geometry in
                 ZStack(alignment: .leading) {
-                    // Background
                     RoundedRectangle(cornerRadius: 4)
                         .fill(Color.gray.opacity(0.15))
                     
-                    // Filled portion
                     RoundedRectangle(cornerRadius: 4)
                         .fill(
                             LinearGradient(

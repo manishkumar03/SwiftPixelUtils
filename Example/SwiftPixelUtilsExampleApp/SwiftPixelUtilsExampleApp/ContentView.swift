@@ -22,16 +22,6 @@ struct ContentView: View {
                     Label("Pixels", systemImage: "square.grid.3x3")
                 }
             
-            ImageAnalysisView()
-                .tabItem {
-                    Label("Analyze", systemImage: "chart.bar.xaxis")
-                }
-            
-            AugmentationView()
-                .tabItem {
-                    Label("Augment", systemImage: "wand.and.stars")
-                }
-            
             BoundingBoxView()
                 .tabItem {
                     Label("Boxes", systemImage: "rectangle.dashed")
@@ -88,7 +78,7 @@ struct InferenceTabView: View {
                 ExecuTorchInferenceView()
             }
         }
-        .navigationTitle("Image Classification")
+        .navigationTitle("ML Inference")
         .navigationBarTitleDisplayMode(.inline)
     }
 }

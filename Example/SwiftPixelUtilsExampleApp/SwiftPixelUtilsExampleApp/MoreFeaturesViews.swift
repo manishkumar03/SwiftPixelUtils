@@ -13,6 +13,26 @@ struct MoreFeaturesView: View {
     var body: some View {
         NavigationView {
             List {
+                Section("Augmentation") {
+                    NavigationLink(destination: AugmentationView()) {
+                        Label("Augmentation", systemImage: "wand.and.stars")
+                    }
+                    
+                    NavigationLink(destination: IndividualAugmentationsView()) {
+                        Label("Individual Augmentations", systemImage: "slider.horizontal.3")
+                    }
+                    
+                    NavigationLink(destination: CutoutView()) {
+                        Label("Cutout", systemImage: "scissors")
+                    }
+                }
+                
+                Section("Analysis") {
+                    NavigationLink(destination: ImageAnalysisView()) {
+                        Label("Image Analysis", systemImage: "chart.bar.xaxis")
+                    }
+                }
+                
                 Section("Inference Post-Processing") {
                     NavigationLink(destination: InferenceUtilitiesView()) {
                         Label("Inference Utilities", systemImage: "brain")
@@ -62,16 +82,6 @@ struct MoreFeaturesView: View {
                     
                     NavigationLink(destination: ImageValidationView()) {
                         Label("Image Validation", systemImage: "checkmark.rectangle")
-                    }
-                }
-                
-                Section("Augmentation") {
-                    NavigationLink(destination: IndividualAugmentationsView()) {
-                        Label("Individual Augmentations", systemImage: "slider.horizontal.3")
-                    }
-                    
-                    NavigationLink(destination: CutoutView()) {
-                        Label("Cutout", systemImage: "scissors")
                     }
                 }
                 

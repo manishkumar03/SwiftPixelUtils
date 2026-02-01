@@ -60,6 +60,15 @@ A comprehensive reference for model quantization theory, implementation, and usa
     - [HWC Layout Example](#hwc-layout-example)
     - [Per-Channel vs Per-Tensor Comparison](#per-channel-vs-per-tensor-comparison)
     - [PerChannelCalibrationResult](#perchannelcalibrationresult)
+  - [INT4 Quantization (LLM/Edge)](#int4-quantization-llmedge)
+    - [Why INT4?](#why-int4)
+    - [INT4 Packing Format](#int4-packing-format)
+    - [Basic INT4 Usage](#basic-int4-usage)
+    - [INT4 Round Trip](#int4-round-trip)
+    - [INT4 vs INT8 Comparison](#int4-vs-int8-comparison)
+    - [When to Use INT4](#when-to-use-int4)
+    - [Per-Channel vs Per-Tensor Comparison](#per-channel-vs-per-tensor-comparison)
+    - [PerChannelCalibrationResult](#perchannelcalibrationresult)
   - [Convenience Methods](#convenience-methods)
   - [Custom Quantization Configuration](#custom-quantization-configuration)
 - [Practical Examples](#practical-examples)
@@ -1179,6 +1188,163 @@ let result = Quantizer.calibratePerChannel(data, options: options, targetDtype: 
 for (i, (min, max)) in result.channelRanges.enumerated() {
     print("Channel \(i): range [\(min), \(max)], scale=\(result.scales[i]), zp=\(result.zeroPoints[i])")
 }
+```
+
+### INT4 Quantization (LLM/Edge)
+
+INT4 quantization provides 8× compression vs Float32, making it ideal for deploying large language models (LLMs) and other memory-constrained edge applications.
+
+#### Why INT4?
+
+| Comparison | INT8 | INT4 |
+|------------|------|------|
+| Bits per value | 8 | 4 |
+| Unique values | 256 | 16 |
+| Compression vs Float32 | 4× | 8× |
+| Typical accuracy drop | 0.5-2% | 2-5% |
+| Use case | General inference | LLM weights, edge |
+
+```
+INT4 is ideal for:
+✅ Large Language Models (GPT, Llama, Mistral)
+✅ Embedding layers
+✅ Memory-constrained edge devices
+✅ Mobile apps requiring minimal model size
+⚠️ May have noticeable accuracy loss for sensitive layers
+❌ Not recommended for final output layers
+```
+
+#### INT4 Packing Format
+
+INT4 values are packed two per byte for efficient storage:
+
+```
+Byte layout: [high_nibble (4 bits)][low_nibble (4 bits)]
+             |--- value 1 ---|--- value 0 ---|
+
+Example:
+Values: [-3, 5, 0, 7]  (4 INT4 values)
+Packed: [0x5D, 0x70]   (2 bytes)
+
+Byte 0: low nibble = -3 (0xD in 2's complement), high nibble = 5
+Byte 1: low nibble = 0, high nibble = 7
+```
+
+#### Basic INT4 Usage
+
+```swift
+// LLM weight-like data
+let weights: [Float] = [-0.8, -0.4, 0.0, 0.4, 0.8]
+
+// Calibrate for INT4
+let params = Quantizer.calibrate(data: weights, dtype: .int4)
+
+// Quantize
+let options = QuantizationOptions(
+    mode: .perTensor,
+    dtype: .int4,
+    scale: [params.scale],
+    zeroPoint: [params.zeroPoint]
+)
+let quantized = try Quantizer.quantize(data: weights, options: options)
+
+// Access packed data
+guard let packedData = quantized.packedInt4Data else { return }
+print("Original: \(weights.count * 4) bytes")
+print("Packed: \(packedData.count) bytes")
+print("Compression: \(quantized.compressionRatio)×")
+
+// Unpack for inspection
+let unpacked = Quantizer.unpackInt4(packedData, count: weights.count)
+print("Unpacked values: \(unpacked)")
+```
+
+#### INT4 Round Trip
+
+```swift
+let original: [Float] = [-0.7, -0.3, 0.0, 0.3, 0.7]
+
+// Calibrate and quantize
+let params = Quantizer.calibrate(data: original, dtype: .int4)
+let quantized = try Quantizer.quantize(
+    data: original,
+    options: QuantizationOptions(
+        mode: .perTensor,
+        dtype: .int4,
+        scale: [params.scale],
+        zeroPoint: [params.zeroPoint]
+    )
+)
+
+// Dequantize back to float
+let restored = try Quantizer.dequantize(
+    packedInt4Data: quantized.packedInt4Data,
+    originalCount: quantized.originalCount,
+    dtype: .int4,
+    scale: quantized.scale,
+    zeroPoint: quantized.zeroPoint,
+    mode: .perTensor
+)
+
+// Calculate round-trip error
+let errors = zip(original, restored).map { abs($0 - $1) }
+print("Max error: \(errors.max()!)")
+print("Avg error: \(errors.reduce(0, +) / Float(errors.count))")
+```
+
+#### INT4 vs INT8 Comparison
+
+```swift
+let data: [Float] = [-1.0, -0.5, 0.0, 0.5, 1.0]
+
+// INT4 quantization
+let int4Params = Quantizer.calibrate(data: data, dtype: .int4)
+let int4Quantized = try Quantizer.quantize(data: data, options: QuantizationOptions(
+    mode: .perTensor, dtype: .int4, scale: [int4Params.scale], zeroPoint: [int4Params.zeroPoint]
+))
+
+// INT8 quantization
+let int8Params = Quantizer.calibrate(data: data, dtype: .int8)
+let int8Quantized = try Quantizer.quantize(data: data, options: QuantizationOptions(
+    mode: .perTensor, dtype: .int8, scale: [int8Params.scale], zeroPoint: [int8Params.zeroPoint]
+))
+
+// Size comparison
+print("INT8 size: \(int8Quantized.sizeInBytes) bytes")  // 5 bytes
+print("INT4 size: \(int4Quantized.sizeInBytes) bytes")  // 3 bytes (5 values packed)
+
+// INT4 is 2× smaller than INT8, 8× smaller than Float32
+```
+
+#### When to Use INT4
+
+**Best suited for:**
+- LLM weight quantization (GPT, Llama, Mistral, etc.)
+- Embedding tables
+- Static weights that are less sensitive to precision
+- Memory-constrained deployment (mobile, embedded)
+
+**Avoid for:**
+- Activations (use INT8 or keep float)
+- Final classification layers
+- Models where accuracy is critical
+- Layers sensitive to quantization noise
+
+**Practical guidance:**
+```swift
+// LLM deployment strategy
+// - Use INT4 for attention weights, FFN weights
+// - Use INT8 or higher for output projection
+// - Keep layer norms in float
+
+// Mixed precision example
+let attentionWeights = try Quantizer.quantize(data: weights, options: QuantizationOptions(
+    mode: .perTensor, dtype: .int4, scale: [...], zeroPoint: [...]
+))
+
+let outputWeights = try Quantizer.quantize(data: weights, options: QuantizationOptions(
+    mode: .perTensor, dtype: .int8, scale: [...], zeroPoint: [...]
+))
 ```
 
 ### Convenience Methods

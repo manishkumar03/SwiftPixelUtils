@@ -740,6 +740,275 @@ final class QuantizerTests: XCTestCase {
             )
         }
     }
+    
+    // MARK: - INT4 Quantization Tests
+    
+    func testInt4QuantizationBasic() throws {
+        // Basic INT4 quantization test
+        let original: [Float] = [-0.8, -0.4, 0.0, 0.4, 0.8]
+        
+        let params = Quantizer.calibrate(data: original, dtype: .int4)
+        
+        let quantized = try Quantizer.quantize(
+            data: original,
+            options: QuantizationOptions(
+                mode: .perTensor,
+                dtype: .int4,
+                scale: [params.scale],
+                zeroPoint: [params.zeroPoint]
+            )
+        )
+        
+        XCTAssertNotNil(quantized.packedInt4Data)
+        XCTAssertEqual(quantized.originalCount, 5)
+        
+        // 5 values -> 3 packed bytes (ceiling of 5/2)
+        XCTAssertEqual(quantized.packedInt4Data?.count, 3)
+        
+        // Verify compression ratio
+        XCTAssertEqual(quantized.compressionRatio, 8.0)
+    }
+    
+    func testUInt4QuantizationBasic() throws {
+        // UINT4 quantization for non-negative data
+        let original: [Float] = [0.0, 0.25, 0.5, 0.75, 1.0]
+        
+        let params = Quantizer.calibrate(data: original, dtype: .uint4)
+        
+        let quantized = try Quantizer.quantize(
+            data: original,
+            options: QuantizationOptions(
+                mode: .perTensor,
+                dtype: .uint4,
+                scale: [params.scale],
+                zeroPoint: [params.zeroPoint]
+            )
+        )
+        
+        XCTAssertNotNil(quantized.packedInt4Data)
+        XCTAssertEqual(quantized.originalCount, 5)
+        XCTAssertEqual(quantized.packedInt4Data?.count, 3)
+    }
+    
+    func testInt4PackingUnpacking() throws {
+        // Test packing and unpacking utilities
+        let values: [Int8] = [-8, -4, 0, 4, 7]  // Valid INT4 range
+        
+        let packed = Quantizer.packInt4(values)
+        XCTAssertEqual(packed.count, 3)  // 5 values -> 3 bytes
+        
+        let unpacked = Quantizer.unpackInt4(packed, count: 5)
+        XCTAssertEqual(unpacked.count, 5)
+        
+        for i in 0..<values.count {
+            XCTAssertEqual(unpacked[i], values[i], "Value at index \(i) mismatch")
+        }
+    }
+    
+    func testUInt4PackingUnpacking() throws {
+        // Test UINT4 packing and unpacking
+        let values: [UInt8] = [0, 4, 8, 12, 15]  // Valid UINT4 range
+        
+        // Pack manually by converting to Int8 and using packInt4
+        let int8Values = values.map { Int8(bitPattern: $0) }
+        let packed = Quantizer.packInt4(int8Values)
+        
+        let unpacked = Quantizer.unpackUInt4(packed, count: 5)
+        XCTAssertEqual(unpacked.count, 5)
+        
+        for i in 0..<values.count {
+            XCTAssertEqual(unpacked[i], values[i], "Value at index \(i) mismatch")
+        }
+    }
+    
+    func testInt4RoundTrip() throws {
+        let original: [Float] = [-0.7, -0.3, 0.0, 0.3, 0.7]
+        
+        let params = Quantizer.calibrate(data: original, dtype: .int4)
+        
+        let quantized = try Quantizer.quantize(
+            data: original,
+            options: QuantizationOptions(
+                mode: .perTensor,
+                dtype: .int4,
+                scale: [params.scale],
+                zeroPoint: [params.zeroPoint]
+            )
+        )
+        
+        let dequantized = try Quantizer.dequantize(
+            packedInt4Data: quantized.packedInt4Data,
+            originalCount: quantized.originalCount,
+            dtype: .int4,
+            scale: quantized.scale,
+            zeroPoint: quantized.zeroPoint,
+            mode: .perTensor
+        )
+        
+        XCTAssertEqual(dequantized.count, original.count)
+        
+        // INT4 has larger quantization error than INT8
+        // With 16 levels for range [-0.7, 0.7] = 1.4, step size ~ 0.0875
+        for i in 0..<original.count {
+            XCTAssertEqual(dequantized[i], original[i], accuracy: 0.15)
+        }
+    }
+    
+    func testInt4VsInt8Accuracy() throws {
+        // Compare INT4 vs INT8 accuracy
+        let original: [Float] = [-1.0, -0.5, 0.0, 0.5, 1.0]
+        
+        // INT4
+        let int4Params = Quantizer.calibrate(data: original, dtype: .int4)
+        let int4Quantized = try Quantizer.quantize(
+            data: original,
+            options: QuantizationOptions(
+                mode: .perTensor,
+                dtype: .int4,
+                scale: [int4Params.scale],
+                zeroPoint: [int4Params.zeroPoint]
+            )
+        )
+        let int4Dequantized = try Quantizer.dequantize(
+            packedInt4Data: int4Quantized.packedInt4Data,
+            originalCount: int4Quantized.originalCount,
+            dtype: .int4,
+            scale: int4Quantized.scale,
+            zeroPoint: int4Quantized.zeroPoint,
+            mode: .perTensor
+        )
+        
+        // INT8
+        let int8Params = Quantizer.calibrate(data: original, dtype: .int8)
+        let int8Quantized = try Quantizer.quantize(
+            data: original,
+            options: QuantizationOptions(
+                mode: .perTensor,
+                dtype: .int8,
+                scale: [int8Params.scale],
+                zeroPoint: [int8Params.zeroPoint]
+            )
+        )
+        let int8Dequantized = try Quantizer.dequantize(
+            int8Data: int8Quantized.int8Data,
+            scale: int8Quantized.scale,
+            zeroPoint: int8Quantized.zeroPoint,
+            mode: .perTensor
+        )
+        
+        // Calculate errors
+        let int4Errors = zip(original, int4Dequantized).map { abs($0 - $1) }
+        let int8Errors = zip(original, int8Dequantized).map { abs($0 - $1) }
+        
+        let int4AvgError = int4Errors.reduce(0, +) / Float(int4Errors.count)
+        let int8AvgError = int8Errors.reduce(0, +) / Float(int8Errors.count)
+        
+        // INT8 should have lower error than INT4
+        XCTAssertLessThan(int8AvgError, int4AvgError, "INT8 should be more accurate than INT4")
+        
+        // But INT4 should still be usable (error < 0.2 for normalized data)
+        XCTAssertLessThan(int4AvgError, 0.2, "INT4 error should be acceptable")
+    }
+    
+    func testInt4Calibration() throws {
+        let data: [Float] = [-1.0, -0.5, 0.0, 0.5, 1.0]
+        
+        let params = Quantizer.calibrate(data: data, dtype: .int4)
+        
+        // For range [-1, 1] = 2.0, with 16 levels (range 15)
+        // scale = 2.0 / 15 = 0.133...
+        XCTAssertGreaterThan(params.scale, 0.1)
+        XCTAssertLessThan(params.scale, 0.2)
+    }
+    
+    func testInt4PerChannelQuantization() throws {
+        let numChannels = 3
+        let spatialSize = 4
+        
+        // CHW layout with different ranges per channel
+        let rChannel: [Float] = [-0.3, -0.1, 0.1, 0.3]   // Small range
+        let gChannel: [Float] = [-0.6, -0.2, 0.2, 0.6]   // Medium range
+        let bChannel: [Float] = [-1.0, -0.5, 0.5, 1.0]   // Large range
+        let original = rChannel + gChannel + bChannel
+        
+        let params = Quantizer.calibratePerChannel(
+            data: original,
+            numChannels: numChannels,
+            spatialSize: spatialSize,
+            channelAxis: 0,
+            dtype: .int4
+        )
+        
+        XCTAssertEqual(params.scales.count, 3)
+        XCTAssertEqual(params.zeroPoints.count, 3)
+        
+        // R channel should have smallest scale (smallest range)
+        XCTAssertLessThan(params.scales[0], params.scales[2])
+        
+        let quantized = try Quantizer.quantize(
+            data: original,
+            options: QuantizationOptions(
+                mode: .perChannel,
+                dtype: .int4,
+                scale: params.scales,
+                zeroPoint: params.zeroPoints,
+                channelAxis: 0,
+                numChannels: numChannels,
+                spatialSize: spatialSize
+            )
+        )
+        
+        XCTAssertNotNil(quantized.packedInt4Data)
+        XCTAssertEqual(quantized.originalCount, 12)
+        XCTAssertEqual(quantized.packedInt4Data?.count, 6)  // 12 values -> 6 packed bytes
+    }
+    
+    func testInt4EdgeCases() throws {
+        // Test with single value
+        let singleValue: [Float] = [0.5]
+        let singleParams = Quantizer.calibrate(data: singleValue, dtype: .int4)
+        let singleQuantized = try Quantizer.quantize(
+            data: singleValue,
+            options: QuantizationOptions(
+                mode: .perTensor,
+                dtype: .int4,
+                scale: [singleParams.scale],
+                zeroPoint: [singleParams.zeroPoint]
+            )
+        )
+        XCTAssertEqual(singleQuantized.packedInt4Data?.count, 1)
+        
+        // Test with even number of values (no padding needed)
+        let evenValues: [Float] = [0.0, 0.5, 1.0, 1.5]
+        let evenParams = Quantizer.calibrate(data: evenValues, dtype: .int4)
+        let evenQuantized = try Quantizer.quantize(
+            data: evenValues,
+            options: QuantizationOptions(
+                mode: .perTensor,
+                dtype: .int4,
+                scale: [evenParams.scale],
+                zeroPoint: [evenParams.zeroPoint]
+            )
+        )
+        XCTAssertEqual(evenQuantized.packedInt4Data?.count, 2)  // 4 values -> 2 bytes
+    }
+    
+    func testInt4Performance() throws {
+        let original = [Float](repeating: 0.5, count: 224 * 224 * 3)
+        let params = Quantizer.calibrate(data: original, dtype: .int4)
+        
+        measure {
+            let _ = try? Quantizer.quantize(
+                data: original,
+                options: QuantizationOptions(
+                    mode: .perTensor,
+                    dtype: .int4,
+                    scale: [params.scale],
+                    zeroPoint: [params.zeroPoint]
+                )
+            )
+        }
+    }
 }
 
 // Helper extension for approximate comparison in tests

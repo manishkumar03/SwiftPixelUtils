@@ -31,11 +31,34 @@ import Accelerate
 ///
 /// ### Data Types
 ///
-/// | Type | Range | Typical Use |
-/// |------|-------|-------------|
-/// | **Int8** | [-128, 127] | TFLite, ONNX, ExecuTorch (symmetric) |
-/// | **UInt8** | [0, 255] | TFLite (asymmetric), CoreML |
-/// | **Int16** | [-32768, 32767] | High-precision quantization |
+/// | Type | Range | Bits | Typical Use |
+/// |------|-------|------|-------------|
+/// | **Int4** | [-8, 7] | 4 | LLM weights, edge deployment |
+/// | **UInt4** | [0, 15] | 4 | LLM weights, aggressive compression |
+/// | **Int8** | [-128, 127] | 8 | TFLite, ONNX, ExecuTorch (symmetric) |
+/// | **UInt8** | [0, 255] | 8 | TFLite (asymmetric), CoreML |
+/// | **Int16** | [-32768, 32767] | 16 | High-precision quantization |
+///
+/// ### INT4 for LLM/Edge Deployment
+///
+/// INT4 quantization provides 8× compression vs Float32, ideal for:
+/// - Large Language Models (LLMs): GPT, Llama, Mistral, etc.
+/// - Edge devices with limited memory
+/// - Mobile apps requiring minimal model size
+///
+/// ```swift
+/// // INT4 quantization for LLM weights
+/// let result = try Quantizer.quantize(
+///     data: modelWeights,
+///     options: QuantizationOptions(
+///         mode: .perTensor,
+///         dtype: .int4,
+///         scale: [scale],
+///         zeroPoint: [zeroPoint]
+///     )
+/// )
+/// // result.packedInt4Data contains packed bytes (2 values per byte)
+/// ```
 ///
 /// ## Quantization Modes
 ///
@@ -202,6 +225,7 @@ public enum Quantizer {
                 int8Data: result.data,
                 uint8Data: nil,
                 int16Data: nil,
+                packedInt4Data: nil,
                 scale: result.scale,
                 zeroPoint: result.zeroPoint,
                 dtype: .int8,
@@ -225,6 +249,7 @@ public enum Quantizer {
                 int8Data: nil,
                 uint8Data: result.data,
                 int16Data: nil,
+                packedInt4Data: nil,
                 scale: result.scale,
                 zeroPoint: result.zeroPoint,
                 dtype: .uint8,
@@ -248,6 +273,7 @@ public enum Quantizer {
                 int8Data: nil,
                 uint8Data: nil,
                 int16Data: result.data,
+                packedInt4Data: nil,
                 scale: result.scale,
                 zeroPoint: result.zeroPoint,
                 dtype: .int16,
@@ -255,6 +281,56 @@ public enum Quantizer {
                 numChannels: numChannels,
                 spatialSize: spatialSize,
                 channelAxis: channelAxis
+            )
+            
+        case .int4:
+            let result = quantizeToInt4(
+                data: data,
+                scale: scale,
+                zeroPoint: zeroPoint,
+                mode: options.mode,
+                numChannels: numChannels,
+                spatialSize: spatialSize,
+                channelAxis: channelAxis
+            )
+            return QuantizationResult(
+                int8Data: nil,
+                uint8Data: nil,
+                int16Data: nil,
+                packedInt4Data: result.data,
+                scale: result.scale,
+                zeroPoint: result.zeroPoint,
+                dtype: .int4,
+                mode: options.mode,
+                numChannels: numChannels,
+                spatialSize: spatialSize,
+                channelAxis: channelAxis,
+                originalCount: data.count
+            )
+            
+        case .uint4:
+            let result = quantizeToUInt4(
+                data: data,
+                scale: scale,
+                zeroPoint: zeroPoint,
+                mode: options.mode,
+                numChannels: numChannels,
+                spatialSize: spatialSize,
+                channelAxis: channelAxis
+            )
+            return QuantizationResult(
+                int8Data: nil,
+                uint8Data: nil,
+                int16Data: nil,
+                packedInt4Data: result.data,
+                scale: result.scale,
+                zeroPoint: result.zeroPoint,
+                dtype: .uint4,
+                mode: options.mode,
+                numChannels: numChannels,
+                spatialSize: spatialSize,
+                channelAxis: channelAxis,
+                originalCount: data.count
             )
         }
     }
@@ -285,10 +361,26 @@ public enum Quantizer {
     /// )
     /// ```
     ///
+    /// ## INT4 Dequantization
+    ///
+    /// For INT4 data, provide packed bytes and original count:
+    /// ```swift
+    /// let restored = try Quantizer.dequantize(
+    ///     packedInt4Data: quantized.packedInt4Data,
+    ///     originalCount: quantized.originalCount,
+    ///     dtype: .int4,
+    ///     scale: quantized.scale,
+    ///     zeroPoint: quantized.zeroPoint
+    /// )
+    /// ```
+    ///
     /// - Parameters:
     ///   - int8Data: Int8 data to dequantize (optional)
     ///   - uint8Data: UInt8 data to dequantize (optional)
     ///   - int16Data: Int16 data to dequantize (optional)
+    ///   - packedInt4Data: Packed INT4 data to dequantize (optional)
+    ///   - originalCount: Original number of values (required for INT4)
+    ///   - dtype: Data type for INT4 (`.int4` or `.uint4`)
     ///   - scale: Scale factor(s) used during quantization
     ///   - zeroPoint: Zero point(s) used during quantization
     ///   - mode: Quantization mode (perTensor or perChannel)
@@ -301,6 +393,9 @@ public enum Quantizer {
         int8Data: [Int8]? = nil,
         uint8Data: [UInt8]? = nil,
         int16Data: [Int16]? = nil,
+        packedInt4Data: [UInt8]? = nil,
+        originalCount: Int? = nil,
+        dtype: QuantizationDType? = nil,
         scale: [Float],
         zeroPoint: [Int],
         mode: QuantizationMode = .perTensor,
@@ -338,6 +433,18 @@ public enum Quantizer {
                 spatialSize: spatialSize,
                 channelAxis: channelAxis
             )
+        } else if let packedInt4Data = packedInt4Data, let count = originalCount, let dataType = dtype {
+            return dequantizeInt4(
+                packedData: packedInt4Data,
+                originalCount: count,
+                dtype: dataType,
+                scale: scale,
+                zeroPoint: zeroPoint,
+                mode: mode,
+                numChannels: numChannels,
+                spatialSize: spatialSize,
+                channelAxis: channelAxis
+            )
         } else {
             throw PixelUtilsError.invalidOptions("No quantized data provided")
         }
@@ -364,6 +471,12 @@ public enum Quantizer {
     /// zero_point = 0
     /// ```
     ///
+    /// For INT4 (signed):
+    /// ```
+    /// scale = (max - min) / 15  // [-8, 7] = 16 levels
+    /// zero_point = round(-min / scale) - 8
+    /// ```
+    ///
     /// - Parameters:
     ///   - data: Calibration data (representative activation values)
     ///   - dtype: Target data type
@@ -383,6 +496,12 @@ public enum Quantizer {
         
         let (qmin, qmax): (Float, Float)
         switch dtype {
+        case .int4:
+            qmin = -8
+            qmax = 7
+        case .uint4:
+            qmin = 0
+            qmax = 15
         case .int8:
             qmin = -128
             qmax = 127
@@ -511,6 +630,12 @@ public enum Quantizer {
         case .int16:
             qmin = -32768
             qmax = 32767
+        case .int4:
+            qmin = -8
+            qmax = 7
+        case .uint4:
+            qmin = 0
+            qmax = 15
         }
         
         for c in 0..<numChannels {
@@ -880,6 +1005,334 @@ public enum Quantizer {
         return result
     }
     
+    // MARK: - Private Helpers - Int4
+    
+    /// Quantizes float data to INT4 and packs into bytes (2 values per byte)
+    private static func quantizeToInt4(
+        data: [Float],
+        scale: [Float],
+        zeroPoint: [Int],
+        mode: QuantizationMode,
+        numChannels: Int? = nil,
+        spatialSize: Int? = nil,
+        channelAxis: Int = 0
+    ) -> (data: [UInt8], scale: [Float], zeroPoint: [Int]) {
+        var actualScale = scale
+        var actualZeroPoint = zeroPoint
+        
+        // First quantize to int4 values (unpacked)
+        var int4Values = [Int8](repeating: 0, count: data.count)
+        
+        if mode == .perChannel, let channels = numChannels, let spatial = spatialSize, scale.count >= channels {
+            // Per-channel quantization
+            if channelAxis == 0 {
+                // CHW layout
+                for c in 0..<channels {
+                    let s = actualScale[c]
+                    let z = actualZeroPoint[c]
+                    let startIdx = c * spatial
+                    let endIdx = min(startIdx + spatial, data.count)
+                    
+                    for i in startIdx..<endIdx {
+                        let quantized = round(data[i] / s) + Float(z)
+                        int4Values[i] = Int8(clamp(Int(quantized), -8, 7))
+                    }
+                }
+            } else {
+                // HWC layout
+                for i in stride(from: 0, to: data.count, by: channels) {
+                    for c in 0..<channels {
+                        let idx = i + c
+                        if idx < data.count {
+                            let s = actualScale[c]
+                            let z = actualZeroPoint[c]
+                            let quantized = round(data[idx] / s) + Float(z)
+                            int4Values[idx] = Int8(clamp(Int(quantized), -8, 7))
+                        }
+                    }
+                }
+            }
+        } else {
+            // Per-tensor quantization
+            if scale.isEmpty {
+                let (s, z) = calibrate(data: data, dtype: .int4)
+                actualScale = [s]
+                actualZeroPoint = [z]
+            }
+            
+            let s = actualScale[0]
+            let z = actualZeroPoint[0]
+            
+            for i in 0..<data.count {
+                let quantized = round(data[i] / s) + Float(z)
+                int4Values[i] = Int8(clamp(Int(quantized), -8, 7))
+            }
+        }
+        
+        // Pack into bytes: 2 int4 values per byte
+        // Low nibble = even index, high nibble = odd index
+        let packedCount = (data.count + 1) / 2
+        var packed = [UInt8](repeating: 0, count: packedCount)
+        
+        for i in 0..<data.count {
+            let packedIdx = i / 2
+            let value = UInt8(bitPattern: int4Values[i]) & 0x0F  // Mask to 4 bits
+            
+            if i % 2 == 0 {
+                // Low nibble (bits 0-3)
+                packed[packedIdx] |= value
+            } else {
+                // High nibble (bits 4-7)
+                packed[packedIdx] |= (value << 4)
+            }
+        }
+        
+        return (data: packed, scale: actualScale, zeroPoint: actualZeroPoint)
+    }
+    
+    /// Quantizes float data to UINT4 and packs into bytes (2 values per byte)
+    private static func quantizeToUInt4(
+        data: [Float],
+        scale: [Float],
+        zeroPoint: [Int],
+        mode: QuantizationMode,
+        numChannels: Int? = nil,
+        spatialSize: Int? = nil,
+        channelAxis: Int = 0
+    ) -> (data: [UInt8], scale: [Float], zeroPoint: [Int]) {
+        var actualScale = scale
+        var actualZeroPoint = zeroPoint
+        
+        // First quantize to uint4 values (unpacked)
+        var uint4Values = [UInt8](repeating: 0, count: data.count)
+        
+        if mode == .perChannel, let channels = numChannels, let spatial = spatialSize, scale.count >= channels {
+            // Per-channel quantization
+            if channelAxis == 0 {
+                // CHW layout
+                for c in 0..<channels {
+                    let s = actualScale[c]
+                    let z = actualZeroPoint[c]
+                    let startIdx = c * spatial
+                    let endIdx = min(startIdx + spatial, data.count)
+                    
+                    for i in startIdx..<endIdx {
+                        let quantized = round(data[i] / s) + Float(z)
+                        uint4Values[i] = UInt8(clamp(Int(quantized), 0, 15))
+                    }
+                }
+            } else {
+                // HWC layout
+                for i in stride(from: 0, to: data.count, by: channels) {
+                    for c in 0..<channels {
+                        let idx = i + c
+                        if idx < data.count {
+                            let s = actualScale[c]
+                            let z = actualZeroPoint[c]
+                            let quantized = round(data[idx] / s) + Float(z)
+                            uint4Values[idx] = UInt8(clamp(Int(quantized), 0, 15))
+                        }
+                    }
+                }
+            }
+        } else {
+            // Per-tensor quantization
+            if scale.isEmpty {
+                let (s, z) = calibrate(data: data, dtype: .uint4)
+                actualScale = [s]
+                actualZeroPoint = [z]
+            }
+            
+            let s = actualScale[0]
+            let z = actualZeroPoint[0]
+            
+            for i in 0..<data.count {
+                let quantized = round(data[i] / s) + Float(z)
+                uint4Values[i] = UInt8(clamp(Int(quantized), 0, 15))
+            }
+        }
+        
+        // Pack into bytes: 2 uint4 values per byte
+        // Low nibble = even index, high nibble = odd index
+        let packedCount = (data.count + 1) / 2
+        var packed = [UInt8](repeating: 0, count: packedCount)
+        
+        for i in 0..<data.count {
+            let packedIdx = i / 2
+            let value = uint4Values[i] & 0x0F  // Mask to 4 bits
+            
+            if i % 2 == 0 {
+                // Low nibble (bits 0-3)
+                packed[packedIdx] |= value
+            } else {
+                // High nibble (bits 4-7)
+                packed[packedIdx] |= (value << 4)
+            }
+        }
+        
+        return (data: packed, scale: actualScale, zeroPoint: actualZeroPoint)
+    }
+    
+    /// Dequantizes packed INT4/UINT4 data back to float
+    private static func dequantizeInt4(
+        packedData: [UInt8],
+        originalCount: Int,
+        dtype: QuantizationDType,
+        scale: [Float],
+        zeroPoint: [Int],
+        mode: QuantizationMode,
+        numChannels: Int? = nil,
+        spatialSize: Int? = nil,
+        channelAxis: Int = 0
+    ) -> [Float] {
+        // Unpack the values
+        var unpacked = [Int](repeating: 0, count: originalCount)
+        
+        for i in 0..<originalCount {
+            let packedIdx = i / 2
+            let nibble: UInt8
+            
+            if i % 2 == 0 {
+                // Low nibble
+                nibble = packedData[packedIdx] & 0x0F
+            } else {
+                // High nibble
+                nibble = (packedData[packedIdx] >> 4) & 0x0F
+            }
+            
+            // Sign extend for int4
+            if dtype == .int4 {
+                if nibble & 0x08 != 0 {
+                    // Negative value - sign extend
+                    unpacked[i] = Int(nibble) - 16
+                } else {
+                    unpacked[i] = Int(nibble)
+                }
+            } else {
+                unpacked[i] = Int(nibble)
+            }
+        }
+        
+        // Dequantize
+        var result = [Float](repeating: 0, count: originalCount)
+        
+        if mode == .perChannel, let channels = numChannels, let spatial = spatialSize, scale.count >= channels {
+            // Per-channel dequantization
+            if channelAxis == 0 {
+                // CHW layout
+                for c in 0..<channels {
+                    let s = scale[c]
+                    let z = zeroPoint[c]
+                    let startIdx = c * spatial
+                    let endIdx = min(startIdx + spatial, originalCount)
+                    
+                    for i in startIdx..<endIdx {
+                        result[i] = (Float(unpacked[i]) - Float(z)) * s
+                    }
+                }
+            } else {
+                // HWC layout
+                for i in stride(from: 0, to: originalCount, by: channels) {
+                    for c in 0..<channels {
+                        let idx = i + c
+                        if idx < originalCount {
+                            let s = scale[c]
+                            let z = zeroPoint[c]
+                            result[idx] = (Float(unpacked[idx]) - Float(z)) * s
+                        }
+                    }
+                }
+            }
+        } else {
+            // Per-tensor dequantization
+            let s = scale[0]
+            let z = zeroPoint[0]
+            
+            for i in 0..<originalCount {
+                result[i] = (Float(unpacked[i]) - Float(z)) * s
+            }
+        }
+        
+        return result
+    }
+    
+    // MARK: - INT4 Packing Utilities
+    
+    /// Packs an array of 4-bit values into bytes (2 values per byte)
+    ///
+    /// - Parameter values: Array of values in range [-8, 7] for int4 or [0, 15] for uint4
+    /// - Returns: Packed byte array where each byte contains 2 values
+    ///           (low nibble = even index, high nibble = odd index)
+    public static func packInt4(_ values: [Int8]) -> [UInt8] {
+        let packedCount = (values.count + 1) / 2
+        var packed = [UInt8](repeating: 0, count: packedCount)
+        
+        for i in 0..<values.count {
+            let packedIdx = i / 2
+            let value = UInt8(bitPattern: values[i]) & 0x0F
+            
+            if i % 2 == 0 {
+                packed[packedIdx] |= value
+            } else {
+                packed[packedIdx] |= (value << 4)
+            }
+        }
+        
+        return packed
+    }
+    
+    /// Unpacks bytes into 4-bit signed values
+    ///
+    /// - Parameters:
+    ///   - packed: Packed byte array
+    ///   - count: Original number of values
+    /// - Returns: Array of int4 values in range [-8, 7]
+    public static func unpackInt4(_ packed: [UInt8], count: Int) -> [Int8] {
+        var unpacked = [Int8](repeating: 0, count: count)
+        
+        for i in 0..<count {
+            let packedIdx = i / 2
+            let nibble: UInt8
+            
+            if i % 2 == 0 {
+                nibble = packed[packedIdx] & 0x0F
+            } else {
+                nibble = (packed[packedIdx] >> 4) & 0x0F
+            }
+            
+            // Sign extend
+            if nibble & 0x08 != 0 {
+                unpacked[i] = Int8(Int(nibble) - 16)
+            } else {
+                unpacked[i] = Int8(nibble)
+            }
+        }
+        
+        return unpacked
+    }
+    
+    /// Unpacks bytes into 4-bit unsigned values
+    ///
+    /// - Parameters:
+    ///   - packed: Packed byte array
+    ///   - count: Original number of values
+    /// - Returns: Array of uint4 values in range [0, 15]
+    public static func unpackUInt4(_ packed: [UInt8], count: Int) -> [UInt8] {
+        var unpacked = [UInt8](repeating: 0, count: count)
+        
+        for i in 0..<count {
+            let packedIdx = i / 2
+            
+            if i % 2 == 0 {
+                unpacked[i] = packed[packedIdx] & 0x0F
+            } else {
+                unpacked[i] = (packed[packedIdx] >> 4) & 0x0F
+            }
+        }
+        
+        return unpacked
+    }
+    
     // MARK: - Utility
     
     private static func clamp<T: Comparable>(_ value: T, _ minVal: T, _ maxVal: T) -> T {
@@ -909,6 +1362,11 @@ public struct QuantizationResult {
     /// Int16 quantized data (nil if dtype is not int16)
     public let int16Data: [Int16]?
     
+    /// Packed INT4/UINT4 quantized data (nil if dtype is not int4/uint4)
+    /// Each byte contains 2 values: low nibble = even index, high nibble = odd index
+    /// Use `Quantizer.unpackInt4` or `Quantizer.unpackUInt4` to extract values
+    public let packedInt4Data: [UInt8]?
+    
     /// Scale factor(s) used for quantization
     /// - Per-tensor: single value
     /// - Per-channel: one value per channel
@@ -934,21 +1392,45 @@ public struct QuantizationResult {
     /// Channel axis (0 for CHW, 2 for HWC)
     public let channelAxis: Int
     
+    /// Original number of values (required for INT4 unpacking)
+    public let originalCount: Int?
+    
+    /// Compression ratio vs Float32
+    public var compressionRatio: Float {
+        switch dtype {
+        case .int4, .uint4: return 8.0
+        case .int8, .uint8: return 4.0
+        case .int16: return 2.0
+        }
+    }
+    
+    /// Size in bytes of the quantized data
+    public var sizeInBytes: Int {
+        if let data = int8Data { return data.count }
+        if let data = uint8Data { return data.count }
+        if let data = int16Data { return data.count * 2 }
+        if let data = packedInt4Data { return data.count }
+        return 0
+    }
+    
     public init(
         int8Data: [Int8]?,
         uint8Data: [UInt8]?,
         int16Data: [Int16]?,
+        packedInt4Data: [UInt8]? = nil,
         scale: [Float],
         zeroPoint: [Int],
         dtype: QuantizationDType,
         mode: QuantizationMode,
         numChannels: Int? = nil,
         spatialSize: Int? = nil,
-        channelAxis: Int = 0
+        channelAxis: Int = 0,
+        originalCount: Int? = nil
     ) {
         self.int8Data = int8Data
         self.uint8Data = uint8Data
         self.int16Data = int16Data
+        self.packedInt4Data = packedInt4Data
         self.scale = scale
         self.zeroPoint = zeroPoint
         self.dtype = dtype
@@ -956,5 +1438,6 @@ public struct QuantizationResult {
         self.numChannels = numChannels
         self.spatialSize = spatialSize
         self.channelAxis = channelAxis
+        self.originalCount = originalCount
     }
 }

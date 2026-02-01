@@ -278,4 +278,116 @@ final class QuantizationUITests: XCTestCase {
                      "Result should show per-channel parameters")
         XCTAssertTrue(result.contains("Channel Value Ranges"), "Result should show detected ranges")
     }
+    
+    // MARK: - INT4 Tests (LLM/Edge)
+    
+    /// Test INT4 signed quantization
+    @MainActor
+    func testInt4SignedQuantization() throws {
+        let app = XCUIApplication()
+        app.launch()
+        
+        navigateToQuantization(app: app)
+        
+        // Scroll to find INT4 section
+        let button = app.buttons["quant-int4-signed"]
+        var scrollAttempts = 0
+        while !button.exists && scrollAttempts < 5 {
+            app.swipeUp()
+            scrollAttempts += 1
+        }
+        XCTAssertTrue(button.waitForExistence(timeout: 3))
+        button.tap()
+        
+        let resultText = app.staticTexts["quant-result-text"]
+        XCTAssertTrue(resultText.waitForExistence(timeout: 5))
+        
+        let result = resultText.label
+        XCTAssertTrue(result.contains("✅"), "Result should show success")
+        XCTAssertTrue(result.contains("INT4") || result.contains("int4"), "Result should indicate INT4")
+        XCTAssertTrue(result.contains("Packed"), "Result should show packed bytes")
+        XCTAssertTrue(result.contains("8") && result.contains("smaller"), "Result should show compression")
+    }
+    
+    /// Test UINT4 unsigned quantization
+    @MainActor
+    func testUInt4UnsignedQuantization() throws {
+        let app = XCUIApplication()
+        app.launch()
+        
+        navigateToQuantization(app: app)
+        
+        let button = app.buttons["quant-uint4-unsigned"]
+        var scrollAttempts = 0
+        while !button.exists && scrollAttempts < 5 {
+            app.swipeUp()
+            scrollAttempts += 1
+        }
+        XCTAssertTrue(button.waitForExistence(timeout: 3))
+        button.tap()
+        
+        let resultText = app.staticTexts["quant-result-text"]
+        XCTAssertTrue(resultText.waitForExistence(timeout: 5))
+        
+        let result = resultText.label
+        XCTAssertTrue(result.contains("✅"), "Result should show success")
+        XCTAssertTrue(result.contains("Unsigned") || result.contains("uint4"), "Result should indicate unsigned")
+    }
+    
+    /// Test INT4 round trip
+    @MainActor
+    func testInt4RoundTrip() throws {
+        let app = XCUIApplication()
+        app.launch()
+        
+        navigateToQuantization(app: app)
+        
+        let button = app.buttons["quant-int4-round-trip"]
+        var scrollAttempts = 0
+        while !button.exists && scrollAttempts < 5 {
+            app.swipeUp()
+            scrollAttempts += 1
+        }
+        XCTAssertTrue(button.waitForExistence(timeout: 3))
+        button.tap()
+        
+        let resultText = app.staticTexts["quant-result-text"]
+        XCTAssertTrue(resultText.waitForExistence(timeout: 5))
+        
+        let result = resultText.label
+        XCTAssertTrue(result.contains("✅"), "Result should show success")
+        XCTAssertTrue(result.contains("Round Trip"), "Result should indicate round trip")
+        XCTAssertTrue(result.contains("Original") && result.contains("Restored"), 
+                     "Result should show original and restored values")
+        XCTAssertTrue(result.contains("Max Error") || result.contains("Avg Error"), 
+                     "Result should show error metrics")
+    }
+    
+    /// Test INT4 vs INT8 comparison
+    @MainActor
+    func testCompareInt4VsInt8() throws {
+        let app = XCUIApplication()
+        app.launch()
+        
+        navigateToQuantization(app: app)
+        
+        let button = app.buttons["quant-compare-int4-int8"]
+        var scrollAttempts = 0
+        while !button.exists && scrollAttempts < 5 {
+            app.swipeUp()
+            scrollAttempts += 1
+        }
+        XCTAssertTrue(button.waitForExistence(timeout: 3))
+        button.tap()
+        
+        let resultText = app.staticTexts["quant-result-text"]
+        XCTAssertTrue(resultText.waitForExistence(timeout: 5))
+        
+        let result = resultText.label
+        XCTAssertTrue(result.contains("✅"), "Result should show success")
+        XCTAssertTrue(result.contains("INT4") && result.contains("INT8"), 
+                     "Result should compare both types")
+        XCTAssertTrue(result.contains("smaller"), "Result should show size comparison")
+        XCTAssertTrue(result.contains("accurate"), "Result should show accuracy comparison")
+    }
 }

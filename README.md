@@ -35,7 +35,9 @@ High-performance Swift library for image preprocessing optimized for ML/AI infer
 - 📈 **Image Analysis**: Statistics, metadata, validation, blur detection
 - 🧮 **Tensor Operations**: Channel extraction, patch extraction, permutation, batch concatenation
 - 🔙 **Tensor to Image**: Convert processed tensors back to images
-- 🎯 **Native Quantization**: Float→Int8/UInt8/Int16 with per-tensor and per-channel support (TFLite/ExecuTorch compatible)
+- 🎯 **Native Quantization**: Float→Int8/UInt8/Int16/INT4 with per-tensor and per-channel support (TFLite/ExecuTorch compatible)
+- 🔢 **INT4 Quantization**: 4-bit quantization (8× compression) for LLM weights and edge deployment
+- 📊 **Per-Channel Quantization**: Channel-wise scale/zeroPoint for higher accuracy (CNN, Transformer weights)
 - 🏷️ **Label Database**: Built-in labels for COCO, ImageNet, VOC, CIFAR, Places365, ADE20K
 - 📦 **Bounding Box Utilities**: Format conversion (xyxy/xywh/cxcywh), scaling, clipping, IoU, NMS
 - 🖼️ **Letterbox Padding**: YOLO-style letterbox preprocessing with reverse coordinate transform
@@ -804,9 +806,10 @@ print(batch.shape) // [3, 3, 224, 224] for NCHW
 
 #### `Quantizer.quantize(data:options:)`
 
-Quantize float data to int8/uint8/int16 format.
+Quantize float data to int8/uint8/int16/int4 format.
 
 ```swift
+// Per-tensor quantization (standard)
 let quantized = try Quantizer.quantize(
     data: result.data,
     options: QuantizationOptions(
@@ -817,6 +820,72 @@ let quantized = try Quantizer.quantize(
     )
 )
 ```
+
+#### Per-Channel Quantization
+
+Quantize with per-channel scale/zeroPoint for higher accuracy (ideal for CNN and Transformer weights):
+
+```swift
+// Per-channel quantization with calibration
+let (scales, zeroPoints) = Quantizer.calibratePerChannel(
+    data: weightsData,
+    numChannels: 64,
+    dtype: .int8,
+    layout: .chw  // or .hwc
+)
+
+let quantized = try Quantizer.quantize(
+    data: weightsData,
+    options: QuantizationOptions(
+        mode: .perChannel(axis: 0),  // Channel axis
+        dtype: .int8,
+        scale: scales,
+        zeroPoint: zeroPoints
+    )
+)
+// Result: int8Data with per-channel parameters for TFLite/ExecuTorch
+```
+
+#### INT4 Quantization (LLM/Edge Deployment)
+
+4-bit quantization for 8× compression, ideal for LLM weights and edge devices:
+
+```swift
+// INT4 quantization (2 values packed per byte)
+let int4Result = try Quantizer.quantize(
+    data: llmWeights,
+    options: QuantizationOptions(
+        mode: .perTensor,
+        dtype: .int4,  // or .uint4
+        scale: [scale],
+        zeroPoint: [zeroPoint]
+    )
+)
+
+// Access packed data (50% size of INT8)
+let packedBytes = int4Result.packedInt4Data!  // [UInt8] - 2 values per byte
+let originalCount = int4Result.originalCount!  // Original element count
+let compression = int4Result.compressionRatio  // 8.0 vs Float32
+
+// Dequantize back to float
+let restored = try Quantizer.dequantize(
+    packedInt4Data: packedBytes,
+    originalCount: originalCount,
+    scale: [scale],
+    zeroPoint: [zeroPoint],
+    dtype: .int4
+)
+```
+
+#### Quantization Types Comparison
+
+| Type | Range | Compression | Use Case |
+|------|-------|-------------|----------|
+| `uint8` | [0, 255] | 4× | TFLite, general inference |
+| `int8` | [-128, 127] | 4× | ExecuTorch, symmetric |
+| `int16` | [-32768, 32767] | 2× | High precision |
+| `int4` | [-8, 7] | 8× | LLM weights, edge |
+| `uint4` | [0, 15] | 8× | Activation quantization |
 
 #### `Quantizer.dequantize(uint8Data:scale:zeroPoint:)` / `dequantize(int8Data:...)`
 

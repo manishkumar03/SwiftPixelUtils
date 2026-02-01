@@ -1173,10 +1173,86 @@ public enum QuantizationMode: String, Codable {
 }
 
 /// Data type for quantization
+///
+/// ## Bit-Width Comparison
+///
+/// | Type | Bits | Range | Values | Size Ratio |
+/// |------|------|-------|--------|------------|
+/// | **Int4** | 4 | [-8, 7] | 16 | 8× smaller vs Float32 |
+/// | **UInt4** | 4 | [0, 15] | 16 | 8× smaller vs Float32 |
+/// | **Int8** | 8 | [-128, 127] | 256 | 4× smaller vs Float32 |
+/// | **UInt8** | 8 | [0, 255] | 256 | 4× smaller vs Float32 |
+/// | **Int16** | 16 | [-32768, 32767] | 65536 | 2× smaller vs Float32 |
+///
+/// ## INT4 for LLM/Edge Deployment
+///
+/// INT4 quantization provides aggressive compression (8× vs Float32) ideal for:
+/// - **Large Language Models (LLMs)**: Fit larger models in memory
+/// - **Edge devices**: Minimal memory footprint
+/// - **Mobile deployment**: Reduced app size and faster inference
+///
+/// ### INT4 Packing
+///
+/// Two INT4 values are packed into a single byte:
+/// ```
+/// Byte: [high_nibble (4 bits)][low_nibble (4 bits)]
+///       |--- value 1 ---|--- value 0 ---|
+/// ```
+///
+/// ### When to Use INT4
+///
+/// - ✅ LLM weights (GPT, Llama, etc.)
+/// - ✅ Embedding layers
+/// - ✅ Memory-constrained edge devices
+/// - ⚠️ May have noticeable accuracy loss for sensitive layers
+/// - ❌ Not recommended for final output layers
 public enum QuantizationDType: String, Codable {
+    /// Signed 4-bit integer [-8, 7] - packed 2 per byte
+    case int4
+    /// Unsigned 4-bit integer [0, 15] - packed 2 per byte
+    case uint4
+    /// Signed 8-bit integer [-128, 127]
     case int8
+    /// Unsigned 8-bit integer [0, 255]
     case uint8
+    /// Signed 16-bit integer [-32768, 32767]
     case int16
+    
+    /// Number of bits per value
+    public var bitWidth: Int {
+        switch self {
+        case .int4, .uint4: return 4
+        case .int8, .uint8: return 8
+        case .int16: return 16
+        }
+    }
+    
+    /// Minimum representable value
+    public var minValue: Int {
+        switch self {
+        case .int4: return -8
+        case .uint4: return 0
+        case .int8: return -128
+        case .uint8: return 0
+        case .int16: return -32768
+        }
+    }
+    
+    /// Maximum representable value
+    public var maxValue: Int {
+        switch self {
+        case .int4: return 7
+        case .uint4: return 15
+        case .int8: return 127
+        case .uint8: return 255
+        case .int16: return 32767
+        }
+    }
+    
+    /// Number of unique values representable
+    public var numLevels: Int {
+        return maxValue - minValue + 1
+    }
 }
 
 /// Quantization options

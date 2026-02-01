@@ -61,6 +61,35 @@ struct QuantizationView: View {
                     }
                 }
                 
+                // INT4 Quantization (LLM/Edge)
+                GroupBox("INT4 Quantization (LLM/Edge)") {
+                    VStack(spacing: 12) {
+                        Button("Float → Int4 (8× compression)") {
+                            testInt4Quantization(dtype: .int4)
+                        }
+                        .buttonStyle(.bordered)
+                        .accessibilityIdentifier("quant-int4-signed")
+                        
+                        Button("Float → UInt4 (8× compression)") {
+                            testInt4Quantization(dtype: .uint4)
+                        }
+                        .buttonStyle(.bordered)
+                        .accessibilityIdentifier("quant-uint4-unsigned")
+                        
+                        Button("INT4 Round Trip") {
+                            testInt4RoundTrip()
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .accessibilityIdentifier("quant-int4-round-trip")
+                        
+                        Button("Compare INT4 vs INT8") {
+                            compareInt4VsInt8()
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .accessibilityIdentifier("quant-compare-int4-int8")
+                    }
+                }
+                
                 GroupBox("Round Trip") {
                     VStack(spacing: 12) {
                         Button("Per-Tensor Round Trip") {
@@ -125,6 +154,16 @@ struct QuantizationView: View {
             
             var dataStr = ""
             switch dtype {
+            case .int4:
+                if let packed = quantized.packedInt4Data, let count = quantized.originalCount {
+                    let unpacked = Quantizer.unpackInt4(packed, count: count)
+                    dataStr = unpacked.map { String($0) }.joined(separator: ", ")
+                }
+            case .uint4:
+                if let packed = quantized.packedInt4Data, let count = quantized.originalCount {
+                    let unpacked = Quantizer.unpackUInt4(packed, count: count)
+                    dataStr = unpacked.map { String($0) }.joined(separator: ", ")
+                }
             case .int8:
                 dataStr = quantized.int8Data?.map { String($0) }.joined(separator: ", ") ?? "N/A"
             case .uint8:
@@ -204,6 +243,16 @@ struct QuantizationView: View {
             
             var dataStr = ""
             switch dtype {
+            case .int4:
+                if let packed = quantized.packedInt4Data, let count = quantized.originalCount {
+                    let unpacked = Quantizer.unpackInt4(packed, count: count)
+                    dataStr = unpacked.map { String($0) }.joined(separator: ", ")
+                }
+            case .uint4:
+                if let packed = quantized.packedInt4Data, let count = quantized.originalCount {
+                    let unpacked = Quantizer.unpackUInt4(packed, count: count)
+                    dataStr = unpacked.map { String($0) }.joined(separator: ", ")
+                }
             case .int8:
                 dataStr = quantized.int8Data?.map { String($0) }.joined(separator: ", ") ?? "N/A"
             case .uint8:
@@ -517,5 +566,216 @@ struct QuantizationView: View {
         Note: Each channel gets its own scale, preserving
         precision for channels with smaller value ranges.
         """
+    }
+    
+    // MARK: - INT4 Tests (LLM/Edge)
+    
+    func testInt4Quantization(dtype: QuantizationDType) {
+        // Sample data representing LLM weights (typically small values)
+        let floatData: [Float] = [-0.8, -0.4, -0.1, 0.0, 0.1, 0.4, 0.8, 1.0]
+        
+        do {
+            let params = Quantizer.calibrate(data: floatData, dtype: dtype)
+            
+            let options = QuantizationOptions(
+                mode: .perTensor,
+                dtype: dtype,
+                scale: [params.scale],
+                zeroPoint: [params.zeroPoint]
+            )
+            let quantized = try Quantizer.quantize(data: floatData, options: options)
+            
+            guard let packedData = quantized.packedInt4Data,
+                  let originalCount = quantized.originalCount else {
+                result = "❌ No packed INT4 data"
+                return
+            }
+            
+            // Unpack for display
+            let unpackedStr: String
+            if dtype == .int4 {
+                let unpacked = Quantizer.unpackInt4(packedData, count: originalCount)
+                unpackedStr = unpacked.map { String($0) }.joined(separator: ", ")
+            } else {
+                let unpacked = Quantizer.unpackUInt4(packedData, count: originalCount)
+                unpackedStr = unpacked.map { String($0) }.joined(separator: ", ")
+            }
+            
+            let range = dtype == .int4 ? "[-8, 7]" : "[0, 15]"
+            
+            result = """
+            ✅ INT4 Quantization (\(dtype == .int4 ? "Signed" : "Unsigned"))
+            
+            Input (Float32, \(floatData.count) values):
+            \(floatData.map { String(format: "%.2f", $0) }.joined(separator: ", "))
+            
+            Output (\(dtype), range \(range)):
+            \(unpackedStr)
+            
+            Packed bytes (\(packedData.count) bytes for \(originalCount) values):
+            \(packedData.map { String(format: "0x%02X", $0) }.joined(separator: ", "))
+            
+            Parameters:
+            Scale: \(String(format: "%.6f", quantized.scale.first ?? 0))
+            Zero Point: \(quantized.zeroPoint.first ?? 0)
+            
+            📊 Compression Stats:
+            Original size: \(floatData.count * 4) bytes (Float32)
+            Packed size: \(packedData.count) bytes
+            Compression: \(String(format: "%.1f", quantized.compressionRatio))× smaller!
+            """
+        } catch {
+            result = "❌ Error: \(error.localizedDescription)"
+        }
+    }
+    
+    func testInt4RoundTrip() {
+        let original: [Float] = [-0.7, -0.3, 0.0, 0.3, 0.7, 1.0]
+        
+        do {
+            let params = Quantizer.calibrate(data: original, dtype: .int4)
+            
+            let options = QuantizationOptions(
+                mode: .perTensor,
+                dtype: .int4,
+                scale: [params.scale],
+                zeroPoint: [params.zeroPoint]
+            )
+            let quantized = try Quantizer.quantize(data: original, options: options)
+            
+            guard let packedData = quantized.packedInt4Data,
+                  let originalCount = quantized.originalCount else {
+                result = "❌ No packed INT4 data"
+                return
+            }
+            
+            // Dequantize
+            let restored = try Quantizer.dequantize(
+                packedInt4Data: packedData,
+                originalCount: originalCount,
+                dtype: .int4,
+                scale: quantized.scale,
+                zeroPoint: quantized.zeroPoint,
+                mode: .perTensor
+            )
+            
+            // Calculate errors
+            let errors = zip(original, restored).map { abs($0 - $1) }
+            let maxError = errors.max() ?? 0
+            let avgError = errors.reduce(0, +) / Float(errors.count)
+            
+            // Get unpacked values for display
+            let unpacked = Quantizer.unpackInt4(packedData, count: originalCount)
+            
+            result = """
+            ✅ INT4 Round Trip (Float → Int4 → Float)
+            
+            Original: \(original.map { String(format: "%.3f", $0) }.joined(separator: ", "))
+            Quantized (Int4): \(unpacked.map { String($0) }.joined(separator: ", "))
+            Restored: \(restored.map { String(format: "%.3f", $0) }.joined(separator: ", "))
+            
+            Scale: \(String(format: "%.6f", quantized.scale.first ?? 0))
+            Zero Point: \(quantized.zeroPoint.first ?? 0)
+            
+            Packed bytes: \(packedData.map { String(format: "0x%02X", $0) }.joined(separator: ", "))
+            
+            📉 Error Analysis:
+            Max Error: \(String(format: "%.4f", maxError))
+            Avg Error: \(String(format: "%.4f", avgError))
+            
+            Note: INT4 has only 16 quantization levels vs INT8's 256,
+            so expect higher quantization error but 2× better compression.
+            """
+        } catch {
+            result = "❌ Error: \(error.localizedDescription)"
+        }
+    }
+    
+    func compareInt4VsInt8() {
+        // LLM-like weight distribution
+        let original: [Float] = [
+            -0.5, -0.4, -0.3, -0.2, -0.1,
+             0.0,  0.1,  0.2,  0.3,  0.4, 0.5
+        ]
+        
+        do {
+            // INT4 quantization
+            let int4Params = Quantizer.calibrate(data: original, dtype: .int4)
+            let int4Options = QuantizationOptions(
+                mode: .perTensor,
+                dtype: .int4,
+                scale: [int4Params.scale],
+                zeroPoint: [int4Params.zeroPoint]
+            )
+            let int4Quantized = try Quantizer.quantize(data: original, options: int4Options)
+            
+            let int4Restored = try Quantizer.dequantize(
+                packedInt4Data: int4Quantized.packedInt4Data,
+                originalCount: int4Quantized.originalCount,
+                dtype: .int4,
+                scale: int4Quantized.scale,
+                zeroPoint: int4Quantized.zeroPoint,
+                mode: .perTensor
+            )
+            
+            // INT8 quantization
+            let int8Params = Quantizer.calibrate(data: original, dtype: .int8)
+            let int8Options = QuantizationOptions(
+                mode: .perTensor,
+                dtype: .int8,
+                scale: [int8Params.scale],
+                zeroPoint: [int8Params.zeroPoint]
+            )
+            let int8Quantized = try Quantizer.quantize(data: original, options: int8Options)
+            
+            let int8Restored = try Quantizer.dequantize(
+                int8Data: int8Quantized.int8Data,
+                scale: int8Quantized.scale,
+                zeroPoint: int8Quantized.zeroPoint,
+                mode: .perTensor
+            )
+            
+            // Calculate errors
+            let int4Errors = zip(original, int4Restored).map { abs($0 - $1) }
+            let int8Errors = zip(original, int8Restored).map { abs($0 - $1) }
+            
+            let int4MaxErr = int4Errors.max() ?? 0
+            let int4AvgErr = int4Errors.reduce(0, +) / Float(int4Errors.count)
+            let int8MaxErr = int8Errors.max() ?? 0
+            let int8AvgErr = int8Errors.reduce(0, +) / Float(int8Errors.count)
+            
+            result = """
+            ✅ INT4 vs INT8 Comparison
+            
+            Input: \(original.count) float values
+            Range: [\(String(format: "%.2f", original.min()!)), \(String(format: "%.2f", original.max()!))]
+            
+            ═══════════════════════════════════════
+            INT8 (256 levels):
+            Size: \(int8Quantized.sizeInBytes) bytes
+            Scale: \(String(format: "%.6f", int8Params.scale))
+            Max Error: \(String(format: "%.6f", int8MaxErr))
+            Avg Error: \(String(format: "%.6f", int8AvgErr))
+            
+            ═══════════════════════════════════════
+            INT4 (16 levels):
+            Size: \(int4Quantized.sizeInBytes) bytes
+            Scale: \(String(format: "%.6f", int4Params.scale))
+            Max Error: \(String(format: "%.6f", int4MaxErr))
+            Avg Error: \(String(format: "%.6f", int4AvgErr))
+            
+            ═══════════════════════════════════════
+            📊 Summary:
+            INT4 is \(String(format: "%.1f", Float(int8Quantized.sizeInBytes) / Float(int4Quantized.sizeInBytes)))× smaller
+            INT8 is \(String(format: "%.1f", int4AvgErr / max(int8AvgErr, 0.0001)))× more accurate
+            
+            💡 Use INT4 for:
+            • LLM deployment (weights tolerate error)
+            • Memory-constrained edge devices
+            • When size matters more than precision
+            """
+        } catch {
+            result = "❌ Error: \(error.localizedDescription)"
+        }
     }
 }

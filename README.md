@@ -44,7 +44,27 @@ High-performance Swift library for image preprocessing optimized for ML/AI infer
 - ✅ **Tensor Validation**: Validate tensor shapes, dtypes, and value ranges before inference
 - 📦 **Batch Assembly**: Combine multiple images into NCHW/NHWC batch tensors
 
-## 📦 Installation
+## � Example App
+
+A comprehensive iOS example app is included in the `Example/` directory, demonstrating all major features:
+
+- **Image Classification** - MobileNetV2 with TopK results
+- **Object Detection** - YOLOv5 with NMS and bounding box visualization  
+- **Semantic Segmentation** - DeepLabV3 with colored mask overlay
+- **Image Preprocessing** - Color formats, normalization, resizing strategies
+- **Quantization** - Int8/UInt8 conversion for TFLite models
+- **Drawing & Visualization** - Boxes, labels, masks, and overlays
+
+<!-- ![Example App Screenshot](docs/example-app-screenshot.png) -->
+
+To run the example app:
+```bash
+cd Example/SwiftPixelUtilsExampleApp
+pod install
+open SwiftPixelUtilsExampleApp.xcworkspace
+```
+
+## �📦 Installation
 
 ### Swift Package Manager
 

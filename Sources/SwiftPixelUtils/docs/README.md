@@ -1,0 +1,132 @@
+# SwiftPixelUtils Documentation
+
+Comprehensive guides and references for machine learning on iOS and macOS.
+
+## 📚 Documentation Index
+
+### Core Guides
+
+| Guide | Description | Topics |
+|-------|-------------|--------|
+| [01 - Image Preprocessing](01-image-preprocessing-fundamentals.md) | Complete guide to preparing images for ML models | Pixel extraction, resizing, normalization, data layouts, batch processing |
+| [02 - Quantization](02-quantization-guide.md) | Understanding quantized models | INT8, UINT8, FP16, scale/zero-point, dequantization |
+| [03 - Classification](03-classification-output.md) | Image classification reference | Softmax, top-K, architectures, ImageNet labels |
+| [04 - Detection](04-detection-output.md) | Object detection with YOLO | Bounding boxes, NMS, IoU, COCO labels |
+| [05 - Segmentation](05-segmentation-output.md) | Semantic segmentation guide | DeepLab, masks, color maps, VOC labels |
+| [06 - Augmentation](06-image-augmentation.md) | Data augmentation techniques | Geometric, photometric, MixUp, AutoAugment |
+| [07 - Visualization](07-visualization-guide.md) | Drawing ML results | Boxes, masks, heatmaps, debugging |
+| [08 - Label Database](08-label-database.md) | Complete class label reference | ImageNet, COCO, VOC, Cityscapes, ADE20K |
+
+## 🚀 Quick Start
+
+### Installation
+
+```swift
+// Package.swift
+dependencies: [
+    .package(url: "https://github.com/anthropics/SwiftPixelUtils.git", from: "1.0.0")
+]
+```
+
+### Basic Usage
+
+```swift
+import SwiftPixelUtils
+
+// Classification preprocessing
+let pixels = try PixelExtractor.extractNormalizedPixels(
+    from: image,
+    targetSize: CGSize(width: 224, height: 224),
+    normalization: .imagenet,
+    layout: .nchw
+)
+
+// Detection postprocessing
+let detections = try DetectionDecoder.decode(
+    output: modelOutput,
+    confidenceThreshold: 0.5,
+    iouThreshold: 0.45,
+    labels: .coco80
+)
+
+// Segmentation postprocessing  
+let mask = try SegmentationDecoder.decode(
+    output: modelOutput,
+    labels: .pascalVOC
+)
+```
+
+## 📖 Guide Descriptions
+
+### [01 - Image Preprocessing Fundamentals](01-image-preprocessing-fundamentals.md)
+Everything you need to know about preparing images for ML inference. Covers pixel extraction from various iOS/macOS image sources, color format conversions (RGB, BGR, HSV, YUV, LAB), resizing strategies, normalization schemes (0-1, -1 to 1, ImageNet), data layouts (HWC, CHW, NHWC, NCHW), and batch processing.
+
+### [02 - Quantization Guide](02-quantization-guide.md)
+Deep dive into model quantization for efficient mobile inference. Explains quantization theory and math, different schemes (PTQ, QAT, dynamic), data types (INT8, UINT8, FP16, BF16), framework-specific quantization (TFLite, CoreML, PyTorch), preprocessing for quantized models, and accuracy considerations.
+
+### [03 - Classification Output](03-classification-output.md)
+Complete reference for image classification. Covers classification theory, softmax deep dive with numerical stability, top-K prediction extraction, popular architectures (MobileNet, EfficientNet, ResNet, Vision Transformer), transfer learning strategies, confidence calibration, and ImageNet label handling.
+
+### [04 - Detection Output](04-detection-output.md)
+Comprehensive YOLO and object detection guide. Explains YOLO architecture evolution (v1-v11), detection pipelines, output tensor formats, bounding box coordinate systems, NMS algorithms (standard, soft, class-specific), anchor boxes, multi-scale detection, and COCO 80-class labels.
+
+### [05 - Segmentation Output](05-segmentation-output.md)
+Complete semantic segmentation reference. Covers segmentation types (semantic, instance, panoptic), encoder-decoder architectures, DeepLab family (V1-V3+), dilated convolutions, ASPP, output processing techniques, upsampling methods, color map generation, and Pascal VOC labels.
+
+### [06 - Image Augmentation](06-image-augmentation.md)
+Data augmentation techniques for training. Includes geometric transforms (rotation, crop, flip, shear, perspective, elastic), photometric transforms (brightness, contrast, saturation, hue, gamma), noise and blur techniques, occlusion methods (cutout, GridMask), advanced methods (MixUp, CutMix, Mosaic), and AutoAugment/RandAugment.
+
+### [07 - Visualization Guide](07-visualization-guide.md)
+Drawing and displaying ML results. Covers color theory for visualization, drawing bounding boxes with labels, segmentation mask overlays, classification result displays, Grad-CAM and attention heatmaps, debugging visualizations, video/animation techniques, and platform-specific rendering (UIKit, AppKit, SwiftUI, Metal).
+
+### [08 - Label Database](08-label-database.md)
+Complete class label reference for major datasets. Includes full ImageNet-1K labels (1000 classes), COCO 80 classes with category IDs, Pascal VOC 21 classes with color palette, Cityscapes 19/35 classes, ADE20K 150 classes, and cross-dataset mapping utilities.
+
+## 🎯 Use Cases
+
+### Image Classification
+```
+Guides: 01 → 02 (if quantized) → 03 → 07
+```
+
+### Object Detection (YOLO)
+```
+Guides: 01 → 02 (if quantized) → 04 → 07 → 08
+```
+
+### Semantic Segmentation
+```
+Guides: 01 → 02 (if quantized) → 05 → 07 → 08
+```
+
+### Model Training
+```
+Guides: 01 → 06 → 03/04/05 (based on task)
+```
+
+### Debugging
+```
+Guides: 01 (verification) → 07 (debugging section)
+```
+
+## 🔧 SwiftPixelUtils Features
+
+- **Pixel Extraction**: Extract pixels from UIImage, CGImage, CVPixelBuffer, CIImage
+- **Preprocessing**: Resize, normalize, and format images for any ML model
+- **Quantization Support**: Handle INT8, UINT8, FP16 quantized models
+- **Detection Decoding**: Parse YOLO outputs with NMS
+- **Segmentation Decoding**: Process mask outputs with color mapping
+- **Classification**: Top-K predictions with labels
+- **Visualization**: Draw boxes, masks, and heatmaps
+- **Labels**: Built-in ImageNet, COCO, VOC, Cityscapes labels
+
+## 📱 Platform Support
+
+- iOS 13.0+
+- macOS 10.15+
+- visionOS 1.0+
+- Swift 5.7+
+
+## 📄 License
+
+MIT License - see [LICENSE](../../../LICENSE) for details.

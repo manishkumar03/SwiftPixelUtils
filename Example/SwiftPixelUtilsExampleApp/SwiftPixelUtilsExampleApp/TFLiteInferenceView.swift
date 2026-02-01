@@ -11,9 +11,9 @@ import TensorFlowLite
 
 struct TFLiteInferenceView: View {
     // Sample images from Resources folder
-    private let sampleImages = ["banana", "car", "elephant"]
+    private let sampleImages = ["dog", "car", "lion"]
     
-    @State private var selectedImage: String = "banana"
+    @State private var selectedImage: String = "dog"
     @State private var loadedImage: UIImage?
     @State private var isRunning = false
     @State private var resultText = "Select an image and tap 'Run Inference'"
@@ -146,7 +146,6 @@ struct TFLiteInferenceView: View {
             }
             .padding()
         }
-        .navigationTitle("TFLite Inference")
         .onAppear {
             loadSelectedImage()
         }
@@ -186,13 +185,13 @@ struct TFLiteInferenceView: View {
             resultText = "Preprocessing: \(String(format: "%.2f", preprocessTime)) ms\nLoading model..."
             
             // Step 2: Load TFLite model
-            var modelPath: String? = Bundle.main.path(forResource: "mobilenet_v2_1.0_224_quant", ofType: "tflite", inDirectory: "Resources")
+            var modelPath: String? = Bundle.main.path(forResource: "mobilenet_v2_quant_tflite", ofType: "tflite", inDirectory: "Resources")
             if modelPath == nil {
-                modelPath = Bundle.main.path(forResource: "mobilenet_v2_1.0_224_quant", ofType: "tflite")
+                modelPath = Bundle.main.path(forResource: "mobilenet_v2_quant_tflite", ofType: "tflite")
             }
             
             guard let finalModelPath = modelPath else {
-                resultText = "❌ Model file not found in bundle. Please add mobilenet_v2_1.0_224_quant.tflite to the Resources folder."
+                resultText = "❌ Model not found. Please add mobilenet_v2_quant_tflite.tflite to the app bundle."
                 isRunning = false
                 return
             }

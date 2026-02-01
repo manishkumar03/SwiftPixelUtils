@@ -626,6 +626,104 @@ public struct ModelInputResult {
         self.dataType = dataType
         self.processingTimeMs = processingTimeMs
     }
+    
+    /// Get the data as a Float32 array (for frameworks expecting float tensors)
+    /// Returns nil if the data type is not Float32
+    public func asFloatArray() -> [Float]? {
+        guard dataType == "Float32" else { return nil }
+        return data.withUnsafeBytes { buffer in
+            Array(buffer.bindMemory(to: Float.self))
+        }
+    }
+    
+    /// Get the data as a UInt8 array (for quantized models)
+    /// Returns nil if the data type is not UInt8
+    public func asUInt8Array() -> [UInt8]? {
+        guard dataType == "UInt8" else { return nil }
+        return [UInt8](data)
+    }
+    
+    /// Get the data as an Int8 array (for signed quantized models)
+    /// Returns nil if the data type is not Int8
+    public func asInt8Array() -> [Int8]? {
+        guard dataType == "Int8" else { return nil }
+        return data.withUnsafeBytes { buffer in
+            Array(buffer.bindMemory(to: Int8.self))
+        }
+    }
+    
+    /// Get tensor input ready for ExecuTorch or similar frameworks that need (array, shape).
+    ///
+    /// Returns a `TensorInput<Float>` containing the float array and shape, ready to be
+    /// passed to ExecuTorch's `Tensor` initializer.
+    ///
+    /// ## Usage with ExecuTorch
+    ///
+    /// ```swift
+    /// // Get preprocessed input
+    /// let modelInput = try await PixelExtractor.getModelInput(
+    ///     source: .uiImage(image),
+    ///     framework: .execuTorch,
+    ///     width: 224,
+    ///     height: 224
+    /// )
+    ///
+    /// // Convert to tensor input
+    /// var tensorInput = modelInput.floatTensorInput()!
+    ///
+    /// // Create ExecuTorch tensor (requires inout array)
+    /// let tensor = Tensor<Float>(&tensorInput.array, shape: tensorInput.shape)
+    /// ```
+    ///
+    /// - Returns: TensorInput containing float array and shape, or nil if data type is not Float32
+    public func floatTensorInput() -> TensorInput<Float>? {
+        guard dataType == "Float32" else { return nil }
+        let array = data.withUnsafeBytes { buffer in
+            Array(buffer.bindMemory(to: Float.self))
+        }
+        return TensorInput(array: array, shape: shape)
+    }
+    
+    /// Get tensor input for UInt8 quantized models.
+    /// - Returns: TensorInput containing UInt8 array and shape, or nil if data type is not UInt8
+    public func uint8TensorInput() -> TensorInput<UInt8>? {
+        guard dataType == "UInt8" else { return nil }
+        return TensorInput(array: [UInt8](data), shape: shape)
+    }
+    
+    /// Get tensor input for Int8 quantized models.
+    /// - Returns: TensorInput containing Int8 array and shape, or nil if data type is not Int8
+    public func int8TensorInput() -> TensorInput<Int8>? {
+        guard dataType == "Int8" else { return nil }
+        let array = data.withUnsafeBytes { buffer in
+            Array(buffer.bindMemory(to: Int8.self))
+        }
+        return TensorInput(array: array, shape: shape)
+    }
+}
+
+/// Tensor input container for frameworks like ExecuTorch that need (array, shape).
+///
+/// This struct bundles the data array and shape together, making it easy to create
+/// tensors for ML frameworks. The `array` property is `var` to allow passing as `inout`
+/// to tensor initializers that require it.
+///
+/// ## Usage with ExecuTorch
+///
+/// ```swift
+/// var tensorInput = modelInput.floatTensorInput()!
+/// let tensor = Tensor<Float>(&tensorInput.array, shape: tensorInput.shape)
+/// ```
+public struct TensorInput<T> {
+    /// The data array (mutable to allow inout passing to tensor initializers)
+    public var array: [T]
+    /// The tensor shape (e.g., [1, 3, 224, 224] for NCHW)
+    public let shape: [Int]
+    
+    public init(array: [T], shape: [Int]) {
+        self.array = array
+        self.shape = shape
+    }
 }
 
 // MARK: - ROI (Region of Interest)

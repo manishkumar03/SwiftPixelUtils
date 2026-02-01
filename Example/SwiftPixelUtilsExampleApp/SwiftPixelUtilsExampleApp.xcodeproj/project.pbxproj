@@ -8,6 +8,9 @@
 
 /* Begin PBXBuildFile section */
 		7941C6A82F2E905B001DD805 /* SwiftPixelUtils in Frameworks */ = {isa = PBXBuildFile; productRef = 7941C6A72F2E905B001DD805 /* SwiftPixelUtils */; };
+		79B91A792F2F1A930044970A /* backend_xnnpack in Frameworks */ = {isa = PBXBuildFile; productRef = 79B91A782F2F1A930044970A /* backend_xnnpack */; };
+		79B91A7B2F2F1A930044970A /* executorch in Frameworks */ = {isa = PBXBuildFile; productRef = 79B91A7A2F2F1A930044970A /* executorch */; };
+		79B91A7D2F2F1A930044970A /* kernels_optimized in Frameworks */ = {isa = PBXBuildFile; productRef = 79B91A7C2F2F1A930044970A /* kernels_optimized */; };
 		B2C357F1C66384DD6180341A /* Pods_SwiftPixelUtilsExampleApp.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = BEB81E061C551E41E9B08EAC /* Pods_SwiftPixelUtilsExampleApp.framework */; };
 /* End PBXBuildFile section */
 
@@ -40,22 +43,16 @@
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		7941C6722F2E8FB3001DD805 /* SwiftPixelUtilsExampleApp */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-			);
 			path = SwiftPixelUtilsExampleApp;
 			sourceTree = "<group>";
 		};
 		7941C6802F2E8FB5001DD805 /* SwiftPixelUtilsExampleAppTests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-			);
 			path = SwiftPixelUtilsExampleAppTests;
 			sourceTree = "<group>";
 		};
 		7941C68A2F2E8FB5001DD805 /* SwiftPixelUtilsExampleAppUITests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-			);
 			path = SwiftPixelUtilsExampleAppUITests;
 			sourceTree = "<group>";
 		};
@@ -66,8 +63,11 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				79B91A7B2F2F1A930044970A /* executorch in Frameworks */,
 				7941C6A82F2E905B001DD805 /* SwiftPixelUtils in Frameworks */,
+				79B91A7D2F2F1A930044970A /* kernels_optimized in Frameworks */,
 				B2C357F1C66384DD6180341A /* Pods_SwiftPixelUtilsExampleApp.framework in Frameworks */,
+				79B91A792F2F1A930044970A /* backend_xnnpack in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -150,6 +150,9 @@
 			name = SwiftPixelUtilsExampleApp;
 			packageProductDependencies = (
 				7941C6A72F2E905B001DD805 /* SwiftPixelUtils */,
+				79B91A782F2F1A930044970A /* backend_xnnpack */,
+				79B91A7A2F2F1A930044970A /* executorch */,
+				79B91A7C2F2F1A930044970A /* kernels_optimized */,
 			);
 			productName = SwiftPixelUtilsExampleApp;
 			productReference = 7941C6702F2E8FB3001DD805 /* SwiftPixelUtilsExampleApp.app */;
@@ -230,7 +233,8 @@
 			mainGroup = 7941C6672F2E8FB3001DD805;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				7941C6A62F2E905B001DD805 /* XCLocalSwiftPackageReference "SwiftPixelUtils" */,
+				7941C6A62F2E905B001DD805 /* XCLocalSwiftPackageReference "../../../SwiftPixelUtils" */,
+				79B91A772F2F1A930044970A /* XCRemoteSwiftPackageReference "executorch" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 7941C6712F2E8FB3001DD805 /* Products */;
@@ -299,9 +303,13 @@
 			inputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-SwiftPixelUtilsExampleApp/Pods-SwiftPixelUtilsExampleApp-resources-${CONFIGURATION}-input-files.xcfilelist",
 			);
+			inputPaths = (
+			);
 			name = "[CP] Copy Pods Resources";
 			outputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-SwiftPixelUtilsExampleApp/Pods-SwiftPixelUtilsExampleApp-resources-${CONFIGURATION}-output-files.xcfilelist",
+			);
+			outputPaths = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
@@ -492,6 +500,16 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-ObjC",
+					"-l\"c++\"",
+					"-framework",
+					"\"TensorFlowLite\"",
+					"-framework",
+					"\"TensorFlowLiteC\"",
+					"-Wl,-all_load",
+				);
 				PRODUCT_BUNDLE_IDENTIFIER = dev.manishkumar.SwiftPixelUtilsExampleApp;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
@@ -527,6 +545,16 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-ObjC",
+					"-l\"c++\"",
+					"-framework",
+					"\"TensorFlowLite\"",
+					"-framework",
+					"\"TensorFlowLiteC\"",
+					"-Wl,-all_load",
+				);
 				PRODUCT_BUNDLE_IDENTIFIER = dev.manishkumar.SwiftPixelUtilsExampleApp;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
@@ -665,16 +693,42 @@
 /* End XCConfigurationList section */
 
 /* Begin XCLocalSwiftPackageReference section */
-		7941C6A62F2E905B001DD805 /* XCLocalSwiftPackageReference "SwiftPixelUtils" */ = {
+		7941C6A62F2E905B001DD805 /* XCLocalSwiftPackageReference "../../../SwiftPixelUtils" */ = {
 			isa = XCLocalSwiftPackageReference;
 			relativePath = ../../../SwiftPixelUtils;
 		};
 /* End XCLocalSwiftPackageReference section */
 
+/* Begin XCRemoteSwiftPackageReference section */
+		79B91A772F2F1A930044970A /* XCRemoteSwiftPackageReference "executorch" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/pytorch/executorch";
+			requirement = {
+				branch = "swiftpm-1.1.0";
+				kind = branch;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
 /* Begin XCSwiftPackageProductDependency section */
 		7941C6A72F2E905B001DD805 /* SwiftPixelUtils */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = SwiftPixelUtils;
+		};
+		79B91A782F2F1A930044970A /* backend_xnnpack */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 79B91A772F2F1A930044970A /* XCRemoteSwiftPackageReference "executorch" */;
+			productName = backend_xnnpack;
+		};
+		79B91A7A2F2F1A930044970A /* executorch */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 79B91A772F2F1A930044970A /* XCRemoteSwiftPackageReference "executorch" */;
+			productName = executorch;
+		};
+		79B91A7C2F2F1A930044970A /* kernels_optimized */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 79B91A772F2F1A930044970A /* XCRemoteSwiftPackageReference "executorch" */;
+			productName = kernels_optimized;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

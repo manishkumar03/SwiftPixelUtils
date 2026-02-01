@@ -57,7 +57,7 @@ A comprehensive iOS example app is included in the `Example/` directory, demonst
 - **Drawing & Visualization** - Boxes, labels, masks, and overlays
 
 <p align="center">
-  <img src="docs/example-app-screenshot.png" alt="Example App Screenshot" width="300">
+  <img src="SupportingFiles/example-app-screenshot.png" alt="Example App Screenshot" width="300">
 </p>
 
 To run the example app:

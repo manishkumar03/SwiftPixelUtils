@@ -38,7 +38,7 @@ High-performance Swift library for image preprocessing optimized for ML/AI infer
 - 🎯 **Native Quantization**: Float→Int8/UInt8/Int16/INT4 with per-tensor and per-channel support (TFLite/ExecuTorch compatible)
 - 🔢 **INT4 Quantization**: 4-bit quantization (8× compression) for LLM weights and edge deployment
 - 📊 **Per-Channel Quantization**: Channel-wise scale/zeroPoint for higher accuracy (CNN, Transformer weights)
-- 🏷️ **Label Database**: Built-in labels for COCO, ImageNet, VOC, CIFAR, Places365, ADE20K
+- 🏷️ **Label Database**: Built-in labels for COCO, ImageNet, VOC, CIFAR, Places365, ADE20K, Open Images, LVIS, Objects365, Kinetics
 - 📦 **Bounding Box Utilities**: Format conversion (xyxy/xywh/cxcywh), scaling, clipping, IoU, NMS
 - 🖼️ **Letterbox Padding**: YOLO-style letterbox preprocessing with reverse coordinate transform
 - 🎨 **Drawing/Visualization**: Draw boxes, keypoints, masks, and heatmaps for debugging

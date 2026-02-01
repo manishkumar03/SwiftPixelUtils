@@ -19,12 +19,19 @@ import Foundation
 /// | Dataset | Classes | Domain | Common Models |
 /// |---------|---------|--------|---------------|
 /// | **ImageNet** | 1000 | Fine-grained classification | ResNet, EfficientNet, ViT, MobileNet |
+/// | **ImageNet-21K** | 21841 | Large-scale classification | ViT-21K, CLIP |
 /// | **COCO** | 80/91 | Object detection | YOLO, SSD, Faster R-CNN, DETR |
 /// | **CIFAR-10** | 10 | Basic classification | ResNet, VGG, WideResNet |
 /// | **CIFAR-100** | 100 | Fine-grained classification | ResNet, DenseNet |
 /// | **VOC** | 21 | Detection/segmentation | Older detectors, DeepLab |
 /// | **Places365** | 365 | Scene recognition | ResNet-Places, VGG-Places |
 /// | **ADE20K** | 150 | Semantic segmentation | SegFormer, PSPNet, DeepLab |
+/// | **Open Images** | 600 | Object detection | EfficientDet, YOLO |
+/// | **LVIS** | 1203 | Long-tail detection | Mask R-CNN, Cascade R-CNN |
+/// | **Objects365** | 365 | Object detection | DINO, Co-DETR |
+/// | **ADE20K-Full** | 847 | Dense segmentation | Mask2Former, OneFormer |
+/// | **Kinetics-400** | 400 | Action recognition | I3D, SlowFast, VideoMAE |
+/// | **Kinetics-700** | 700 | Action recognition | TimeSformer, Video Swin |
 ///
 /// ## Architecture
 ///
@@ -331,6 +338,18 @@ public enum LabelDatabase {
             labels = loadJSONLabels(filename: "places365_labels")
         case .ade20k:
             labels = loadJSONLabels(filename: "ade20k_labels")
+        case .openimages:
+            labels = loadJSONLabels(filename: "openimages_labels")
+        case .lvis:
+            labels = loadJSONLabels(filename: "lvis_labels")
+        case .objects365:
+            labels = loadJSONLabels(filename: "objects365_labels")
+        case .ade20kFull:
+            labels = loadJSONLabels(filename: "ade20k_full_labels")
+        case .kinetics400:
+            labels = loadJSONLabels(filename: "kinetics400_labels")
+        case .kinetics700:
+            labels = loadJSONLabels(filename: "kinetics700_labels")
         }
         
         // Cache the result
@@ -407,6 +426,18 @@ public enum LabelDatabase {
             return "Places365 scene recognition (365 classes)"
         case .ade20k:
             return "ADE20K semantic segmentation (150 classes)"
+        case .openimages:
+            return "Open Images V7 object detection (600 classes)"
+        case .lvis:
+            return "LVIS v1 long-tail object detection (1203 classes)"
+        case .objects365:
+            return "Objects365 object detection (365 classes)"
+        case .ade20kFull:
+            return "ADE20K full semantic segmentation (847 classes)"
+        case .kinetics400:
+            return "Kinetics-400 human action recognition (400 classes)"
+        case .kinetics700:
+            return "Kinetics-700 human action recognition (700 classes)"
         }
     }
 }
@@ -435,6 +466,18 @@ public enum LabelDataset: String, CaseIterable, Sendable {
     case places365 = "places365"
     /// ADE20K with 150 semantic segmentation classes
     case ade20k = "ade20k"
+    /// Open Images V7 with 600 object detection classes
+    case openimages = "openimages"
+    /// LVIS v1 with 1203 long-tail object detection classes
+    case lvis = "lvis"
+    /// Objects365 with 365 object detection classes
+    case objects365 = "objects365"
+    /// ADE20K-Full with 847 semantic segmentation classes
+    case ade20kFull = "ade20k_full"
+    /// Kinetics-400 with 400 human action recognition classes
+    case kinetics400 = "kinetics400"
+    /// Kinetics-700 with 700 human action recognition classes
+    case kinetics700 = "kinetics700"
 }
 
 /// Dataset metadata and information.

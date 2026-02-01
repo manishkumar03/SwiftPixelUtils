@@ -67,6 +67,36 @@ final class LabelDatabaseTests: XCTestCase {
         XCTAssertNotNil(label)
     }
     
+    func testGetLabelOpenImages() {
+        let label = LabelDatabase.getLabel(0, dataset: .openimages)
+        XCTAssertNotNil(label)
+    }
+    
+    func testGetLabelLVIS() {
+        let label = LabelDatabase.getLabel(0, dataset: .lvis)
+        XCTAssertNotNil(label)
+    }
+    
+    func testGetLabelObjects365() {
+        let label = LabelDatabase.getLabel(0, dataset: .objects365)
+        XCTAssertNotNil(label)
+    }
+    
+    func testGetLabelADE20KFull() {
+        let label = LabelDatabase.getLabel(0, dataset: .ade20kFull)
+        XCTAssertNotNil(label)
+    }
+    
+    func testGetLabelKinetics400() {
+        let label = LabelDatabase.getLabel(0, dataset: .kinetics400)
+        XCTAssertNotNil(label)
+    }
+    
+    func testGetLabelKinetics700() {
+        let label = LabelDatabase.getLabel(0, dataset: .kinetics700)
+        XCTAssertNotNil(label)
+    }
+    
     func testGetLabelOutOfBounds() {
         let label = LabelDatabase.getLabel(10000, dataset: .coco)
         XCTAssertNil(label)
@@ -124,6 +154,39 @@ final class LabelDatabaseTests: XCTestCase {
     func testGetAllLabelsADE20K() {
         let labels = LabelDatabase.getAllLabels(for: .ade20k)
         XCTAssertEqual(labels.count, 150)
+    }
+    
+    func testGetAllLabelsOpenImages() {
+        let labels = LabelDatabase.getAllLabels(for: .openimages)
+        XCTAssertEqual(labels.count, 600)
+        XCTAssertEqual(labels[0], "Accordion")
+    }
+    
+    func testGetAllLabelsLVIS() {
+        let labels = LabelDatabase.getAllLabels(for: .lvis)
+        XCTAssertEqual(labels.count, 1203)
+    }
+    
+    func testGetAllLabelsObjects365() {
+        let labels = LabelDatabase.getAllLabels(for: .objects365)
+        XCTAssertEqual(labels.count, 365)
+        XCTAssertEqual(labels[0], "Person")
+    }
+    
+    func testGetAllLabelsADE20KFull() {
+        let labels = LabelDatabase.getAllLabels(for: .ade20kFull)
+        XCTAssertEqual(labels.count, 847)
+    }
+    
+    func testGetAllLabelsKinetics400() {
+        let labels = LabelDatabase.getAllLabels(for: .kinetics400)
+        XCTAssertEqual(labels.count, 400)
+        XCTAssertEqual(labels[0], "abseiling")
+    }
+    
+    func testGetAllLabelsKinetics700() {
+        let labels = LabelDatabase.getAllLabels(for: .kinetics700)
+        XCTAssertEqual(labels.count, 700)
     }
     
     // MARK: - getTopLabels Tests
@@ -293,6 +356,12 @@ final class LabelDatabaseTests: XCTestCase {
         XCTAssertTrue(datasets.contains(.imagenet))
         XCTAssertTrue(datasets.contains(.cifar10))
         XCTAssertTrue(datasets.contains(.voc))
+        XCTAssertTrue(datasets.contains(.openimages))
+        XCTAssertTrue(datasets.contains(.lvis))
+        XCTAssertTrue(datasets.contains(.objects365))
+        XCTAssertTrue(datasets.contains(.ade20kFull))
+        XCTAssertTrue(datasets.contains(.kinetics400))
+        XCTAssertTrue(datasets.contains(.kinetics700))
     }
     
     // MARK: - Custom Labels Tests
@@ -421,9 +490,12 @@ final class LabelDatabaseTests: XCTestCase {
     func testLabelDatasetCaseIterable() {
         let allCases = LabelDataset.allCases
         
-        XCTAssertTrue(allCases.count >= 8)
+        XCTAssertTrue(allCases.count >= 15)  // Now includes 15 datasets
         XCTAssertTrue(allCases.contains(.coco))
         XCTAssertTrue(allCases.contains(.imagenet))
+        XCTAssertTrue(allCases.contains(.openimages))
+        XCTAssertTrue(allCases.contains(.lvis))
+        XCTAssertTrue(allCases.contains(.kinetics400))
     }
     
     // MARK: - DatasetInfo Tests

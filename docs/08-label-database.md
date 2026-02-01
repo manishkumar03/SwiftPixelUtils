@@ -22,10 +22,16 @@ A comprehensive reference of class labels for popular machine learning models in
   - [Cityscapes Full Labels](#cityscapes-full-labels)
 - [ADE20K Labels](#ade20k-labels)
   - [ADE20K 150 Classes](#ade20k-150-classes)
+  - [ADE20K-Full 847 Classes](#ade20k-full-847-classes)
 - [Other Datasets](#other-datasets)
-  - [OpenImages](#openimages)
+  - [Open Images (600 Classes)](#open-images-600-classes)
+  - [LVIS (1203 Classes)](#lvis-1203-classes)
+  - [Objects365 (365 Classes)](#objects365-365-classes)
   - [CIFAR-10/100](#cifar-10100)
   - [Fashion-MNIST](#fashion-mnist)
+- [Action Recognition Labels](#action-recognition-labels)
+  - [Kinetics-400](#kinetics-400)
+  - [Kinetics-700](#kinetics-700)
 - [Label Management](#label-management)
   - [Loading Labels](#loading-labels)
   - [Label Mapping](#label-mapping)
@@ -1076,27 +1082,111 @@ let ade20kLabels: [String] = [
 ]
 ```
 
+### ADE20K-Full (847 Classes)
+
+**ADE20K-Full extends the standard 150 classes to 847 classes for more fine-grained semantic segmentation:**
+
+```swift
+import SwiftPixelUtils
+
+// Get ADE20K-Full labels
+let label = LabelDatabase.getLabel(0, dataset: .ade20kFull)  // "wall"
+let allLabels = LabelDatabase.getAllLabels(for: .ade20kFull)  // 847 labels
+
+// For dense segmentation results
+let segmentationResults = LabelDatabase.getTopLabels(
+    scores: pixelProbabilities,
+    dataset: .ade20kFull,
+    k: 5
+)
+```
+
+**Common models using ADE20K-Full:**
+- Mask2Former
+- OneFormer
+- SegGPT
+- Segment Anything (SAM) with semantic labels
+
 ---
 
 ## Other Datasets
 
-### OpenImages
+### Open Images (600 Classes)
 
-**Open Images V7 has 600 classes for detection:**
+**Open Images V7 has 600 classes for object detection:**
 
 ```swift
-/// OpenImages sample labels (600 total)
-let openImagesLabelsSample: [String] = [
-    "Accordion", "Adhesive tape", "Aircraft", "Airplane",
-    "Alarm clock", "Alpaca", "Ambulance", "Animal",
-    "Ant", "Antelope", "Apple", "Armadillo",
-    "Artichoke", "Auto part", "Axe", "Backpack",
-    "Bagel", "Baked goods", "Balance beam", "Ball",
-    "Balloon", "Banana", "Band-aid", "Banjo",
-    "Barge", "Barrel", "Baseball bat", "Baseball glove",
-    // ... 600 total classes
-]
+import SwiftPixelUtils
+
+// Get Open Images labels
+let label = LabelDatabase.getLabel(0, dataset: .openimages)  // "Accordion"
+let allLabels = LabelDatabase.getAllLabels(for: .openimages)  // 600 labels
+
+// Top-K predictions
+let topPredictions = LabelDatabase.getTopLabels(
+    scores: modelOutput,
+    dataset: .openimages,
+    k: 5
+)
 ```
+
+**Common models using Open Images:**
+- EfficientDet
+- YOLO variants trained on Open Images
+- RetinaNet
+
+### LVIS (1203 Classes)
+
+**LVIS (Large Vocabulary Instance Segmentation) v1 with 1203 long-tail classes:**
+
+LVIS is designed to handle the long-tail distribution of real-world object categories, including rare classes that appear infrequently.
+
+```swift
+import SwiftPixelUtils
+
+// Get LVIS labels
+let label = LabelDatabase.getLabel(0, dataset: .lvis)  // "aerosol_can"
+let allLabels = LabelDatabase.getAllLabels(for: .lvis)  // 1203 labels
+
+// Top-K predictions
+let topPredictions = LabelDatabase.getTopLabels(
+    scores: modelOutput,
+    dataset: .lvis,
+    k: 10
+)
+```
+
+**Common models using LVIS:**
+- Mask R-CNN
+- Cascade R-CNN
+- DETR variants
+- Federated loss models
+
+### Objects365 (365 Classes)
+
+**Objects365 v2 with 365 object detection classes:**
+
+Objects365 is a large-scale object detection dataset with high-quality annotations, commonly used for pre-training detection models.
+
+```swift
+import SwiftPixelUtils
+
+// Get Objects365 labels
+let label = LabelDatabase.getLabel(0, dataset: .objects365)  // "Person"
+let allLabels = LabelDatabase.getAllLabels(for: .objects365)  // 365 labels
+
+// Top-K predictions
+let topPredictions = LabelDatabase.getTopLabels(
+    scores: modelOutput,
+    dataset: .objects365,
+    k: 5
+)
+```
+
+**Common models using Objects365:**
+- DINO
+- Co-DETR
+- Pre-trained detection backbones
 
 ### CIFAR-10/100
 
@@ -1157,6 +1247,69 @@ let fashionMnistLabels: [String] = [
     "Ankle boot"     // 9
 ]
 ```
+
+---
+
+## Action Recognition Labels
+
+### Kinetics-400
+
+**Kinetics-400 with 400 human action recognition classes:**
+
+Kinetics-400 is a large-scale video dataset for human action recognition, containing 400 action classes.
+
+```swift
+import SwiftPixelUtils
+
+// Get Kinetics-400 labels
+let label = LabelDatabase.getLabel(0, dataset: .kinetics400)  // "abseiling"
+let allLabels = LabelDatabase.getAllLabels(for: .kinetics400)  // 400 labels
+
+// Top-K action predictions
+let topActions = LabelDatabase.getTopLabels(
+    scores: actionModelOutput,
+    dataset: .kinetics400,
+    k: 5
+)
+
+for action in topActions {
+    print("\(action.label): \(String(format: "%.1f", action.confidence * 100))%")
+}
+```
+
+**Common models using Kinetics-400:**
+- I3D (Inflated 3D ConvNet)
+- SlowFast Networks
+- VideoMAE
+- TimeSformer
+- Video Swin Transformer
+
+### Kinetics-700
+
+**Kinetics-700 with 700 human action recognition classes:**
+
+Kinetics-700 extends Kinetics-400 with 300 additional action classes for more comprehensive action recognition.
+
+```swift
+import SwiftPixelUtils
+
+// Get Kinetics-700 labels
+let label = LabelDatabase.getLabel(0, dataset: .kinetics700)  // "abseiling"
+let allLabels = LabelDatabase.getAllLabels(for: .kinetics700)  // 700 labels
+
+// Top-K action predictions
+let topActions = LabelDatabase.getTopLabels(
+    scores: actionModelOutput,
+    dataset: .kinetics700,
+    k: 10
+)
+```
+
+**Common models using Kinetics-700:**
+- TimeSformer
+- Video Swin Transformer
+- VideoMAE v2
+- Omnivore
 
 ---
 

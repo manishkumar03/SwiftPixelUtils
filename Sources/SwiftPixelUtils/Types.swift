@@ -411,6 +411,8 @@ public struct Normalization: Codable {
 /// | CoreML | NHWC/NCHW | `MLMultiArray` |
 /// | ONNX Runtime | NCHW | `OrtValue` |
 /// | OpenCV | HWC | `cv::Mat` |
+/// | ExecuTorch | NCHW | PyTorch-exported models |
+/// | TFLite | NHWC | `TfLiteTensor` |
 public enum DataLayout: String, Codable {
     case hwc   // Height × Width × Channels
     case chw   // Channels × Height × Width

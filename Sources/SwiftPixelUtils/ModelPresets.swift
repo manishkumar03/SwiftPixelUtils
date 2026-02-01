@@ -41,6 +41,12 @@ import CoreGraphics
 /// | ResNet | 224×224 | ImageNet | NCHW | PyTorch convention |
 /// | CLIP | 224×224 | Custom | NCHW | OpenAI's LAION statistics |
 /// | SAM | 1024×1024 | ImageNet | NCHW | High-res segmentation |
+/// | ExecuTorch | varies | varies | NCHW | PyTorch-exported models |
+///
+/// ## ExecuTorch Compatibility
+///
+/// All presets with NCHW layout work directly with ExecuTorch models exported from PyTorch.
+/// For quantized ExecuTorch models, use the output with ``Quantizer`` to convert to Int8.
 ///
 /// ## Creating Custom Presets
 ///

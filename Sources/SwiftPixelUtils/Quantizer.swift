@@ -33,7 +33,7 @@ import Accelerate
 ///
 /// | Type | Range | Typical Use |
 /// |------|-------|-------------|
-/// | **Int8** | [-128, 127] | TFLite, ONNX (symmetric) |
+/// | **Int8** | [-128, 127] | TFLite, ONNX, ExecuTorch (symmetric) |
 /// | **UInt8** | [0, 255] | TFLite (asymmetric), CoreML |
 /// | **Int16** | [-32768, 32767] | High-precision quantization |
 ///
@@ -85,6 +85,38 @@ import Accelerate
 /// - **Dynamic range**: Float weights, int8 activations at runtime
 ///
 /// Check your model's quantization config to match scale/zero_point values.
+///
+/// ## ExecuTorch Compatibility
+///
+/// ExecuTorch (PyTorch's on-device runtime) uses the same quantization scheme.
+/// For ExecuTorch quantized models:
+/// - Use Int8 with symmetric quantization (zero_point = 0)
+/// - NCHW data layout (PyTorch convention)
+/// - Per-channel quantization for weights, per-tensor for activations
+///
+/// ```swift
+/// // Preprocess for ExecuTorch quantized model
+/// let pixels = try await PixelExtractor.getPixelData(
+///     from: image,
+///     options: PixelDataOptions(
+///         resize: .fit(width: 224, height: 224),
+///         normalization: .imagenet,
+///         dataLayout: .nchw
+///     )
+/// )
+///
+/// // Quantize for Int8 ExecuTorch model
+/// let quantized = try Quantizer.quantize(
+///     data: pixels.pixelData,
+///     options: QuantizationOptions(
+///         mode: .perTensor,
+///         dtype: .int8,
+///         scale: [model_scale],
+///         zeroPoint: [0]  // Symmetric
+///     )
+/// )
+/// // Pass quantized.int8Data to ExecuTorch tensor
+/// ```
 public enum Quantizer {
     
     // MARK: - Quantization

@@ -32,7 +32,7 @@ High-performance Swift library for image preprocessing optimized for ML/AI infer
 - 📈 **Image Analysis**: Statistics, metadata, validation, blur detection
 - 🧮 **Tensor Operations**: Channel extraction, patch extraction, permutation, batch concatenation
 - 🔙 **Tensor to Image**: Convert processed tensors back to images
-- 🎯 **Native Quantization**: Float→Int8/UInt8/Int16 with per-tensor and per-channel support (TFLite compatible)
+- 🎯 **Native Quantization**: Float→Int8/UInt8/Int16 with per-tensor and per-channel support (TFLite/ExecuTorch compatible)
 - 🏷️ **Label Database**: Built-in labels for COCO, ImageNet, VOC, CIFAR, Places365, ADE20K
 - 📦 **Bounding Box Utilities**: Format conversion (xyxy/xywh/cxcywh), scaling, clipping, IoU, NMS
 - 🖼️ **Letterbox Padding**: YOLO-style letterbox preprocessing with reverse coordinate transform
@@ -114,6 +114,34 @@ let mobileNetResult = try await PixelExtractor.getPixelData(
 | `sam` | 1024×1024 | contain | ImageNet | NCHW |
 | `dino` | 224×224 | cover | ImageNet | NCHW |
 | `detr` | 800×800 | contain | ImageNet | NCHW |
+
+### ExecuTorch Compatibility
+
+All presets with **NCHW layout** work directly with ExecuTorch models exported from PyTorch. For quantized ExecuTorch models, use the output with `Quantizer` to convert to Int8:
+
+```swift
+// Preprocess for ExecuTorch quantized model
+let pixels = try await PixelExtractor.getPixelData(
+    source: .file(imageURL),
+    options: PixelDataOptions(
+        resize: .fit(width: 224, height: 224),
+        normalization: .imagenet,
+        dataLayout: .nchw  // PyTorch/ExecuTorch convention
+    )
+)
+
+// Quantize for Int8 ExecuTorch model
+let quantized = try Quantizer.quantize(
+    data: pixels.pixelData,
+    options: QuantizationOptions(
+        mode: .perTensor,
+        dtype: .int8,
+        scale: [model_scale],
+        zeroPoint: [0]  // Symmetric quantization
+    )
+)
+// Pass quantized.int8Data to ExecuTorch tensor
+```
 
 ## 📖 API Reference
 
@@ -565,8 +593,8 @@ public enum NormalizationPreset {
 public enum DataLayout {
     case hwc   // Height × Width × Channels (default)
     case chw   // Channels × Height × Width (PyTorch)
-    case nhwc  // Batch × Height × Width × Channels (TensorFlow)
-    case nchw  // Batch × Channels × Height × Width (PyTorch batched)
+    case nhwc  // Batch × Height × Width × Channels (TensorFlow/TFLite)
+    case nchw  // Batch × Channels × Height × Width (PyTorch/ExecuTorch)
 }
 ```
 
@@ -598,6 +626,7 @@ public enum PixelUtilsError: Error {
 | ⚙️ Model Presets | Pre-configured settings are optimized for each model |
 | 🔄 Data Layout | Choose the right dataLayout upfront to avoid conversions |
 | 🚀 Accelerate Framework | Leverage Apple's Accelerate for optimal performance |
+| 🤖 ExecuTorch | Use NCHW layout + Int8 quantization for PyTorch-exported models |
 
 ## 🤝 Contributing
 

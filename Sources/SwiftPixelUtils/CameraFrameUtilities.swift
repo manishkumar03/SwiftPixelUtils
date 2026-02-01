@@ -587,6 +587,12 @@ public enum CameraFrameUtilities {
         // Convert to float and normalize
         let channels = options.colorFormat.channelCount
         var floatData = [Float](repeating: 0, count: width * height * channels)
+        var uint8Output: [UInt8]? = nil
+        
+        // Store raw uint8 data if requested
+        if options.outputFormat == .uint8Array || options.normalization == .raw {
+            uint8Output = [UInt8](repeating: 0, count: width * height * channels)
+        }
         
         for y in 0..<height {
             for x in 0..<width {
@@ -598,16 +604,30 @@ public enum CameraFrameUtilities {
                     floatData[outIdx] = Float(pixelData[pixelIdx]) / 255.0
                     floatData[outIdx + 1] = Float(pixelData[pixelIdx + 1]) / 255.0
                     floatData[outIdx + 2] = Float(pixelData[pixelIdx + 2]) / 255.0
+                    if uint8Output != nil {
+                        uint8Output![outIdx] = pixelData[pixelIdx]
+                        uint8Output![outIdx + 1] = pixelData[pixelIdx + 1]
+                        uint8Output![outIdx + 2] = pixelData[pixelIdx + 2]
+                    }
                 case .grayscale:
                     let r = Float(pixelData[pixelIdx])
                     let g = Float(pixelData[pixelIdx + 1])
                     let b = Float(pixelData[pixelIdx + 2])
                     floatData[outIdx] = (0.299 * r + 0.587 * g + 0.114 * b) / 255.0
+                    if uint8Output != nil {
+                        uint8Output![outIdx] = UInt8(0.299 * r + 0.587 * g + 0.114 * b)
+                    }
                 default:
                     floatData[outIdx] = Float(pixelData[pixelIdx]) / 255.0
                     if channels > 1 { floatData[outIdx + 1] = Float(pixelData[pixelIdx + 1]) / 255.0 }
                     if channels > 2 { floatData[outIdx + 2] = Float(pixelData[pixelIdx + 2]) / 255.0 }
                     if channels > 3 { floatData[outIdx + 3] = Float(pixelData[pixelIdx + 3]) / 255.0 }
+                    if uint8Output != nil {
+                        uint8Output![outIdx] = pixelData[pixelIdx]
+                        if channels > 1 { uint8Output![outIdx + 1] = pixelData[pixelIdx + 1] }
+                        if channels > 2 { uint8Output![outIdx + 2] = pixelData[pixelIdx + 2] }
+                        if channels > 3 { uint8Output![outIdx + 3] = pixelData[pixelIdx + 3] }
+                    }
                 }
             }
         }
@@ -626,8 +646,22 @@ public enum CameraFrameUtilities {
             }
         }
         
+        // Generate int32Data if requested
+        let int32Output: [Int32]?
+        if options.outputFormat == .int32Array {
+            if options.normalization == .raw {
+                int32Output = floatData.map { Int32($0 * 255.0) }
+            } else {
+                int32Output = floatData.map { Int32($0 * 255.0) }
+            }
+        } else {
+            int32Output = nil
+        }
+        
         return PixelDataResult(
             data: floatData,
+            uint8Data: uint8Output,
+            int32Data: int32Output,
             width: width,
             height: height,
             channels: channels,

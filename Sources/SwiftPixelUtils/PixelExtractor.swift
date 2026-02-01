@@ -162,6 +162,39 @@ public enum PixelExtractor {
             layout: options.dataLayout
         )
         
+        // Generate uint8Data if requested or if using raw normalization
+        let uint8Data: [UInt8]?
+        if options.outputFormat == .uint8Array || options.normalization == .raw {
+            // Apply layout to raw color data and convert to UInt8
+            // colorData is in [0, 1] range, so multiply by 255 to get [0, 255]
+            let rawLayoutData = try applyDataLayout(
+                colorData,
+                width: width,
+                height: height,
+                channels: channels,
+                layout: options.dataLayout
+            )
+            uint8Data = rawLayoutData.map { UInt8(min(255, max(0, $0 * 255.0))) }
+        } else {
+            uint8Data = nil
+        }
+        
+        // Generate int32Data if requested
+        let int32Data: [Int32]?
+        if options.outputFormat == .int32Array {
+            // Convert normalized float data to Int32
+            // For raw normalization, values are 0-255; otherwise scale appropriately
+            if options.normalization == .raw {
+                int32Data = layoutData.map { Int32($0) }
+            } else {
+                // For normalized data in [0,1] or [-1,1], scale to Int32 range
+                // Using a reasonable scale factor for ML inference
+                int32Data = layoutData.map { Int32($0 * 255.0) }
+            }
+        } else {
+            int32Data = nil
+        }
+        
         let processingTime = (CFAbsoluteTimeGetCurrent() - startTime) * 1000
         
         let shape = calculateShape(
@@ -173,12 +206,108 @@ public enum PixelExtractor {
         
         return PixelDataResult(
             data: layoutData,
+            uint8Data: uint8Data,
+            int32Data: int32Data,
             width: width,
             height: height,
             channels: channels,
             colorFormat: options.colorFormat,
             dataLayout: options.dataLayout,
             shape: shape,
+            processingTimeMs: processingTime
+        )
+    }
+    
+    // MARK: - Simplified Framework-Specific API
+    
+    /// Get preprocessed image data ready for ML model inference.
+    ///
+    /// This is the simplest way to get data ready for your ML model. Just specify the
+    /// framework and image size, and the method handles all configuration automatically.
+    ///
+    /// ## Example
+    ///
+    /// ```swift
+    /// // For TensorFlow Lite quantized model (e.g., MobileNet)
+    /// let input = try await PixelExtractor.getModelInput(
+    ///     source: .uiImage(image),
+    ///     framework: .tfliteQuantized,
+    ///     width: 224,
+    ///     height: 224
+    /// )
+    /// // input.data contains UInt8 bytes in NHWC layout, ready for TFLite
+    ///
+    /// // For PyTorch model
+    /// let input = try await PixelExtractor.getModelInput(
+    ///     source: .uiImage(image),
+    ///     framework: .pytorch,
+    ///     width: 224,
+    ///     height: 224
+    /// )
+    /// // input.data contains Float32 bytes in NCHW layout with ImageNet normalization
+    /// ```
+    ///
+    /// - Parameters:
+    ///   - source: Image source (URL, file, UIImage, etc.)
+    ///   - framework: Target ML framework that determines all preprocessing settings
+    ///   - width: Target width for the model input
+    ///   - height: Target height for the model input
+    ///   - resizeStrategy: How to resize the image (default: .cover for classification, use .letterbox for detection)
+    /// - Returns: ``ModelInputResult`` containing raw bytes and metadata
+    /// - Throws: ``PixelUtilsError`` if preprocessing fails
+    public static func getModelInput(
+        source: ImageSource,
+        framework: MLFramework,
+        width: Int,
+        height: Int,
+        resizeStrategy: ResizeStrategy = .cover
+    ) async throws -> ModelInputResult {
+        let startTime = CFAbsoluteTimeGetCurrent()
+        
+        // Get base options from framework and add resize
+        var options = framework.options
+        options.resize = ResizeOptions(width: width, height: height, strategy: resizeStrategy)
+        
+        // Extract pixel data
+        let result = try await getPixelData(source: source, options: options)
+        
+        // Convert to raw Data based on output format
+        let outputData: Data
+        let dataType: String
+        
+        switch framework {
+        case .tfliteQuantized, .openCV:
+            // UInt8 output
+            guard let uint8Data = result.uint8Data else {
+                throw PixelUtilsError.processingFailed("Failed to generate UInt8 data for \(framework)")
+            }
+            outputData = Data(uint8Data)
+            dataType = "UInt8"
+            
+        case .execuTorchQuantized:
+            // Int8 output (convert from raw 0-255 to -128 to 127)
+            guard let uint8Data = result.uint8Data else {
+                throw PixelUtilsError.processingFailed("Failed to generate data for \(framework)")
+            }
+            let int8Data = uint8Data.map { Int8(bitPattern: $0 &- 128) }
+            outputData = int8Data.withUnsafeBufferPointer { Data(buffer: $0) }
+            dataType = "Int8"
+            
+        default:
+            // Float32 output
+            outputData = result.data.withUnsafeBytes { Data($0) }
+            dataType = "Float32"
+        }
+        
+        let processingTime = (CFAbsoluteTimeGetCurrent() - startTime) * 1000
+        
+        return ModelInputResult(
+            data: outputData,
+            shape: result.shape,
+            width: result.width,
+            height: result.height,
+            channels: result.channels,
+            dataType: dataType,
             processingTimeMs: processingTime
         )
     }

@@ -324,7 +324,7 @@ public enum NormalizationPreset: String, Codable {
 /// 1. **Centers** data around zero (subtracting mean)
 /// 2. **Scales** to unit variance (dividing by std)
 /// 3. **Preserves** relative differences between pixels
-public struct Normalization: Codable {
+public struct Normalization: Codable, Equatable {
     public let preset: NormalizationPreset
     public let mean: [Float]?
     public let std: [Float]?
@@ -430,6 +430,204 @@ public enum OutputFormat: String, Codable {
     case uint8Array
 }
 
+// MARK: - ML Framework Target
+
+/// Target ML framework for automatic configuration.
+///
+/// Use this to get data in the exact format required by your ML framework,
+/// without manually configuring normalization, layout, or output format.
+///
+/// ## Usage
+///
+/// ```swift
+/// // Get data ready for TensorFlow Lite quantized model
+/// let inputData = try await PixelExtractor.getModelInput(
+///     source: .uiImage(image),
+///     framework: .tfliteQuantized,
+///     width: 224,
+///     height: 224
+/// )
+/// // inputData is Data containing UInt8 values in NHWC layout
+///
+/// // Get data ready for PyTorch model
+/// let inputData = try await PixelExtractor.getModelInput(
+///     source: .uiImage(image),
+///     framework: .pytorch,
+///     width: 224,
+///     height: 224
+/// )
+/// // inputData is Data containing Float32 values in NCHW layout with ImageNet normalization
+/// ```
+///
+/// ## Framework Configurations
+///
+/// | Framework | Layout | Normalization | Output Type |
+/// |-----------|--------|---------------|-------------|
+/// | `.pytorch` | NCHW | ImageNet | Float32 |
+/// | `.pytorchRaw` | NCHW | [0,1] scale | Float32 |
+/// | `.tensorflow` | NHWC | [-1,1] | Float32 |
+/// | `.tensorflowImageNet` | NHWC | ImageNet | Float32 |
+/// | `.tfliteQuantized` | NHWC | raw [0,255] | UInt8 |
+/// | `.tfliteFloat` | NHWC | [0,1] scale | Float32 |
+/// | `.coreML` | NHWC | [0,1] scale | Float32 |
+/// | `.coreMLImageNet` | NHWC | ImageNet | Float32 |
+/// | `.onnx` | NCHW | ImageNet | Float32 |
+/// | `.execuTorch` | NCHW | ImageNet | Float32 |
+/// | `.execuTorchQuantized` | NCHW | raw [0,255] | Int8 |
+/// | `.openCV` | HWC/BGR | [0,255] | UInt8 |
+public enum MLFramework: String, Codable {
+    /// PyTorch models (NCHW, ImageNet normalization, Float32)
+    case pytorch
+    /// PyTorch models with simple [0,1] scaling (NCHW, Float32)
+    case pytorchRaw
+    /// TensorFlow models (NHWC, [-1,1] normalization, Float32)
+    case tensorflow
+    /// TensorFlow models with ImageNet normalization (NHWC, Float32)
+    case tensorflowImageNet
+    /// TensorFlow Lite quantized models (NHWC, raw [0,255], UInt8)
+    case tfliteQuantized
+    /// TensorFlow Lite float models (NHWC, [0,1] scale, Float32)
+    case tfliteFloat
+    /// CoreML models (NHWC, [0,1] scale, Float32)
+    case coreML
+    /// CoreML models with ImageNet normalization (NHWC, Float32)
+    case coreMLImageNet
+    /// ONNX Runtime models (NCHW, ImageNet normalization, Float32)
+    case onnx
+    /// ExecuTorch models (NCHW, ImageNet normalization, Float32)
+    case execuTorch
+    /// ExecuTorch quantized models (NCHW, raw, Int8)
+    case execuTorchQuantized
+    /// OpenCV compatible (HWC, BGR, raw [0,255], UInt8)
+    case openCV
+    
+    /// Get the pixel data options for this framework
+    public var options: PixelDataOptions {
+        switch self {
+        case .pytorch:
+            return PixelDataOptions(
+                colorFormat: .rgb,
+                normalization: .imagenet,
+                dataLayout: .nchw,
+                outputFormat: .float32Array
+            )
+        case .pytorchRaw:
+            return PixelDataOptions(
+                colorFormat: .rgb,
+                normalization: .scale,
+                dataLayout: .nchw,
+                outputFormat: .float32Array
+            )
+        case .tensorflow:
+            return PixelDataOptions(
+                colorFormat: .rgb,
+                normalization: .tensorflow,
+                dataLayout: .nhwc,
+                outputFormat: .float32Array
+            )
+        case .tensorflowImageNet:
+            return PixelDataOptions(
+                colorFormat: .rgb,
+                normalization: .imagenet,
+                dataLayout: .nhwc,
+                outputFormat: .float32Array
+            )
+        case .tfliteQuantized:
+            return PixelDataOptions(
+                colorFormat: .rgb,
+                normalization: .raw,
+                dataLayout: .nhwc,
+                outputFormat: .uint8Array
+            )
+        case .tfliteFloat:
+            return PixelDataOptions(
+                colorFormat: .rgb,
+                normalization: .scale,
+                dataLayout: .nhwc,
+                outputFormat: .float32Array
+            )
+        case .coreML:
+            return PixelDataOptions(
+                colorFormat: .rgb,
+                normalization: .scale,
+                dataLayout: .nhwc,
+                outputFormat: .float32Array
+            )
+        case .coreMLImageNet:
+            return PixelDataOptions(
+                colorFormat: .rgb,
+                normalization: .imagenet,
+                dataLayout: .nhwc,
+                outputFormat: .float32Array
+            )
+        case .onnx:
+            return PixelDataOptions(
+                colorFormat: .rgb,
+                normalization: .imagenet,
+                dataLayout: .nchw,
+                outputFormat: .float32Array
+            )
+        case .execuTorch:
+            return PixelDataOptions(
+                colorFormat: .rgb,
+                normalization: .imagenet,
+                dataLayout: .nchw,
+                outputFormat: .float32Array
+            )
+        case .execuTorchQuantized:
+            return PixelDataOptions(
+                colorFormat: .rgb,
+                normalization: .raw,
+                dataLayout: .nchw,
+                outputFormat: .int32Array
+            )
+        case .openCV:
+            return PixelDataOptions(
+                colorFormat: .bgr,
+                normalization: .raw,
+                dataLayout: .hwc,
+                outputFormat: .uint8Array
+            )
+        }
+    }
+}
+
+/// Result from getModelInput containing raw bytes ready for ML inference
+public struct ModelInputResult {
+    /// Raw bytes ready to be passed to the ML model
+    public let data: Data
+    /// Shape of the tensor [batch, ...] - format depends on framework
+    public let shape: [Int]
+    /// Width of the processed image
+    public let width: Int
+    /// Height of the processed image
+    public let height: Int
+    /// Number of channels
+    public let channels: Int
+    /// Data type description
+    public let dataType: String
+    /// Processing time in milliseconds
+    public let processingTimeMs: Double
+    
+    public init(
+        data: Data,
+        shape: [Int],
+        width: Int,
+        height: Int,
+        channels: Int,
+        dataType: String,
+        processingTimeMs: Double
+    ) {
+        self.data = data
+        self.shape = shape
+        self.width = width
+        self.height = height
+        self.channels = channels
+        self.dataType = dataType
+        self.processingTimeMs = processingTimeMs
+    }
+}
+
 // MARK: - ROI (Region of Interest)
 
 /// Region of interest for cropping
@@ -479,7 +677,12 @@ public struct PixelDataOptions {
 
 /// Result from pixel data extraction
 public struct PixelDataResult {
+    /// Float pixel data (always populated, normalized based on options)
     public let data: [Float]
+    /// UInt8 pixel data (0-255 raw values, populated when outputFormat is .uint8Array or .raw normalization)
+    public let uint8Data: [UInt8]?
+    /// Int32 pixel data (populated when outputFormat is .int32Array)
+    public let int32Data: [Int32]?
     public let width: Int
     public let height: Int
     public let channels: Int
@@ -490,6 +693,8 @@ public struct PixelDataResult {
     
     public init(
         data: [Float],
+        uint8Data: [UInt8]? = nil,
+        int32Data: [Int32]? = nil,
         width: Int,
         height: Int,
         channels: Int,
@@ -499,6 +704,8 @@ public struct PixelDataResult {
         processingTimeMs: Double
     ) {
         self.data = data
+        self.uint8Data = uint8Data
+        self.int32Data = int32Data
         self.width = width
         self.height = height
         self.channels = channels

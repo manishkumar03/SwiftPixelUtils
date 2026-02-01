@@ -40,16 +40,22 @@
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		7941C6722F2E8FB3001DD805 /* SwiftPixelUtilsExampleApp */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+			);
 			path = SwiftPixelUtilsExampleApp;
 			sourceTree = "<group>";
 		};
 		7941C6802F2E8FB5001DD805 /* SwiftPixelUtilsExampleAppTests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+			);
 			path = SwiftPixelUtilsExampleAppTests;
 			sourceTree = "<group>";
 		};
 		7941C68A2F2E8FB5001DD805 /* SwiftPixelUtilsExampleAppUITests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+			);
 			path = SwiftPixelUtilsExampleAppUITests;
 			sourceTree = "<group>";
 		};
@@ -224,7 +230,7 @@
 			mainGroup = 7941C6672F2E8FB3001DD805;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				7941C6A62F2E905B001DD805 /* XCLocalSwiftPackageReference "../../../SwiftPixelUtils" */,
+				7941C6A62F2E905B001DD805 /* XCLocalSwiftPackageReference "SwiftPixelUtils" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 7941C6712F2E8FB3001DD805 /* Products */;
@@ -293,13 +299,9 @@
 			inputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-SwiftPixelUtilsExampleApp/Pods-SwiftPixelUtilsExampleApp-resources-${CONFIGURATION}-input-files.xcfilelist",
 			);
-			inputPaths = (
-			);
 			name = "[CP] Copy Pods Resources";
 			outputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-SwiftPixelUtilsExampleApp/Pods-SwiftPixelUtilsExampleApp-resources-${CONFIGURATION}-output-files.xcfilelist",
-			);
-			outputPaths = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
@@ -663,7 +665,7 @@
 /* End XCConfigurationList section */
 
 /* Begin XCLocalSwiftPackageReference section */
-		7941C6A62F2E905B001DD805 /* XCLocalSwiftPackageReference "../../../SwiftPixelUtils" */ = {
+		7941C6A62F2E905B001DD805 /* XCLocalSwiftPackageReference "SwiftPixelUtils" */ = {
 			isa = XCLocalSwiftPackageReference;
 			relativePath = ../../../SwiftPixelUtils;
 		};

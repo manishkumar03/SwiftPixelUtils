@@ -169,31 +169,23 @@ struct TFLiteInferenceView: View {
         topPredictions = []
         
         do {
-            // Step 1: Preprocess image using SwiftPixelUtils
-            // MobileNet v2 quantized expects:
-            // - 224x224 RGB
-            // - UInt8 values (0-255) - raw pixel values for quantized model
-            let startPreprocess = CFAbsoluteTimeGetCurrent()
-            
-            let preprocessResult = try await PixelExtractor.getPixelData(
+            // Step 1: Preprocess image using SwiftPixelUtils simplified API
+            // Just specify the framework - all decisions are made automatically!
+            // .tfliteQuantized gives us: 224x224 RGB, UInt8 values (0-255), NHWC layout
+            let modelInput = try await PixelExtractor.getModelInput(
                 source: .uiImage(image),
-                options: PixelDataOptions(
-                    colorFormat: .rgb,
-                    resize: ResizeOptions(width: 224, height: 224, strategy: .cover),
-                    normalization: .raw,  // Keep as 0-255 for quantized model
-                    dataLayout: .nhwc,    // TensorFlow convention [1, 224, 224, 3]
-                    outputFormat: .float32Array
-                )
+                framework: .tfliteQuantized,  // One line! Handles everything automatically
+                width: 224,
+                height: 224
             )
             
-            // Convert float (0-255) to UInt8 for quantized model input
-            let uint8Data = preprocessResult.data.map { UInt8(min(255, max(0, $0))) }
-            let inputData = Data(uint8Data)
+            // modelInput.data is ready to pass directly to the model
+            let inputData = modelInput.data
+            let preprocessTime = modelInput.processingTimeMs
             
-            let preprocessTime = (CFAbsoluteTimeGetCurrent() - startPreprocess) * 1000
             resultText = "Preprocessing: \(String(format: "%.2f", preprocessTime)) ms\nLoading model..."
             
-            // Step 2: Load TFLite model - try multiple locations
+            // Step 2: Load TFLite model
             var modelPath: String? = Bundle.main.path(forResource: "mobilenet_v2_1.0_224_quant", ofType: "tflite", inDirectory: "Resources")
             if modelPath == nil {
                 modelPath = Bundle.main.path(forResource: "mobilenet_v2_1.0_224_quant", ofType: "tflite")
@@ -216,43 +208,31 @@ struct TFLiteInferenceView: View {
             
             inferenceTime = (CFAbsoluteTimeGetCurrent() - startInference) * 1000
             
-            // Step 4: Get output tensor and process results
+            // Step 4: Process output with one line using ClassificationOutput
             let outputTensor = try interpreter.output(at: 0)
-            let outputData = outputTensor.data
+            let quantParams = outputTensor.quantizationParameters
             
-            // Output is UInt8 quantized probabilities
-            let outputArray = [UInt8](outputData)
-            
-            // Dequantize output and apply softmax to get probabilities
-            let logits: [Float]
-            if let quantParams = outputTensor.quantizationParameters {
-                logits = outputArray.map { Float(Int($0) - quantParams.zeroPoint) * quantParams.scale }
-            } else {
-                logits = outputArray.map { Float($0) }
-            }
-            
-            // Apply softmax to convert logits to probabilities
-            let probabilities = softmax(logits)
-            
-            // Step 5: Get top predictions using SwiftPixelUtils LabelDatabase
-            // Note: The model has 1001 classes (background + 1000 ImageNet classes)
-            let topK = getTopK(probabilities: probabilities, k: 5)
+            let classificationResult = try ClassificationOutput.process(
+                outputData: outputTensor.data,
+                quantization: quantParams != nil
+                    ? .uint8(scale: quantParams!.scale, zeroPoint: quantParams!.zeroPoint)
+                    : .none,
+                topK: 5,
+                labels: .imagenet(hasBackgroundClass: true)  // MobileNet has 1001 classes (background + 1000)
+            )
             
             await MainActor.run {
-                topPredictions = topK.map { (index, confidence) in
-                    // Index 0 is background, so ImageNet classes start at 1
-                    let label = LabelDatabase.getLabel(index > 0 ? index - 1 : index, dataset: .imagenet) ?? "Unknown (\(index))"
-                    return (label: label, confidence: confidence)
-                }
+                topPredictions = classificationResult.predictions.map { ($0.label, $0.confidence) }
                 
                 resultText = """
                 ✅ Inference complete!
                 
                 Model: MobileNet V2 (Quantized)
-                Input: \(preprocessResult.width)×\(preprocessResult.height) RGB
-                Output: \(outputArray.count) classes
+                Input: \(modelInput.width)×\(modelInput.height) RGB (\(modelInput.dataType))
+                Output: \(outputTensor.data.count) classes
                 Preprocessing: \(String(format: "%.2f", preprocessTime)) ms
                 Inference: \(String(format: "%.2f", inferenceTime)) ms
+                Output Processing: \(String(format: "%.2f", classificationResult.processingTimeMs)) ms
                 """
             }
             
@@ -261,22 +241,6 @@ struct TFLiteInferenceView: View {
         }
         
         isRunning = false
-    }
-    
-    /// Get top-K predictions from probability array
-    private func getTopK(probabilities: [Float], k: Int) -> [(index: Int, confidence: Float)] {
-        let indexed = probabilities.enumerated().map { (index: $0.offset, confidence: $0.element) }
-        let sorted = indexed.sorted { $0.confidence > $1.confidence }
-        return Array(sorted.prefix(k))
-    }
-    
-    /// Apply softmax to convert logits to probabilities
-    private func softmax(_ logits: [Float]) -> [Float] {
-        // Find max for numerical stability
-        let maxLogit = logits.max() ?? 0
-        let expValues = logits.map { exp($0 - maxLogit) }
-        let sumExp = expValues.reduce(0, +)
-        return expValues.map { $0 / sumExp }
     }
 }
 

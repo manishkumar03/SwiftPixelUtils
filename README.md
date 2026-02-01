@@ -18,6 +18,7 @@ High-performance Swift library for image preprocessing optimized for ML/AI infer
 ## ✨ Features
 
 - 🚀 **High Performance**: Native implementations using Apple frameworks (Core Image, Accelerate, vImage, Core ML)
+- 🤖 **Simplified ML APIs**: One-line preprocessing (`getModelInput`) and postprocessing (`ClassificationOutput`) for all major frameworks
 - 🔢 **Raw Pixel Data**: Extract pixel values as typed arrays (Float, Int32, UInt8) ready for ML inference
 - 🎨 **Multiple Color Formats**: RGB, RGBA, BGR, BGRA, Grayscale, HSV, HSL, LAB, YUV, YCbCr
 - 📐 **Flexible Resizing**: Cover, contain, stretch, and letterbox strategies
@@ -26,6 +27,7 @@ High-performance Swift library for image preprocessing optimized for ML/AI infer
 - 📦 **Batch Processing**: Process multiple images with concurrency control
 - 🖼️ **Multiple Sources**: URL, file, base64, assets, photo library
 - 🤖 **Model Presets**: Pre-configured settings for YOLO, MobileNet, EfficientNet, ResNet, ViT, CLIP, SAM, DINO, DETR
+- 🎯 **Framework Targets**: Automatic configuration for PyTorch, TensorFlow, TFLite, CoreML, ONNX, ExecuTorch, OpenCV
 - 🔄 **Image Augmentation**: Rotation, flip, brightness, contrast, saturation, blur
 - 🎨 **Color Jitter**: Granular brightness/contrast/saturation/hue control with range support and seeded randomness
 - ✂️ **Cutout/Random Erasing**: Mask random regions with constant/noise fill for robustness training
@@ -141,6 +143,126 @@ let quantized = try Quantizer.quantize(
     )
 )
 // Pass quantized.int8Data to ExecuTorch tensor
+```
+
+## 🤖 Simplified ML APIs
+
+SwiftPixelUtils provides high-level APIs that handle all preprocessing and postprocessing decisions automatically based on your target ML framework.
+
+### `getModelInput()` - One-Line Preprocessing
+
+Instead of manually configuring color format, normalization, layout, and output format, just specify your framework:
+
+```swift
+// TensorFlow Lite quantized model - one line!
+let input = try await PixelExtractor.getModelInput(
+    source: .uiImage(image),
+    framework: .tfliteQuantized,
+    width: 224,
+    height: 224
+)
+// input.data is raw Data containing UInt8 values in NHWC layout
+
+// PyTorch model
+let input = try await PixelExtractor.getModelInput(
+    source: .uiImage(image),
+    framework: .pytorch,
+    width: 224,
+    height: 224
+)
+// input.data contains Float32 values in NCHW layout with ImageNet normalization
+```
+
+#### Available Frameworks
+
+| Framework | Layout | Normalization | Output Type |
+|-----------|--------|---------------|-------------|
+| `.pytorch` | NCHW | ImageNet | Float32 |
+| `.pytorchRaw` | NCHW | [0,1] scale | Float32 |
+| `.tensorflow` | NHWC | [-1,1] | Float32 |
+| `.tensorflowImageNet` | NHWC | ImageNet | Float32 |
+| `.tfliteQuantized` | NHWC | raw [0,255] | UInt8 |
+| `.tfliteFloat` | NHWC | [0,1] scale | Float32 |
+| `.coreML` | NHWC | [0,1] scale | Float32 |
+| `.coreMLImageNet` | NHWC | ImageNet | Float32 |
+| `.onnx` | NCHW | ImageNet | Float32 |
+| `.execuTorch` | NCHW | ImageNet | Float32 |
+| `.execuTorchQuantized` | NCHW | raw [0,255] | Int8 |
+| `.openCV` | HWC/BGR | [0,255] | UInt8 |
+
+### `ClassificationOutput.process()` - One-Line Postprocessing
+
+Process classification model output with automatic dequantization, softmax, and label mapping:
+
+```swift
+// Process TFLite quantized model output in one line
+let result = try ClassificationOutput.process(
+    outputData: outputTensor.data,
+    quantization: .uint8(scale: quantParams.scale, zeroPoint: quantParams.zeroPoint),
+    topK: 5,
+    labels: .imagenet(hasBackgroundClass: true)
+)
+
+// Access results
+for prediction in result.predictions {
+    print("\(prediction.label): \(String(format: "%.1f%%", prediction.confidence * 100))")
+}
+
+// Or get the top prediction directly
+if let top = result.topPrediction {
+    print("Top: \(top.label) (\(top.confidence))")
+}
+```
+
+#### Quantization Types
+- `.none` - Float32 model output
+- `.uint8(scale:zeroPoint:)` - TFLite quantized
+- `.int8(scale:zeroPoint:)` - ExecuTorch/ONNX quantized
+
+#### Label Sources
+- `.imagenet(hasBackgroundClass:)` - ImageNet-1K (1000 classes)
+- `.coco` - COCO (80 classes)
+- `.cifar10` - CIFAR-10 (10 classes)
+- `.cifar100` - CIFAR-100 (100 classes)
+- `.custom([String])` - Your own label array
+- `.none` - Returns "Class N" as labels
+
+### Complete TFLite Example
+
+Here's a complete example using both simplified APIs for image classification:
+
+```swift
+import SwiftPixelUtils
+import TensorFlowLite
+
+func classifyImage(_ image: UIImage) async throws -> [ClassificationPrediction] {
+    // 1. Preprocess - one line
+    let input = try await PixelExtractor.getModelInput(
+        source: .uiImage(image),
+        framework: .tfliteQuantized,
+        width: 224,
+        height: 224
+    )
+    
+    // 2. Run inference
+    let interpreter = try Interpreter(modelPath: modelPath)
+    try interpreter.allocateTensors()
+    try interpreter.copy(input.data, toInputAt: 0)
+    try interpreter.invoke()
+    
+    // 3. Postprocess - one line
+    let output = try interpreter.output(at: 0)
+    let quantParams = output.quantizationParameters!
+    
+    let result = try ClassificationOutput.process(
+        outputData: output.data,
+        quantization: .uint8(scale: quantParams.scale, zeroPoint: quantParams.zeroPoint),
+        topK: 5,
+        labels: .imagenet(hasBackgroundClass: true)
+    )
+    
+    return result.predictions
+}
 ```
 
 ## 📖 API Reference
@@ -598,6 +720,22 @@ public enum DataLayout {
 }
 ```
 
+### Output Formats
+
+```swift
+public enum OutputFormat {
+    case array        // Default float array (result.data)
+    case float32Array // Float array (result.data) - same as array
+    case uint8Array   // UInt8 array (result.uint8Data) - for quantized models
+    case int32Array   // Int32 array (result.int32Data) - for integer models
+}
+```
+
+**Usage:**
+- `result.data` - Always populated with `[Float]` values
+- `result.uint8Data` - Populated when `outputFormat: .uint8Array` or `normalization: .raw`
+- `result.int32Data` - Populated when `outputFormat: .int32Array`
+
 ## ⚠️ Error Handling
 
 All functions throw typed errors:
@@ -621,6 +759,7 @@ public enum PixelUtilsError: Error {
 
 | Tip | Description |
 |-----|-------------|
+| 🤖 Simplified APIs | Use `getModelInput()` and `ClassificationOutput.process()` for the easiest integration |
 | 🎯 Resize Strategies | Use letterbox for YOLO, cover for classification models |
 | 📦 Batch Processing | Process multiple images concurrently for better performance |
 | ⚙️ Model Presets | Pre-configured settings are optimized for each model |

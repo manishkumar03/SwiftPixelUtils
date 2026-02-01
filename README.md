@@ -45,16 +45,34 @@ High-performance Swift library for image preprocessing optimized for ML/AI infer
 - ✅ **Tensor Validation**: Validate tensor shapes, dtypes, and value ranges before inference
 - 📦 **Batch Assembly**: Combine multiple images into NCHW/NHWC batch tensors
 
-## � Example App
+## 📱 Example App
 
 A comprehensive iOS example app is included in the `Example/` directory, demonstrating all major features:
 
-- **Image Classification** - MobileNetV2 with TopK results
-- **Object Detection** - YOLOv5 with NMS and bounding box visualization  
+- **TensorFlow Lite Classification** - MobileNetV2 with TopK results
+- **ExecuTorch Classification** - MobileNetV3 with TopK results
+- **Object Detection** - YOLOv8 with NMS and bounding box visualization  
 - **Semantic Segmentation** - DeepLabV3 with colored mask overlay
-- **Image Preprocessing** - Color formats, normalization, resizing strategies
-- **Quantization** - Int8/UInt8 conversion for TFLite models
+- **Pixel Extraction** - Model presets (YOLO, MobileNet, ResNet, ViT, CLIP) and custom options
+- **Bounding Box Utilities** - Format conversion, IoU calculation, NMS, scaling, clipping
+- **Image Augmentation** - Rotation, flip, brightness, contrast, saturation, blur
+- **Tensor Operations** - Channel extraction, permutation, batch assembly
 - **Drawing & Visualization** - Boxes, labels, masks, and overlays
+
+### Comprehensive UI Tests
+
+The example app includes **50+ UI tests** organized across 8 test files, using accessibility identifiers for reliable, maintainable testing:
+
+| Test File | Coverage |
+|-----------|----------|
+| `TFLiteClassificationUITests` | TensorFlow Lite classification for all sample images |
+| `ExecuTorchClassificationUITests` | ExecuTorch classification for all sample images |
+| `YOLODetectionUITests` | YOLO object detection for all sample images |
+| `SegmentationUITests` | DeepLabV3 segmentation with overlay controls |
+| `PixelExtractionUITests` | Model presets and custom extraction options |
+| `BoundingBoxUITests` | Format conversions, IoU, NMS, scaling, clipping |
+| `MoreFeaturesNavigationUITests` | Navigation to all 17 feature screens |
+| `TabNavigationUITests` | Tab bar navigation and view loading |
 
 <p align="center">
   <img src="SupportingFiles/example-app-screenshot.png" alt="Example App Screenshot" width="300">
@@ -66,6 +84,8 @@ cd Example/SwiftPixelUtilsExampleApp
 pod install
 open SwiftPixelUtilsExampleApp.xcworkspace
 ```
+
+To run UI tests, select the `SwiftPixelUtilsExampleAppUITests` target and press `⌘U`.
 
 ## �📦 Installation
 

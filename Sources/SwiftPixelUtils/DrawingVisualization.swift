@@ -7,6 +7,7 @@
 
 import Foundation
 import CoreGraphics
+import CoreText
 
 #if canImport(UIKit)
 import UIKit
@@ -336,8 +337,44 @@ public enum Drawing {
                     labelText += String(format: " %.2f", score)
                 }
                 
-                // Draw label background and text using CoreGraphics
-                // (Simplified - full implementation would use CoreText)
+                // Draw label background and text using CoreText
+                let fontSize = options.fontSize
+                let font = CTFontCreateWithName("Helvetica-Bold" as CFString, fontSize, nil)
+                
+                let attributes: [NSAttributedString.Key: Any] = [
+                    .font: font,
+                    .foregroundColor: CGColor(red: 1, green: 1, blue: 1, alpha: 1)
+                ]
+                
+                let attributedString = NSAttributedString(string: labelText, attributes: attributes)
+                let line = CTLineCreateWithAttributedString(attributedString)
+                let textBounds = CTLineGetBoundsWithOptions(line, .useOpticalBounds)
+                
+                let padding: CGFloat = 4
+                let labelX = x1
+                let labelY = y1 - textBounds.height - padding * 2  // Position above box
+                let bgWidth = textBounds.width + padding * 2
+                let bgHeight = textBounds.height + padding * 2
+                
+                // Draw label background
+                let bgColor = CGColor(
+                    red: CGFloat(color.r) / 255.0,
+                    green: CGFloat(color.g) / 255.0,
+                    blue: CGFloat(color.b) / 255.0,
+                    alpha: options.labelBackgroundAlpha
+                )
+                context.setFillColor(bgColor)
+                let bgRect = CGRect(x: labelX, y: labelY, width: bgWidth, height: bgHeight)
+                context.fill(bgRect)
+                
+                // Draw text
+                context.saveGState()
+                context.textMatrix = .identity
+                let textX = labelX + padding
+                let textY = labelY + padding + textBounds.height - (textBounds.height - fontSize) / 2
+                context.textPosition = CGPoint(x: textX, y: textY)
+                CTLineDraw(line, context)
+                context.restoreGState()
             }
         }
         

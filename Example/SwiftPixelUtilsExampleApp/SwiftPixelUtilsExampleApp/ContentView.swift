@@ -37,47 +37,83 @@ struct ContentView: View {
 
 // MARK: - Inference Tab with Framework Selection
 struct InferenceTabView: View {
-    @State private var selectedFramework: InferenceFramework = .tflite
-    
-    enum InferenceFramework: String, CaseIterable {
-        case tflite = "TFLite"
-        case execuTorch = "ExecuTorch"
-        
-        var icon: String {
-            switch self {
-            case .tflite: return "t.square.fill"
-            case .execuTorch: return "bolt.fill"
-            }
-        }
-        
-        var color: Color {
-            switch self {
-            case .tflite: return .blue
-            case .execuTorch: return .orange
-            }
-        }
-    }
-    
     var body: some View {
-        VStack(spacing: 0) {
-            // Framework Selector
-            Picker("Framework", selection: $selectedFramework) {
-                ForEach(InferenceFramework.allCases, id: \.self) { framework in
-                    Label(framework.rawValue, systemImage: framework.icon)
-                        .tag(framework)
+        List {
+            // MARK: - Classification Section
+            Section {
+                NavigationLink {
+                    TFLiteClassificationView()
+                } label: {
+                    HStack(spacing: 12) {
+                        Image(systemName: "t.square.fill")
+                            .font(.title2)
+                            .foregroundColor(.blue)
+                            .frame(width: 32)
+                        
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("TensorFlow Lite")
+                                .font(.headline)
+                            Text("MobileNet V2 • Quantized INT8")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                    .padding(.vertical, 4)
                 }
+                
+                NavigationLink {
+                    ExecuTorchClassificationView()
+                } label: {
+                    HStack(spacing: 12) {
+                        Image(systemName: "bolt.fill")
+                            .font(.title2)
+                            .foregroundColor(.orange)
+                            .frame(width: 32)
+                        
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("ExecuTorch")
+                                .font(.headline)
+                            Text("MobileNet V2 • Float32 • NCHW")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                    .padding(.vertical, 4)
+                }
+            } header: {
+                Label("Image Classification", systemImage: "photo.badge.checkmark")
+            } footer: {
+                Text("Classify images into 1000 ImageNet categories")
             }
-            .pickerStyle(.segmented)
-            .padding()
             
-            // Content based on selection
-            switch selectedFramework {
-            case .tflite:
-                TFLiteInferenceView()
-            case .execuTorch:
-                ExecuTorchInferenceView()
+            // MARK: - Object Detection Section
+            Section {
+                NavigationLink {
+                    YOLODetectionView()
+                } label: {
+                    HStack(spacing: 12) {
+                        Image(systemName: "viewfinder.rectangular")
+                            .font(.title2)
+                            .foregroundColor(.green)
+                            .frame(width: 32)
+                        
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("YOLOv5")
+                                .font(.headline)
+                            Text("TFLite • 80 COCO Classes • FP16")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                    .padding(.vertical, 4)
+                }
+            } header: {
+                Label("Object Detection", systemImage: "viewfinder.rectangular")
+            } footer: {
+                Text("Detect and locate objects with bounding boxes")
             }
         }
+        .listStyle(.insetGrouped)
         .navigationTitle("ML Inference")
         .navigationBarTitleDisplayMode(.inline)
     }

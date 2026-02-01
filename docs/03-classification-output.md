@@ -1338,10 +1338,3 @@ $$\text{Top-1} = \frac{\text{correct predictions}}{\text{total predictions}}$$
 **Top-5 Accuracy:**
 $$\text{Top-5} = \frac{\text{correct class in top 5}}{\text{total predictions}}$$
 
----
-
-## Next Steps
-
-- [Object Detection](04-detection-output.md) - YOLO and bounding boxes
-- [Semantic Segmentation](05-segmentation-output.md) - Pixel-wise classification
-- [Quantization](02-quantization-guide.md) - Optimize for mobile

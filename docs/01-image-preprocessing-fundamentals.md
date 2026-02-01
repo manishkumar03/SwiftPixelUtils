@@ -88,7 +88,6 @@ A comprehensive reference for image preprocessing concepts, techniques, and impl
     - [Linear Algebra of Image Transformations](#linear-algebra-of-image-transformations)
     - [Bilinear Interpolation Formula](#bilinear-interpolation-formula)
     - [Color Space Conversion Matrices](#color-space-conversion-matrices)
-  - [Next Steps](#next-steps)
 
 ---
 
@@ -547,9 +546,9 @@ Simply resize to target dimensions, ignoring aspect ratio.
 Original (4:3 = 800×600)         Stretched (1:1 = 640×640)
 ┌────────────────────┐           ┌──────────────┐
 │                    │           │              │
-│   ○    ○          │           │  ◯  ◯       │
-│      👃            │    →      │    👃        │  Objects appear
-│   \_____/         │           │  \___/       │  horizontally
+│   ○    ○           │           │  ◯  ◯        │
+│      👃            │    →      │    👃       │  Objects appear
+│   \_____/          │           │  \___/       │  horizontally
 │                    │           │              │  squished
 └────────────────────┘           └──────────────┘
 ```
@@ -587,7 +586,7 @@ Scale to fit entirely within target dimensions, maintaining aspect ratio. Pad re
 Original (16:9)                  Contained (1:1)
 ┌──────────────────────┐         ┌──────────────┐
 │                      │         │▓▓▓▓▓▓▓▓▓▓▓▓▓▓│ ← Padding (gray/black)
-│    🚗    🏠         │   →     │    🚗  🏠   │
+│    🚗    🏠          │   →     │    🚗  🏠   │
 │                      │         │▓▓▓▓▓▓▓▓▓▓▓▓▓▓│ ← Padding
 └──────────────────────┘         └──────────────┘
 ```
@@ -622,11 +621,11 @@ Scale to completely cover target dimensions, cropping overflow.
 ```
 Original (4:3)                    Covered (1:1)
 ┌────────────────────┐            ┌──────────────┐
-│  ░░░░░░░░░░░░░░░  │            │              │
+│  ░░░░░░░░░░░░░░░   │            │              │
 │  ░              ░  │            │              │
-│  ░  🎯 Subject  ░  │     →     │  🎯 Subject  │  ← Center preserved
+│  ░  🎯 Subject  ░  │     →      │  🎯 Subject  │  ← Center preserved
 │  ░              ░  │            │              │
-│  ░░░░░░░░░░░░░░░  │            │              │
+│  ░░░░░░░░░░░░░░░   │            │              │
 └────────────────────┘            └──────────────┘
         ↑ Cropped areas
 ```
@@ -663,7 +662,7 @@ Special variant of contain optimized for object detection. Maintains aspect rati
 Original (16:9)                  Letterboxed (1:1)
 ┌──────────────────────┐         ┌──────────────┐
 │                      │         │░░░░░░░░░░░░░░│ ← Gray (114,114,114)
-│  🚗  🚶  🐕  🏠    │   →     │  🚗 🚶 🐕 🏠│
+│  🚗  🚶  🐕  🏠     │   →     │  🚗 🚶 🐕 🏠│
 │                      │         │░░░░░░░░░░░░░░│ ← Gray (114,114,114)
 └──────────────────────┘         └──────────────┘
 ```
@@ -1481,11 +1480,3 @@ $$f(x, y) = f(0,0)(1-x)(1-y) + f(1,0)x(1-y) + f(0,1)(1-x)y + f(1,1)xy$$
 **RGB to YUV (BT.601):**
 $$\begin{bmatrix} Y \\ U \\ V \end{bmatrix} = \begin{bmatrix} 0.299 & 0.587 & 0.114 \\ -0.147 & -0.289 & 0.436 \\ 0.615 & -0.515 & -0.100 \end{bmatrix} \begin{bmatrix} R \\ G \\ B \end{bmatrix}$$
 
----
-
-## Next Steps
-
-- [Quantization Guide](02-quantization-guide.md) - Model quantization for mobile
-- [Classification Postprocessing](03-classification-output.md) - Process classifier outputs
-- [Object Detection](04-detection-output.md) - YOLO and NMS explained
-- [Semantic Segmentation](05-segmentation-output.md) - Pixel-wise classification

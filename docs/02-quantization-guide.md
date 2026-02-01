@@ -1267,10 +1267,3 @@ $$\frac{\partial L}{\partial r} = \frac{\partial L}{\partial q} \cdot \frac{\par
 
 Gradient flows through quantization as if it were identity.
 
----
-
-## Next Steps
-
-- [Classification Output](03-classification-output.md) - Process classifier outputs
-- [Detection Output](04-detection-output.md) - YOLO postprocessing
-- [Segmentation Output](05-segmentation-output.md) - Semantic segmentation

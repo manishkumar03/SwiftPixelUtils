@@ -1423,12 +1423,3 @@ struct UnifiedMapper {
     }
 }
 ```
-
----
-
-## Next Steps
-
-- [Classification](03-classification-output.md) - Using ImageNet labels
-- [Detection](04-detection-output.md) - Using COCO labels
-- [Segmentation](05-segmentation-output.md) - Using VOC/Cityscapes labels
-- [Visualization](07-visualization-guide.md) - Color palettes

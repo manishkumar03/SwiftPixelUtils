@@ -12,7 +12,6 @@ import XCTest
 
 /// UI Tests for ExecuTorch Classification
 final class ExecuTorchClassificationUITests: XCTestCase {
-    
     enum SampleImage: String, CaseIterable {
         case dog, car, lion
         

@@ -12,7 +12,6 @@ import XCTest
 
 /// UI Tests for Bounding Box utilities
 final class BoundingBoxUITests: XCTestCase {
-    
     override func setUpWithError() throws {
         continueAfterFailure = false
     }

@@ -12,7 +12,6 @@ import XCTest
 
 /// UI Tests for DeepLabV3 Semantic Segmentation
 final class SegmentationUITests: XCTestCase {
-    
     enum SampleImage: String, CaseIterable {
         case dog, car, aeroplane
         

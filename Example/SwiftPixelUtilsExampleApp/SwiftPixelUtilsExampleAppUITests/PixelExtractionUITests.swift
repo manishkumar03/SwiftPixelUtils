@@ -12,7 +12,6 @@ import XCTest
 
 /// UI Tests for Pixel Extraction functionality
 final class PixelExtractionUITests: XCTestCase {
-    
     override func setUpWithError() throws {
         continueAfterFailure = false
     }

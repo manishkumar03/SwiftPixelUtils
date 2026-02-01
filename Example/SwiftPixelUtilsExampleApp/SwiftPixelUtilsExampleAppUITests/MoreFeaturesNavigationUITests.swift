@@ -12,7 +12,6 @@ import XCTest
 
 /// UI Tests for More Features tab navigation
 final class MoreFeaturesNavigationUITests: XCTestCase {
-    
     override func setUpWithError() throws {
         continueAfterFailure = false
     }

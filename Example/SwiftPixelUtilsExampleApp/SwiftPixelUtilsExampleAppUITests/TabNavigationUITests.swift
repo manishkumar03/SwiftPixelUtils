@@ -12,7 +12,6 @@ import XCTest
 
 /// UI Tests for main tab bar navigation
 final class TabNavigationUITests: XCTestCase {
-    
     override func setUpWithError() throws {
         continueAfterFailure = false
     }

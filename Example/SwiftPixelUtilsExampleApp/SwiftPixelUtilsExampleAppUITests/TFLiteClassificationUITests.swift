@@ -12,7 +12,6 @@ import XCTest
 
 /// UI Tests for TensorFlow Lite Classification
 final class TFLiteClassificationUITests: XCTestCase {
-    
     enum SampleImage: String, CaseIterable {
         case dog, car, lion
         

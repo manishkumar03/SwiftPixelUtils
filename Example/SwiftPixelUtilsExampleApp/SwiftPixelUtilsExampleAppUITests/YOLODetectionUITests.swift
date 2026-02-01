@@ -12,7 +12,6 @@ import XCTest
 /// These tests verify YOLO object detection works correctly for all sample images.
 /// Uses a helper method to avoid code duplication while testing each image.
 final class YOLODetectionUITests: XCTestCase {
-    
     /// Sample images available in the YOLO Detection view
     enum SampleImage: String, CaseIterable {
         case dogBoat

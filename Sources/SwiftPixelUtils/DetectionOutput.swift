@@ -34,6 +34,52 @@ public struct ObjectDetection: Equatable {
         self.boundingBox = boundingBox
         self.pixelBoundingBox = pixelBoundingBox
     }
+    
+    /// Convert this detection to a DrawableBox for visualization
+    /// - Parameters:
+    ///   - imageSize: The size of the image to draw on (uses pixelBoundingBox if available, otherwise scales boundingBox)
+    ///   - color: Optional color override. If nil, uses default color palette based on classIndex
+    /// - Returns: A DrawableBox ready for Drawing.drawBoxes()
+    public func toDrawableBox(
+        imageSize: CGSize? = nil,
+        color: (r: UInt8, g: UInt8, b: UInt8, a: UInt8)? = nil
+    ) -> DrawableBox {
+        let pixelRect: CGRect
+        
+        if let pbb = pixelBoundingBox {
+            // Use pre-calculated pixel coordinates
+            pixelRect = pbb
+        } else if let imgSize = imageSize {
+            // Scale normalized coordinates to image size
+            pixelRect = CGRect(
+                x: boundingBox.minX * imgSize.width,
+                y: boundingBox.minY * imgSize.height,
+                width: boundingBox.width * imgSize.width,
+                height: boundingBox.height * imgSize.height
+            )
+        } else {
+            // Use normalized coordinates as-is (0-1 range)
+            pixelRect = boundingBox
+        }
+        
+        // Convert to [x1, y1, x2, y2] format
+        let boxCoords: [Float] = [
+            Float(pixelRect.minX),
+            Float(pixelRect.minY),
+            Float(pixelRect.maxX),
+            Float(pixelRect.maxY)
+        ]
+        
+        // Use provided color or get from default palette
+        let boxColor = color ?? DetectionColorPalette.color(forClassIndex: classIndex)
+        
+        return DrawableBox(
+            box: boxCoords,
+            label: label,
+            score: confidence,
+            color: boxColor
+        )
+    }
 }
 
 /// Result from detection output processing
@@ -70,6 +116,58 @@ public struct DetectionResult {
     /// Filter detections by label
     public func filter(byLabel label: String) -> [ObjectDetection] {
         detections.filter { $0.label.lowercased() == label.lowercased() }
+    }
+    
+    /// Convert all detections to DrawableBox array for visualization
+    ///
+    /// This is a convenience method for drawing detection results on an image.
+    ///
+    /// ## Example
+    /// ```swift
+    /// let result = try DetectionOutput.process(...)
+    /// let boxes = result.toDrawableBoxes(imageSize: image.size)
+    /// let drawn = try Drawing.drawBoxes(on: .uiImage(image), boxes: boxes)
+    /// ```
+    ///
+    /// - Parameter imageSize: The size of the image to draw on. Required if pixelBoundingBox is nil.
+    /// - Returns: Array of DrawableBox ready for Drawing.drawBoxes()
+    public func toDrawableBoxes(imageSize: CGSize? = nil) -> [DrawableBox] {
+        detections.map { $0.toDrawableBox(imageSize: imageSize) }
+    }
+}
+
+/// Color palette for detection visualization
+///
+/// Provides a consistent set of visually distinct colors for drawing bounding boxes.
+/// Colors are selected to be easily distinguishable and work well on various backgrounds.
+public enum DetectionColorPalette {
+    /// Default color palette with 20 distinct colors
+    public static let colors: [(r: UInt8, g: UInt8, b: UInt8, a: UInt8)] = [
+        (255, 0, 0, 255),       // Red
+        (0, 255, 0, 255),       // Green
+        (0, 0, 255, 255),       // Blue
+        (255, 255, 0, 255),     // Yellow
+        (255, 0, 255, 255),     // Magenta
+        (0, 255, 255, 255),     // Cyan
+        (255, 128, 0, 255),     // Orange
+        (128, 0, 255, 255),     // Purple
+        (0, 255, 128, 255),     // Spring Green
+        (255, 128, 128, 255),   // Light Red
+        (128, 255, 128, 255),   // Light Green
+        (128, 128, 255, 255),   // Light Blue
+        (255, 200, 0, 255),     // Gold
+        (255, 0, 128, 255),     // Pink
+        (0, 128, 255, 255),     // Sky Blue
+        (128, 255, 0, 255),     // Lime
+        (255, 128, 255, 255),   // Light Magenta
+        (128, 255, 255, 255),   // Light Cyan
+        (200, 100, 50, 255),    // Brown
+        (100, 200, 150, 255)    // Teal
+    ]
+    
+    /// Get color for a class index (cycles through palette)
+    public static func color(forClassIndex index: Int) -> (r: UInt8, g: UInt8, b: UInt8, a: UInt8) {
+        colors[index % colors.count]
     }
 }
 
@@ -152,6 +250,25 @@ public enum DetectionOutput {
         case none
     }
     
+    /// Coordinate space of the model output
+    ///
+    /// Different models output bounding box coordinates in different spaces:
+    /// - **Normalized (0-1)**: Coordinates are already normalized to 0-1 range
+    /// - **Pixel space**: Coordinates are in model input pixel space (e.g., 0-640)
+    ///
+    /// Many TFLite YOLO models output **normalized** coordinates, while the original
+    /// PyTorch YOLO outputs **pixel space** coordinates. Check your model's documentation
+    /// or inspect the raw output values to determine which to use.
+    public enum OutputCoordinateSpace {
+        /// Coordinates are in model input pixel space (e.g., 0-640 for a 640x640 model)
+        /// This is the default for original PyTorch YOLO exports
+        case pixelSpace
+        
+        /// Coordinates are already normalized to 0-1 range
+        /// Common in TFLite conversions and some ONNX exports
+        case normalized
+    }
+    
     // MARK: - Main Processing Methods
     
     /// Process detection model output with automatic parsing, NMS, and label mapping.
@@ -172,6 +289,7 @@ public enum DetectionOutput {
     ///   - labels: Label source for mapping indices to names
     ///   - imageSize: Original image size for pixel coordinate conversion (optional)
     ///   - modelInputSize: Model input size for box scaling (default: 640x640)
+    ///   - outputCoordinateSpace: Whether model outputs normalized or pixel-space coordinates (default: .pixelSpace)
     /// - Returns: DetectionResult with processed detections
     /// - Throws: PixelUtilsError if processing fails
     public static func process(
@@ -182,7 +300,8 @@ public enum DetectionOutput {
         maxDetections: Int = 100,
         labels: LabelSource = .coco,
         imageSize: CGSize? = nil,
-        modelInputSize: CGSize = CGSize(width: 640, height: 640)
+        modelInputSize: CGSize = CGSize(width: 640, height: 640),
+        outputCoordinateSpace: OutputCoordinateSpace = .pixelSpace
     ) throws -> DetectionResult {
         let startTime = CFAbsoluteTimeGetCurrent()
         
@@ -200,6 +319,7 @@ public enum DetectionOutput {
             labels: labels,
             imageSize: imageSize,
             modelInputSize: modelInputSize,
+            outputCoordinateSpace: outputCoordinateSpace,
             startTime: startTime
         )
     }
@@ -213,7 +333,8 @@ public enum DetectionOutput {
         maxDetections: Int = 100,
         labels: LabelSource = .coco,
         imageSize: CGSize? = nil,
-        modelInputSize: CGSize = CGSize(width: 640, height: 640)
+        modelInputSize: CGSize = CGSize(width: 640, height: 640),
+        outputCoordinateSpace: OutputCoordinateSpace = .pixelSpace
     ) throws -> DetectionResult {
         try process(
             floatOutput: floatOutput,
@@ -224,6 +345,7 @@ public enum DetectionOutput {
             labels: labels,
             imageSize: imageSize,
             modelInputSize: modelInputSize,
+            outputCoordinateSpace: outputCoordinateSpace,
             startTime: CFAbsoluteTimeGetCurrent()
         )
     }
@@ -237,6 +359,7 @@ public enum DetectionOutput {
         labels: LabelSource,
         imageSize: CGSize?,
         modelInputSize: CGSize,
+        outputCoordinateSpace: OutputCoordinateSpace,
         startTime: CFAbsoluteTime
     ) throws -> DetectionResult {
         
@@ -275,13 +398,26 @@ public enum DetectionOutput {
         let finalDetections = nmsResults.map { raw -> ObjectDetection in
             let label = getLabel(for: raw.classIndex, source: labels)
             
-            // Normalize coordinates to 0-1 range
-            let normalizedBox = CGRect(
-                x: CGFloat(raw.box[0] / Float(modelInputSize.width)),
-                y: CGFloat(raw.box[1] / Float(modelInputSize.height)),
-                width: CGFloat(raw.box[2] / Float(modelInputSize.width)),
-                height: CGFloat(raw.box[3] / Float(modelInputSize.height))
-            )
+            // Get normalized coordinates (0-1 range) based on coordinate space
+            let normalizedBox: CGRect
+            switch outputCoordinateSpace {
+            case .pixelSpace:
+                // Model outputs pixel coordinates (e.g., 0-640), divide by model size to normalize
+                normalizedBox = CGRect(
+                    x: CGFloat(raw.box[0] / Float(modelInputSize.width)),
+                    y: CGFloat(raw.box[1] / Float(modelInputSize.height)),
+                    width: CGFloat(raw.box[2] / Float(modelInputSize.width)),
+                    height: CGFloat(raw.box[3] / Float(modelInputSize.height))
+                )
+            case .normalized:
+                // Model outputs already normalized coordinates (0-1), use as-is
+                normalizedBox = CGRect(
+                    x: CGFloat(raw.box[0]),
+                    y: CGFloat(raw.box[1]),
+                    width: CGFloat(raw.box[2]),
+                    height: CGFloat(raw.box[3])
+                )
+            }
             
             // Calculate pixel coordinates if image size provided
             let pixelBox: CGRect?

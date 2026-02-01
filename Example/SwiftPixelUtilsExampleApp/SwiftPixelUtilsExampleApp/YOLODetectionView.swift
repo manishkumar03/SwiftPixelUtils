@@ -136,19 +136,6 @@ struct YOLODetectionView: View {
                     }
                     .padding(.vertical, 4)
                 }
-                
-                // Selected Image Preview
-                if let image = loadedImage {
-                    HStack {
-                        Spacer()
-                        Image(uiImage: image)
-                            .resizable()
-                            .scaledToFit()
-                            .frame(maxHeight: 180)
-                            .clipShape(RoundedRectangle(cornerRadius: 12))
-                        Spacer()
-                    }
-                }
             } header: {
                 Text("Input Image")
             }
@@ -400,6 +387,10 @@ struct YOLODetectionView: View {
             // │ • Confidence filtering (objectness × class_score > threshold)       │
             // │ • Non-Maximum Suppression (NMS) to remove overlapping boxes         │
             // │ • Label mapping using COCO 80-class vocabulary                      │
+            // │                                                                     │
+            // │ IMPORTANT: This TFLite YOLOv5 model outputs NORMALIZED coordinates │
+            // │ (0-1 range), so we use outputCoordinateSpace: .normalized to tell  │
+            // │ the package to NOT divide by modelInputSize.                       │
             // └─────────────────────────────────────────────────────────────────────┘
             let detectionResult = try DetectionOutput.process(
                 floatOutput: floatOutput,
@@ -409,77 +400,24 @@ struct YOLODetectionView: View {
                 maxDetections: 20,
                 labels: .coco,
                 imageSize: CGSize(width: image.size.width, height: image.size.height),
-                modelInputSize: CGSize(width: Double(modelWidth), height: Double(modelHeight))
+                modelInputSize: CGSize(width: Double(modelWidth), height: Double(modelHeight)),
+                outputCoordinateSpace: .normalized  // TFLite YOLO outputs 0-1 normalized coords
             )
             
             // Step 7: Draw bounding boxes on the image
             var finalAnnotatedImage: UIImage? = nil
             if !detectionResult.detections.isEmpty {
                 // ┌─────────────────────────────────────────────────────────────────────┐
-                // │ BOUNDING BOX COORDINATE TRANSFORMATION                              │
+                // │ CONVERT DETECTIONS TO DRAWABLE BOXES                               │
                 // ├─────────────────────────────────────────────────────────────────────┤
-                // │ This TFLite YOLOv5 model outputs NORMALIZED coordinates (0-1),     │
-                // │ not pixel coordinates (0-320). However, DetectionOutput.process()  │
-                // │ assumes pixel-space output and divides by modelInputSize (320).    │
-                // │                                                                     │
-                // │ Coordinate flow:                                                    │
-                // │   YOLO output: cx=0.5 (normalized, center of image)                │
-                // │   DetectionOutput divides by 320: 0.5/320 = 0.00156                │
-                // │   boundingBox contains: 0.00156 (incorrectly small)                │
-                // │                                                                     │
-                // │ Fix: Multiply by modelInputSize to restore 0-1 range,              │
-                // │      then multiply by image dimensions for pixel coordinates.      │
-                // │                                                                     │
-                // │   Corrected: 0.00156 × 320 × imageWidth = correct pixel position   │
-                // │                                                                     │
-                // │ Since we use .stretch preprocessing, the aspect ratio is not       │
-                // │ preserved, so scaleX and scaleY can differ based on image dims.    │
+                // │ DetectionResult.toDrawableBoxes() provides a one-line conversion   │
+                // │ from ObjectDetection array to DrawableBox array:                   │
+                // │ • Uses pixelBoundingBox (pre-calculated from imageSize in process) │
+                // │ • Converts to [x1, y1, x2, y2] corner format                       │
+                // │ • Applies DetectionColorPalette for per-class colors               │
+                // │ • Returns array ready for Drawing.drawBoxes()                      │
                 // └─────────────────────────────────────────────────────────────────────┘
-                let boxes: [DrawableBox] = detectionResult.detections.map { detection in
-                    let bb = detection.boundingBox
-                    
-                    // Undo the incorrect /modelInputSize division, then scale to image pixels
-                    // Formula: coord × modelInputSize × imageSize = pixel position
-                    let scaleX = CGFloat(modelWidth) * image.size.width
-                    let scaleY = CGFloat(modelHeight) * image.size.height
-                    
-                    let pixelRect = CGRect(
-                        x: bb.minX * scaleX,
-                        y: bb.minY * scaleY,
-                        width: bb.width * scaleX,
-                        height: bb.height * scaleY
-                    )
-                    
-                    // DrawableBox expects [x1, y1, x2, y2] corner format
-                    let boxCoords: [Float] = [
-                        Float(pixelRect.minX),
-                        Float(pixelRect.minY),
-                        Float(pixelRect.maxX),
-                        Float(pixelRect.maxY)
-                    ]
-                    
-                    // Generate color based on class index
-                    let colors: [(r: UInt8, g: UInt8, b: UInt8, a: UInt8)] = [
-                        (255, 0, 0, 255),     // Red
-                        (0, 255, 0, 255),     // Green
-                        (0, 0, 255, 255),     // Blue
-                        (255, 255, 0, 255),   // Yellow
-                        (255, 0, 255, 255),   // Magenta
-                        (0, 255, 255, 255),   // Cyan
-                        (255, 128, 0, 255),   // Orange
-                        (128, 0, 255, 255),   // Purple
-                        (0, 255, 128, 255),   // Spring Green
-                        (255, 128, 128, 255)  // Light Red
-                    ]
-                    let color = colors[detection.classIndex % colors.count]
-                    
-                    return DrawableBox(
-                        box: boxCoords,
-                        label: detection.label,
-                        score: detection.confidence,
-                        color: color
-                    )
-                }
+                let boxes = detectionResult.toDrawableBoxes(imageSize: image.size)
                 
                 // Step 8: Draw boxes using SwiftPixelUtils Drawing API
                 // ┌─────────────────────────────────────────────────────────────────────┐

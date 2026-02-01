@@ -58,21 +58,7 @@ A comprehensive iOS example app is included in the `Example/` directory, demonst
 - **Image Augmentation** - Rotation, flip, brightness, contrast, saturation, blur
 - **Tensor Operations** - Channel extraction, permutation, batch assembly
 - **Drawing & Visualization** - Boxes, labels, masks, and overlays
-
-### Comprehensive UI Tests
-
-The example app includes **50+ UI tests** organized across 8 test files, using accessibility identifiers for reliable, maintainable testing:
-
-| Test File | Coverage |
-|-----------|----------|
-| `TFLiteClassificationUITests` | TensorFlow Lite classification for all sample images |
-| `ExecuTorchClassificationUITests` | ExecuTorch classification for all sample images |
-| `YOLODetectionUITests` | YOLO object detection for all sample images |
-| `SegmentationUITests` | DeepLabV3 segmentation with overlay controls |
-| `PixelExtractionUITests` | Model presets and custom extraction options |
-| `BoundingBoxUITests` | Format conversions, IoU, NMS, scaling, clipping |
-| `MoreFeaturesNavigationUITests` | Navigation to all 17 feature screens |
-| `TabNavigationUITests` | Tab bar navigation and view loading |
+- **Comprehensive UI Tests** - 50+ UI tests covering all features
 
 <p align="center">
   <img src="SupportingFiles/example-app-screenshot.png" alt="Example App Screenshot" width="300">

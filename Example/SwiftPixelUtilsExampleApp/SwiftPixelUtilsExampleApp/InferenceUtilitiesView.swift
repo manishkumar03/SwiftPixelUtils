@@ -236,41 +236,45 @@ struct TopKExtractionView: View {
         // Simulate classifier output with 10 classes
         let scores: [Float] = [0.05, 0.82, 0.03, 0.25, 0.91, 0.12, 0.08, 0.67, 0.45, 0.33]
         
-        let topK = TopKExtractor.extractTopK(values: scores, k: k)
+        let start = CFAbsoluteTimeGetCurrent()
+        let topK = TopKExtractor.extractTopK(scores, k: k)
+        let elapsed = (CFAbsoluteTimeGetCurrent() - start) * 1000
         
         result = "Input scores: \(scores.map { String(format: "%.2f", $0) }.joined(separator: ", "))\n\n"
         result += "Top-\(k) results:\n"
         for (idx, val) in zip(topK.indices, topK.values) {
             result += "  Index \(idx): \(String(format: "%.4f", val))\n"
         }
-        result += "\nProcessing: \(String(format: "%.3f ms", topK.processingTimeMs))"
+        result += "\nProcessing: \(String(format: "%.3f ms", elapsed))"
     }
     
     func extractTopKWithSoftmax() {
         // Simulate raw logits
         let logits: [Float] = [-2.5, 3.2, -1.0, 1.5, 4.0, 0.3, -0.5, 2.8, 1.8, 1.0]
         
-        let topK = TopKExtractor.extractTopKWithSoftmax(logits: logits, k: k)
+        let start = CFAbsoluteTimeGetCurrent()
+        let topK = TopKExtractor.extractTopKWithSoftmax(logits, k: k)
+        let elapsed = (CFAbsoluteTimeGetCurrent() - start) * 1000
         
         result = "Input logits: \(logits.map { String(format: "%.1f", $0) }.joined(separator: ", "))\n\n"
         result += "Top-\(k) probabilities (after softmax):\n"
-        for (idx, val) in zip(topK.indices, topK.values) {
+        for (idx, val) in zip(topK.indices, topK.probabilities ?? topK.values) {
             result += "  Index \(idx): \(String(format: "%.4f", val)) (\(String(format: "%.1f%%", val * 100)))\n"
         }
-        result += "\nProcessing: \(String(format: "%.3f ms", topK.processingTimeMs))"
+        result += "\nProcessing: \(String(format: "%.3f ms", elapsed))"
     }
     
     func findArgmax() {
         let scores: [Float] = [0.15, 0.72, 0.08, 0.95, 0.43]
-        if let (idx, val) = TopKExtractor.argmax(scores) {
-            result = "Scores: \(scores)\n\nArgmax: Index \(idx), Value \(String(format: "%.4f", val))"
+        if let idx = TopKExtractor.argmax(scores) {
+            result = "Scores: \(scores)\n\nArgmax: Index \(idx), Value \(String(format: "%.4f", scores[idx]))"
         }
     }
     
     func findArgmin() {
         let scores: [Float] = [0.15, 0.72, 0.08, 0.95, 0.43]
-        if let (idx, val) = TopKExtractor.argmin(scores) {
-            result = "Scores: \(scores)\n\nArgmin: Index \(idx), Value \(String(format: "%.4f", val))"
+        if let idx = TopKExtractor.argmin(scores) {
+            result = "Scores: \(scores)\n\nArgmin: Index \(idx), Value \(String(format: "%.4f", scores[idx]))"
         }
     }
 }
@@ -361,11 +365,21 @@ struct NMSVariationsView: View {
     
     func runStandardNMS() {
         let detections = createTestDetections()
-        let filtered = NMSVariants.perClassNMS(
-            detections: detections,
+        let boxes = detections.map { $0.box }
+        let scores = detections.map { d -> [Float] in
+            var classScores = [Float](repeating: 0, count: 3)
+            classScores[d.classIndex] = d.score
+            return classScores
+        }
+        
+        let results = NMSVariants.perClassNMS(
+            boxes: boxes,
+            scores: scores,
             iouThreshold: iouThreshold,
             scoreThreshold: scoreThreshold
         )
+        
+        let filtered = results.map { detections[$0.boxIndex] }
         
         result = "Input: \(detections.count) detections\n\n"
         result += formatDetections(detections)
@@ -376,12 +390,20 @@ struct NMSVariationsView: View {
     
     func runSoftNMSLinear() {
         let detections = createTestDetections()
-        let filtered = NMSVariants.softNMS(
-            detections: detections,
+        let boxes = detections.map { $0.box }
+        let scores = detections.map { $0.score }
+        
+        let (indices, modifiedScores) = NMSVariants.softNMS(
+            boxes: boxes,
+            scores: scores,
+            mode: .linear,
             iouThreshold: iouThreshold,
-            scoreThreshold: scoreThreshold,
-            mode: .linear
+            scoreThreshold: scoreThreshold
         )
+        
+        let filtered = indices.enumerated().map { i, idx in
+            Detection(box: detections[idx].box, score: modifiedScores[i], classIndex: detections[idx].classIndex, label: detections[idx].label)
+        }
         
         result = "Input: \(detections.count) detections\n\n"
         result += "--- Soft-NMS (Linear) ---\n"
@@ -392,12 +414,20 @@ struct NMSVariationsView: View {
     
     func runSoftNMSGaussian() {
         let detections = createTestDetections()
-        let filtered = NMSVariants.softNMS(
-            detections: detections,
+        let boxes = detections.map { $0.box }
+        let scores = detections.map { $0.score }
+        
+        let (indices, modifiedScores) = NMSVariants.softNMS(
+            boxes: boxes,
+            scores: scores,
+            mode: .gaussian(sigma: 0.5),
             iouThreshold: iouThreshold,
-            scoreThreshold: scoreThreshold,
-            mode: .gaussian(sigma: 0.5)
+            scoreThreshold: scoreThreshold
         )
+        
+        let filtered = indices.enumerated().map { i, idx in
+            Detection(box: detections[idx].box, score: modifiedScores[i], classIndex: detections[idx].classIndex, label: detections[idx].label)
+        }
         
         result = "Input: \(detections.count) detections\n\n"
         result += "--- Soft-NMS (Gaussian, σ=0.5) ---\n\n"
@@ -407,11 +437,17 @@ struct NMSVariationsView: View {
     
     func runClassAgnosticNMS() {
         let detections = createTestDetections()
-        let filtered = NMSVariants.classAgnosticNMS(
-            detections: detections,
+        let boxes = detections.map { $0.box }
+        let scores = detections.map { $0.score }
+        
+        let indices = NMSVariants.classAgnosticNMS(
+            boxes: boxes,
+            scores: scores,
             iouThreshold: iouThreshold,
             scoreThreshold: scoreThreshold
         )
+        
+        let filtered = indices.map { detections[$0] }
         
         result = "Input: \(detections.count) detections\n\n"
         result += "--- Class-Agnostic NMS ---\n"
@@ -432,17 +468,20 @@ struct NMSVariationsView: View {
             ]
         ]
         
-        let filteredBatch = NMSVariants.batchedNMS(
-            batchDetections: batch,
+        let batchBoxes = batch.map { $0.map { $0.box } }
+        let batchScores = batch.map { $0.map { $0.score } }
+        
+        let filteredIndices = NMSVariants.batchedNMS(
+            batchBoxes: batchBoxes,
+            batchScores: batchScores,
             iouThreshold: iouThreshold,
-            scoreThreshold: scoreThreshold,
-            maxDetectionsPerImage: 10
+            scoreThreshold: scoreThreshold
         )
         
         result = "--- Batched NMS ---\n"
         result += "Input: \(batch.count) images\n\n"
-        for (i, detections) in filteredBatch.enumerated() {
-            result += "Image \(i + 1): \(detections.count) detections\n"
+        for (i, indices) in filteredIndices.enumerated() {
+            result += "Image \(i + 1): \(indices.count) detections\n"
         }
     }
 }
@@ -506,13 +545,14 @@ struct ConfidenceFilteringView: View {
     
     func simpleFilter() {
         let detections = createTestDetections()
-        let filtered = ConfidenceFilter.filter(detections: detections, minConfidence: threshold)
+        let items = detections.map { (item: $0, confidence: $0.score) }
+        let filtered = ConfidenceFilter.filter(items, threshold: threshold)
         
         result = "Input: \(detections.count) detections\n"
         result += "Threshold: \(String(format: "%.2f", threshold))\n\n"
         result += "Filtered: \(filtered.count) detections\n\n"
-        for d in filtered {
-            result += "[\(d.label ?? "?")] \(String(format: "%.2f", d.score))\n"
+        for f in filtered {
+            result += "[\(f.item.label ?? "?")] \(String(format: "%.2f", f.confidence))\n"
         }
     }
     
@@ -526,9 +566,10 @@ struct ConfidenceFilteringView: View {
             2: 0.3   // dog - low (small objects harder to detect)
         ]
         
+        let items = detections.map { (item: $0, classId: $0.classIndex, confidence: $0.score) }
         let filtered = ConfidenceFilter.filterWithClassThresholds(
-            detections: detections,
-            thresholds: thresholds,
+            items,
+            classThresholds: thresholds,
             defaultThreshold: 0.5
         )
         
@@ -538,25 +579,21 @@ struct ConfidenceFilteringView: View {
         result += "  car: 0.50\n"
         result += "  dog: 0.30\n\n"
         result += "Filtered: \(filtered.count) detections\n\n"
-        for d in filtered {
-            result += "[\(d.label ?? "?")] \(String(format: "%.2f", d.score))\n"
+        for f in filtered {
+            result += "[\(f.item.label ?? "?")] \(String(format: "%.2f", f.confidence))\n"
         }
     }
     
     func ratioBasedFilter() {
         let detections = createTestDetections()
-        let filtered = ConfidenceFilter.filterByRatio(
-            detections: detections,
-            keepRatio: 0.5,
-            minKeep: 1,
-            maxKeep: 10
-        )
+        let items = detections.map { (item: $0, confidence: $0.score) }
+        let filtered = ConfidenceFilter.filterByRatio(items, ratio: 0.5)
         
         result = "Input: \(detections.count) detections\n"
         result += "Keep ratio: 50%\n\n"
         result += "Filtered: \(filtered.count) detections (sorted by score)\n\n"
-        for d in filtered {
-            result += "[\(d.label ?? "?")] \(String(format: "%.2f", d.score))\n"
+        for f in filtered {
+            result += "[\(f.item.label ?? "?")] \(String(format: "%.2f", f.confidence))\n"
         }
     }
 }
@@ -639,19 +676,19 @@ struct MaskUtilitiesView: View {
             0.0, 0.0, 0.5, 0.5
         ]
         
+        let start = CFAbsoluteTimeGetCurrent()
         let resized = MaskUtilities.resizeMask(
-            mask: mask,
-            sourceWidth: 4,
-            sourceHeight: 4,
-            targetWidth: 8,
-            targetHeight: 8
+            mask,
+            fromSize: (width: 4, height: 4),
+            toSize: (width: 8, height: 8)
         )
+        let elapsed = (CFAbsoluteTimeGetCurrent() - start) * 1000
         
         result = "Original 4×4:\n"
         result += formatMask(mask, width: 4)
         result += "\n\nResized 8×8 (Nearest Neighbor):\n"
         result += formatMask(resized.mask, width: 8)
-        result += "\n\nProcessing: \(String(format: "%.3f ms", resized.processingTimeMs))"
+        result += "\n\nProcessing: \(String(format: "%.3f ms", elapsed))"
     }
     
     func resizeBilinear() {
@@ -660,24 +697,24 @@ struct MaskUtilitiesView: View {
             0.0, 1.0
         ]
         
+        let start = CFAbsoluteTimeGetCurrent()
         let resized = MaskUtilities.resizeMaskBilinear(
-            mask: mask,
-            sourceWidth: 2,
-            sourceHeight: 2,
-            targetWidth: 4,
-            targetHeight: 4
+            mask,
+            fromSize: (width: 2, height: 2),
+            toSize: (width: 4, height: 4)
         )
+        let elapsed = (CFAbsoluteTimeGetCurrent() - start) * 1000
         
         result = "Original 2×2:\n"
         result += formatMask(mask, width: 2)
         result += "\n\nResized 4×4 (Bilinear - smooth edges):\n"
         result += formatMask(resized.mask, width: 4)
-        result += "\n\nProcessing: \(String(format: "%.3f ms", resized.processingTimeMs))"
+        result += "\n\nProcessing: \(String(format: "%.3f ms", elapsed))"
     }
     
     func applyThreshold() {
         let probMask: [Float] = [0.2, 0.6, 0.8, 0.3, 0.9, 0.4, 0.7, 0.1, 0.5]
-        let binary = MaskUtilities.threshold(mask: probMask, threshold: threshold)
+        let binary = MaskUtilities.threshold(probMask, threshold: threshold)
         
         result = "Probability mask:\n"
         result += probMask.map { String(format: "%.1f", $0) }.joined(separator: " ")
@@ -687,37 +724,38 @@ struct MaskUtilitiesView: View {
     }
     
     func computeArgmax() {
-        // Simulate 3-class segmentation output (3 x 2 x 2)
-        // CHW layout: [class0_values..., class1_values..., class2_values...]
-        let tensor: [Float] = [
-            // Class 0 (2x2)
-            0.2, 0.1,
-            0.8, 0.3,
-            // Class 1 (2x2)
-            0.7, 0.2,
-            0.1, 0.6,
-            // Class 2 (2x2)
-            0.1, 0.7,
-            0.1, 0.1
+        // Simulate 3-class segmentation output (height x width x classes)
+        // HWC layout: each pixel has values for all classes
+        let logits: [Float] = [
+            // Pixel (0,0): class probs [0.2, 0.7, 0.1]
+            0.2, 0.7, 0.1,
+            // Pixel (0,1): class probs [0.1, 0.2, 0.7]
+            0.1, 0.2, 0.7,
+            // Pixel (1,0): class probs [0.8, 0.1, 0.1]
+            0.8, 0.1, 0.1,
+            // Pixel (1,1): class probs [0.3, 0.6, 0.1]
+            0.3, 0.6, 0.1
         ]
         
         let argmaxMask = MaskUtilities.argmaxMask(
-            tensor: tensor,
-            shape: [3, 2, 2],
-            layout: .chw
+            logits: logits,
+            width: 2,
+            height: 2,
+            numClasses: 3
         )
         
         result = "Segmentation output (3 classes, 2×2):\n"
-        result += "Class 0: [0.2, 0.1, 0.8, 0.3]\n"
-        result += "Class 1: [0.7, 0.2, 0.1, 0.6]\n"
-        result += "Class 2: [0.1, 0.7, 0.1, 0.1]\n\n"
+        result += "Pixel (0,0): [0.2, 0.7, 0.1] → class 1\n"
+        result += "Pixel (0,1): [0.1, 0.2, 0.7] → class 2\n"
+        result += "Pixel (1,0): [0.8, 0.1, 0.1] → class 0\n"
+        result += "Pixel (1,1): [0.3, 0.6, 0.1] → class 1\n\n"
         result += "Argmax mask (per-pixel class):\n"
         result += argmaxMask.map { String($0) }.joined(separator: " ")
     }
     
     func computeArea() {
         let mask: [Float] = [1, 1, 0, 1, 0, 0, 1, 1, 1]
-        let area = MaskUtilities.computeArea(mask: mask)
+        let area = MaskUtilities.computeArea(mask)
         
         result = "Mask: \(mask.map { String(format: "%.0f", $0) }.joined(separator: " "))\n\n"
         result += "Area (non-zero pixels): \(area)"
@@ -727,7 +765,7 @@ struct MaskUtilitiesView: View {
         let mask1: [Float] = [1, 1, 0, 0, 1, 1, 0, 0, 0]
         let mask2: [Float] = [0, 1, 1, 0, 1, 1, 0, 0, 0]
         
-        let iou = MaskUtilities.maskIoU(mask1: mask1, mask2: mask2)
+        let iou = MaskUtilities.maskIoU(mask1, mask2)
         
         result = "Mask 1: \(mask1.map { String(format: "%.0f", $0) }.joined(separator: " "))\n"
         result += "Mask 2: \(mask2.map { String(format: "%.0f", $0) }.joined(separator: " "))\n\n"
@@ -811,7 +849,7 @@ struct CoreMLConversionView: View {
         let shape = [1, 3, 4, 4]
         
         do {
-            let multiArray = try CoreMLConversion.toMLMultiArray(data: data, shape: shape)
+            let multiArray = try CoreMLConversion.toMLMultiArray(data, shape: shape)
             
             result = "Created MLMultiArray:\n"
             result += "  Shape: \(multiArray.shape)\n"
@@ -838,16 +876,16 @@ struct CoreMLConversionView: View {
             }
             
             // Convert back to Float array
-            let (data, shape) = CoreMLConversion.fromMLMultiArray(multiArray)
+            let data = CoreMLConversion.fromMLMultiArray(multiArray)
             
             // Apply softmax for probabilities
-            let probs = CoreMLConversion.toProbabilities(multiArray, applySoftmax: true)
+            let probs = CoreMLConversion.toProbabilities(multiArray)
             
             result = "MLMultiArray output:\n"
-            result += "  Shape: \(shape)\n"
+            result += "  Shape: \(multiArray.shape)\n"
             result += "  Data: \(data.prefix(5).map { String(format: "%.2f", $0) }.joined(separator: ", "))...\n\n"
             result += "After softmax:\n"
-            result += probs.enumerated().map { "  [\($0)]: \(String(format: "%.3f", $1))" }.joined(separator: "\n")
+            result += probs.sorted(by: { $0.key < $1.key }).map { "  \($0.key): \(String(format: "%.3f", $0.value))" }.joined(separator: "\n")
         } catch {
             result = "Error: \(error.localizedDescription)"
         }

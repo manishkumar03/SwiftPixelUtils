@@ -39,7 +39,7 @@ Packages/
 Package.resolved
 
 # CocoaPods
-# Pods/
+Pods/
 
 # Carthage
 Carthage/Build/
@@ -105,7 +105,6 @@ Temporary Items
 
 # Archives
 *.zip
-*.tar.gz
 
 # Logs & temp
 *.log

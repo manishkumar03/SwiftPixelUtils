@@ -55,7 +55,9 @@ A comprehensive iOS example app is included in the `Example/` directory, demonst
 - **Quantization** - Int8/UInt8 conversion for TFLite models
 - **Drawing & Visualization** - Boxes, labels, masks, and overlays
 
-![Example App Screenshot](docs/example-app-screenshot.png)
+<p align="center">
+  <img src="docs/example-app-screenshot.png" alt="Example App Screenshot" width="300">
+</p>
 
 To run the example app:
 ```bash

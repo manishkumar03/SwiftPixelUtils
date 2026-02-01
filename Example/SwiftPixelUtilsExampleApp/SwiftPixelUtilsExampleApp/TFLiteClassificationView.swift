@@ -122,6 +122,7 @@ struct TFLiteClassificationView: View {
                                 }
                             }
                             .buttonStyle(.plain)
+                            .accessibilityIdentifier("tflite-image-\(imageName)")
                         }
                     }
                     .padding(.vertical, 4)
@@ -162,6 +163,7 @@ struct TFLiteClassificationView: View {
                     }
                 }
                 .disabled(isRunning || loadedImage == nil)
+                .accessibilityIdentifier("tflite-run-classification-button")
             }
             
             // MARK: - Results Section
@@ -174,9 +176,11 @@ struct TFLiteClassificationView: View {
                             confidence: prediction.confidence,
                             isTop: index == 0
                         )
+                        .accessibilityIdentifier("tflite-prediction-row-\(index)")
                     }
                 } header: {
                     Label("Classification Results", systemImage: "chart.bar.fill")
+                        .accessibilityIdentifier("tflite-classification-results-header")
                 }
             }
             
@@ -189,6 +193,7 @@ struct TFLiteClassificationView: View {
                         Text(String(format: "%.2f ms", inferenceTime))
                             .fontWeight(.medium)
                             .foregroundColor(.blue)
+                            .accessibilityIdentifier("tflite-inference-time")
                     }
                 } header: {
                     Text("Performance")

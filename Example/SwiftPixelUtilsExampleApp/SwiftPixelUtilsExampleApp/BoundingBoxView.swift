@@ -22,16 +22,19 @@ struct BoundingBoxView: View {
                                 testFormatConversion(from: .cxcywh, to: .xyxy)
                             }
                             .buttonStyle(.bordered)
+                            .accessibilityIdentifier("bbox-convert-cxcywh-xyxy")
                             
                             Button("xyxy → xywh") {
                                 testFormatConversion(from: .xyxy, to: .xywh)
                             }
                             .buttonStyle(.bordered)
+                            .accessibilityIdentifier("bbox-convert-xyxy-xywh")
                             
                             Button("xywh → cxcywh") {
                                 testFormatConversion(from: .xywh, to: .cxcywh)
                             }
                             .buttonStyle(.bordered)
+                            .accessibilityIdentifier("bbox-convert-xywh-cxcywh")
                         }
                     }
                     
@@ -41,21 +44,25 @@ struct BoundingBoxView: View {
                                 testIoU()
                             }
                             .buttonStyle(.bordered)
+                            .accessibilityIdentifier("bbox-calculate-iou")
                             
                             Button("Scale Boxes") {
                                 testScaling()
                             }
                             .buttonStyle(.bordered)
+                            .accessibilityIdentifier("bbox-scale-boxes")
                             
                             Button("Clip Boxes") {
                                 testClipping()
                             }
                             .buttonStyle(.bordered)
+                            .accessibilityIdentifier("bbox-clip-boxes")
                             
                             Button("Non-Max Suppression") {
                                 testNMS()
                             }
                             .buttonStyle(.borderedProminent)
+                            .accessibilityIdentifier("bbox-nms")
                         }
                     }
                     
@@ -63,6 +70,7 @@ struct BoundingBoxView: View {
                         Text(result)
                             .font(.system(.caption, design: .monospaced))
                             .frame(maxWidth: .infinity, alignment: .leading)
+                            .accessibilityIdentifier("bbox-result-text")
                     }
                 }
                 .padding()

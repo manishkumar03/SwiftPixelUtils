@@ -1,0 +1,37 @@
+{
+  "configurations" : [
+    {
+      "id" : "ED3202EE-D54B-4A40-B76E-B9A6825DAD38",
+      "name" : "Test Scheme Action",
+      "options" : {
+
+      }
+    }
+  ],
+  "defaultOptions" : {
+    "performanceAntipatternCheckerEnabled" : true,
+    "targetForVariableExpansion" : {
+      "containerPath" : "container:SwiftPixelUtilsExampleApp.xcodeproj",
+      "identifier" : "7941C66F2F2E8FB3001DD805",
+      "name" : "SwiftPixelUtilsExampleApp"
+    }
+  },
+  "testTargets" : [
+    {
+      "parallelizable" : false,
+      "target" : {
+        "containerPath" : "container:SwiftPixelUtilsExampleApp.xcodeproj",
+        "identifier" : "7941C67C2F2E8FB5001DD805",
+        "name" : "SwiftPixelUtilsExampleAppTests"
+      }
+    },
+    {
+      "target" : {
+        "containerPath" : "container:SwiftPixelUtilsExampleApp.xcodeproj",
+        "identifier" : "7941C6862F2E8FB5001DD805",
+        "name" : "SwiftPixelUtilsExampleAppUITests"
+      }
+    }
+  ],
+  "version" : 1
+}

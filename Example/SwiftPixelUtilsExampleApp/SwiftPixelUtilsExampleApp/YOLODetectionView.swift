@@ -132,6 +132,7 @@ struct YOLODetectionView: View {
                                 }
                             }
                             .buttonStyle(.plain)
+                            .accessibilityIdentifier("yolo-image-\(imageName)")
                         }
                     }
                     .padding(.vertical, 4)
@@ -159,6 +160,7 @@ struct YOLODetectionView: View {
                     }
                 }
                 .disabled(isRunning || loadedImage == nil)
+                .accessibilityIdentifier("yolo-run-detection-button")
             }
             
             // MARK: - Results Section
@@ -184,9 +186,11 @@ struct YOLODetectionView: View {
                 Section {
                     ForEach(Array(detections.enumerated()), id: \.offset) { index, detection in
                         YOLODetectionRow(detection: detection, rank: index + 1)
+                            .accessibilityIdentifier("yolo-detection-row-\(index)")
                     }
                 } header: {
                     Label("Detected Objects (\(detections.count))", systemImage: "list.bullet.rectangle")
+                        .accessibilityIdentifier("yolo-detected-objects-header")
                 }
             }
             
@@ -199,6 +203,7 @@ struct YOLODetectionView: View {
                         Text(String(format: "%.2f ms", inferenceTime))
                             .fontWeight(.medium)
                             .foregroundColor(.green)
+                            .accessibilityIdentifier("yolo-inference-time")
                     }
                 } header: {
                     Text("Performance")

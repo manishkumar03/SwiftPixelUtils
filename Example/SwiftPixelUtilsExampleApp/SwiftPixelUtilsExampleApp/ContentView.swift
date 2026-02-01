@@ -60,6 +60,7 @@ struct InferenceTabView: View {
                     }
                     .padding(.vertical, 4)
                 }
+                .accessibilityIdentifier("inference-tflite-classification-link")
                 
                 NavigationLink {
                     ExecuTorchClassificationView()
@@ -80,6 +81,7 @@ struct InferenceTabView: View {
                     }
                     .padding(.vertical, 4)
                 }
+                .accessibilityIdentifier("inference-executorch-classification-link")
             } header: {
                 Label("Image Classification", systemImage: "photo.badge.checkmark")
             } footer: {
@@ -107,6 +109,7 @@ struct InferenceTabView: View {
                     }
                     .padding(.vertical, 4)
                 }
+                .accessibilityIdentifier("inference-yolo-detection-link")
             } header: {
                 Label("Object Detection", systemImage: "viewfinder.rectangular")
             } footer: {
@@ -134,6 +137,7 @@ struct InferenceTabView: View {
                     }
                     .padding(.vertical, 4)
                 }
+                .accessibilityIdentifier("inference-segmentation-link")
             } header: {
                 Label("Semantic Segmentation", systemImage: "square.grid.3x3.fill")
             } footer: {

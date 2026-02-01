@@ -121,6 +121,7 @@ struct ExecuTorchClassificationView: View {
                                 }
                             }
                             .buttonStyle(.plain)
+                            .accessibilityIdentifier("executorch-image-\(imageName)")
                         }
                     }
                     .padding(.vertical, 4)
@@ -161,6 +162,7 @@ struct ExecuTorchClassificationView: View {
                     }
                 }
                 .disabled(isRunning || loadedImage == nil)
+                .accessibilityIdentifier("executorch-run-classification-button")
             }
             
             // MARK: - Results Section
@@ -173,9 +175,11 @@ struct ExecuTorchClassificationView: View {
                             confidence: prediction.confidence,
                             isTop: index == 0
                         )
+                        .accessibilityIdentifier("executorch-prediction-row-\(index)")
                     }
                 } header: {
                     Label("Classification Results", systemImage: "chart.bar.fill")
+                        .accessibilityIdentifier("executorch-classification-results-header")
                 }
             }
             
@@ -188,6 +192,7 @@ struct ExecuTorchClassificationView: View {
                         Text(String(format: "%.2f ms", inferenceTime))
                             .fontWeight(.medium)
                             .foregroundColor(.orange)
+                            .accessibilityIdentifier("executorch-inference-time")
                     }
                 } header: {
                     Text("Performance")

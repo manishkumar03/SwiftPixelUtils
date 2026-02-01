@@ -23,23 +23,23 @@ struct PixelExtractionView: View {
                     // Model Presets Section
                     GroupBox("Model Presets") {
                         VStack(spacing: 12) {
-                            PresetButton(title: "YOLOv8", preset: ModelPresets.yolov8) { result, time in
+                            PresetButton(title: "YOLOv8", preset: ModelPresets.yolov8, accessibilityId: "pixel-preset-yolov8") { result, time in
                                 self.result = result
                                 self.processingTime = time
                             }
-                            PresetButton(title: "MobileNet", preset: ModelPresets.mobilenet) { result, time in
+                            PresetButton(title: "MobileNet", preset: ModelPresets.mobilenet, accessibilityId: "pixel-preset-mobilenet") { result, time in
                                 self.result = result
                                 self.processingTime = time
                             }
-                            PresetButton(title: "ResNet50", preset: ModelPresets.resnet50) { result, time in
+                            PresetButton(title: "ResNet50", preset: ModelPresets.resnet50, accessibilityId: "pixel-preset-resnet50") { result, time in
                                 self.result = result
                                 self.processingTime = time
                             }
-                            PresetButton(title: "ViT", preset: ModelPresets.vit) { result, time in
+                            PresetButton(title: "ViT", preset: ModelPresets.vit, accessibilityId: "pixel-preset-vit") { result, time in
                                 self.result = result
                                 self.processingTime = time
                             }
-                            PresetButton(title: "CLIP", preset: ModelPresets.clip) { result, time in
+                            PresetButton(title: "CLIP", preset: ModelPresets.clip, accessibilityId: "pixel-preset-clip") { result, time in
                                 self.result = result
                                 self.processingTime = time
                             }
@@ -53,16 +53,19 @@ struct PixelExtractionView: View {
                                 Task { await extractCustom(colorFormat: .rgb, normalization: .imagenet) }
                             }
                             .buttonStyle(.bordered)
+                            .accessibilityIdentifier("pixel-custom-rgb-imagenet")
                             
                             Button("Grayscale + Scale") {
                                 Task { await extractCustom(colorFormat: .grayscale, normalization: .scale) }
                             }
                             .buttonStyle(.bordered)
+                            .accessibilityIdentifier("pixel-custom-grayscale")
                             
                             Button("BGR + TensorFlow") {
                                 Task { await extractCustom(colorFormat: .bgr, normalization: .tensorflow) }
                             }
                             .buttonStyle(.bordered)
+                            .accessibilityIdentifier("pixel-custom-bgr-tensorflow")
                         }
                     }
                     
@@ -73,10 +76,12 @@ struct PixelExtractionView: View {
                                 Text("Processing Time: \(String(format: "%.2f", processingTime))ms")
                                     .font(.caption)
                                     .foregroundColor(.secondary)
+                                    .accessibilityIdentifier("pixel-processing-time")
                             }
                             Text(result)
                                 .font(.system(.body, design: .monospaced))
                                 .frame(maxWidth: .infinity, alignment: .leading)
+                                .accessibilityIdentifier("pixel-result-text")
                         }
                     }
                 }
@@ -123,6 +128,7 @@ struct PixelExtractionView: View {
 struct PresetButton: View {
     let title: String
     let preset: PixelDataOptions
+    let accessibilityId: String
     let onResult: (String, Double) -> Void
     
     private let sampleImageURL = "https://upload.wikimedia.org/wikipedia/commons/thumb/3/3a/Cat03.jpg/1200px-Cat03.jpg"
@@ -153,5 +159,6 @@ struct PresetButton: View {
             }
         }
         .buttonStyle(.borderedProminent)
+        .accessibilityIdentifier(accessibilityId)
     }
 }

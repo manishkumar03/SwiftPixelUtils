@@ -5,13 +5,12 @@
 //  Created by Manish Kumar on 2026-01-31.
 //
 
-import Testing
-@testable import SwiftPixelUtilsExampleApp
+import XCTest
 
-struct SwiftPixelUtilsExampleAppTests {
+final class SwiftPixelUtilsExampleAppTests: XCTestCase {
 
-    @Test func example() async throws {
-        // Write your test here and use APIs like `#expect(...)` to check expected conditions.
+    func testExample() throws {
+        // Write your test here and use XCTAssert APIs to check expected conditions.
     }
 
 }

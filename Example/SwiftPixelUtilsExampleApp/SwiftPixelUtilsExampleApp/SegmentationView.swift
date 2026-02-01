@@ -125,6 +125,7 @@ struct SegmentationView: View {
                                 }
                             }
                             .buttonStyle(.plain)
+                            .accessibilityIdentifier("segmentation-image-\(imageName)")
                         }
                     }
                     .padding(.vertical, 4)
@@ -152,6 +153,7 @@ struct SegmentationView: View {
                     }
                 }
                 .disabled(isRunning || loadedImage == nil)
+                .accessibilityIdentifier("segmentation-run-button")
             }
             
             // MARK: - Results Section
@@ -160,11 +162,13 @@ struct SegmentationView: View {
                     VStack(spacing: 12) {
                         // Overlay controls
                         Toggle("Show Segmentation Overlay", isOn: $showOverlay)
+                            .accessibilityIdentifier("segmentation-overlay-toggle")
                         
                         if showOverlay {
                             HStack {
                                 Text("Opacity")
                                 Slider(value: $overlayAlpha, in: 0.1...0.9)
+                                    .accessibilityIdentifier("segmentation-opacity-slider")
                                 Text(String(format: "%.0f%%", overlayAlpha * 100))
                                     .frame(width: 40)
                             }
@@ -178,11 +182,13 @@ struct SegmentationView: View {
                                 .scaledToFit()
                                 .frame(maxHeight: 300)
                                 .clipShape(RoundedRectangle(cornerRadius: 12))
+                                .accessibilityIdentifier("segmentation-result-image")
                             Spacer()
                         }
                     }
                 } header: {
                     Label("Segmentation Results", systemImage: "square.grid.3x3.fill")
+                        .accessibilityIdentifier("segmentation-results-header")
                 }
                 .onChange(of: overlayAlpha) { _ in
                     Task {
@@ -235,6 +241,7 @@ struct SegmentationView: View {
                         Text(String(format: "%.2f ms", inferenceTime))
                             .fontWeight(.medium)
                             .foregroundColor(.purple)
+                            .accessibilityIdentifier("segmentation-inference-time")
                     }
                 } header: {
                     Text("Performance")

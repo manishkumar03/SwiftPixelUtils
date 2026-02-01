@@ -17,84 +17,101 @@ struct MoreFeaturesView: View {
                     NavigationLink(destination: AugmentationView()) {
                         Label("Augmentation", systemImage: "wand.and.stars")
                     }
+                    .accessibilityIdentifier("more-augmentation-link")
                     
                     NavigationLink(destination: IndividualAugmentationsView()) {
                         Label("Individual Augmentations", systemImage: "slider.horizontal.3")
                     }
+                    .accessibilityIdentifier("more-individual-augmentations-link")
                     
                     NavigationLink(destination: CutoutView()) {
                         Label("Cutout", systemImage: "scissors")
                     }
+                    .accessibilityIdentifier("more-cutout-link")
                 }
                 
                 Section("Analysis") {
                     NavigationLink(destination: ImageAnalysisView()) {
                         Label("Image Analysis", systemImage: "chart.bar.xaxis")
                     }
+                    .accessibilityIdentifier("more-image-analysis-link")
                 }
                 
                 Section("Inference Post-Processing") {
                     NavigationLink(destination: InferenceUtilitiesView()) {
                         Label("Inference Utilities", systemImage: "brain")
                     }
+                    .accessibilityIdentifier("more-inference-utilities-link")
                 }
                 
                 Section("Data Processing") {
                     NavigationLink(destination: LabelDatabaseView()) {
                         Label("Label Database", systemImage: "tag")
                     }
+                    .accessibilityIdentifier("more-label-database-link")
                     
                     NavigationLink(destination: TensorOperationsView()) {
                         Label("Tensor Operations", systemImage: "cube")
                     }
+                    .accessibilityIdentifier("more-tensor-operations-link")
                     
                     NavigationLink(destination: LetterboxView()) {
                         Label("Letterbox", systemImage: "rectangle.center.inset.filled")
                     }
+                    .accessibilityIdentifier("more-letterbox-link")
                     
                     NavigationLink(destination: QuantizationView()) {
                         Label("Quantization", systemImage: "number.circle")
                     }
+                    .accessibilityIdentifier("more-quantization-link")
                     
                     NavigationLink(destination: MultiCropView()) {
                         Label("Multi-Crop", systemImage: "rectangle.split.3x3")
                     }
+                    .accessibilityIdentifier("more-multicrop-link")
                 }
                 
                 Section("Visualization") {
                     NavigationLink(destination: DrawingView()) {
                         Label("Drawing/Boxes", systemImage: "pencil.and.outline")
                     }
+                    .accessibilityIdentifier("more-drawing-link")
                     
                     NavigationLink(destination: TensorToImageView()) {
                         Label("Tensor → Image", systemImage: "photo")
                     }
+                    .accessibilityIdentifier("more-tensor-to-image-link")
                 }
                 
                 Section("Validation & Batch") {
                     NavigationLink(destination: TensorValidationView()) {
                         Label("Tensor Validation", systemImage: "checkmark.shield")
                     }
+                    .accessibilityIdentifier("more-tensor-validation-link")
                     
                     NavigationLink(destination: BatchOperationsView()) {
                         Label("Batch Operations", systemImage: "square.stack.3d.up")
                     }
+                    .accessibilityIdentifier("more-batch-operations-link")
                     
                     NavigationLink(destination: ImageValidationView()) {
                         Label("Image Validation", systemImage: "checkmark.rectangle")
                     }
+                    .accessibilityIdentifier("more-image-validation-link")
                 }
                 
                 Section("Video & Media") {
                     NavigationLink(destination: VideoFrameView()) {
                         Label("Video Frames", systemImage: "film")
                     }
+                    .accessibilityIdentifier("more-video-frames-link")
                 }
                 
                 Section("Info") {
                     NavigationLink(destination: AboutView()) {
                         Label("About", systemImage: "info.circle")
                     }
+                    .accessibilityIdentifier("more-about-link")
                 }
             }
             .navigationTitle("More Features")

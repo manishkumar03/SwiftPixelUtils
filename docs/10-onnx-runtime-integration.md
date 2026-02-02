@@ -51,13 +51,13 @@ Add to your `Package.swift` or in Xcode via File → Add Package Dependencies:
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/nicklockwood/ONNX-Runtime.git", from: "1.16.0")
+    .package(url: "https://github.com/microsoft/onnxruntime", from: "1.16.0")
 ]
 ```
 
 Or add directly in Xcode:
 1. File → Add Package Dependencies
-2. Enter: `https://github.com/nicklockwood/ONNX-Runtime`
+2. Enter: `https://github.com/microsoft/onnxruntime`
 3. Select version: `1.16.0` or later
 
 ### Import Statement

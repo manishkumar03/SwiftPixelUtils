@@ -1225,7 +1225,7 @@ extension UIImage {
 
 ### Letterbox Coordinate Correction
 
-When using letterbox padding, coordinates need adjustment:
+When using letterbox padding, coordinates need adjustment. SwiftPixelUtils now automatically captures letterbox transform metadata:
 
 ```swift
 // Model sees letterboxed image:
@@ -1239,16 +1239,35 @@ When using letterbox padding, coordinates need adjustment:
 // │░░░░░░░░░░░░░░░░░░░░░│ ← padding
 // └─────────────────────┘
 
-// Correction formula:
+// Automatic letterbox info with getPixelData:
+let result = try await PixelExtractor.getPixelData(
+    source: .uiImage(image),
+    options: PixelDataOptions(
+        resize: ResizeOptions(width: 640, height: 640, strategy: .letterbox),
+        colorFormat: .rgb,
+        normalization: .scale,
+        dataLayout: .nchw
+    )
+)
+
+// Transform info is automatically captured
+if let info = result.letterboxInfo {
+    // info.scale: scale factor applied
+    // info.offset: padding offset (x, y)
+    // info.originalSize: original image dimensions
+    // info.letterboxedSize: final padded dimensions
+}
+
+// Manual correction formula (if needed):
 func correctLetterbox(
     box: BoundingBox,
     letterboxInfo: LetterboxInfo,
     originalSize: CGSize
 ) -> BoundingBox {
-    let x1 = (box.x1 - letterboxInfo.offsetX) / letterboxInfo.scale
-    let y1 = (box.y1 - letterboxInfo.offsetY) / letterboxInfo.scale
-    let x2 = (box.x2 - letterboxInfo.offsetX) / letterboxInfo.scale
-    let y2 = (box.y2 - letterboxInfo.offsetY) / letterboxInfo.scale
+    let x1 = (box.x1 - Float(letterboxInfo.offset.x)) / letterboxInfo.scale
+    let y1 = (box.y1 - Float(letterboxInfo.offset.y)) / letterboxInfo.scale
+    let x2 = (box.x2 - Float(letterboxInfo.offset.x)) / letterboxInfo.scale
+    let y2 = (box.y2 - Float(letterboxInfo.offset.y)) / letterboxInfo.scale
     
     // Clip to image bounds
     return BoundingBox(

@@ -20,9 +20,9 @@ High-performance Swift library for image preprocessing optimized for ML/AI infer
 
 - 🚀 **High Performance**: Native implementations using Apple frameworks (Core Image, Accelerate, vImage, Core ML)
 - 🤖 **Simplified ML APIs**: One-line preprocessing (`getModelInput`) and postprocessing (`ClassificationOutput`, `DetectionOutput`, `SegmentationOutput`, `DepthEstimationOutput`) for all major frameworks
-- 🔢 **Raw Pixel Data**: Extract pixel values as typed arrays (Float, Int32, UInt8) ready for ML inference
+- 🔢 **Raw Pixel Data**: Extract pixel values as typed arrays (Float, Float16, Int32, UInt8) ready for ML inference
 - 🎨 **Multiple Color Formats**: RGB, RGBA, BGR, BGRA, Grayscale, HSV, HSL, LAB, YUV, YCbCr
-- 📐 **Flexible Resizing**: Cover, contain, stretch, and letterbox strategies
+- 📐 **Flexible Resizing**: Cover, contain, stretch, and letterbox strategies with automatic transform metadata
 - 🔢 **ML-Ready Normalization**: ImageNet, TensorFlow, custom presets
 - 📊 **Multiple Data Layouts**: HWC, CHW, NHWC, NCHW (PyTorch/TensorFlow compatible)
 - 📦 **Batch Processing**: Process multiple images with concurrency control
@@ -42,7 +42,8 @@ High-performance Swift library for image preprocessing optimized for ML/AI infer
 - 📏 **Depth Estimation**: Process MiDaS, DPT, ZoeDepth, Depth Anything outputs with scientific colormaps (Viridis, Plasma, Turbo) and custom colormaps
 - 🔄 **Float16 Conversion**: IEEE 754 half-precision ↔ Float32 utilities for CVPixelBuffer processing
 - 📦 **Bounding Box Utilities**: Format conversion (xyxy/xywh/cxcywh), scaling, clipping, IoU, NMS
-- 🖼️ **Letterbox Padding**: YOLO-style letterbox preprocessing with reverse coordinate transform
+- 🖼️ **Letterbox Padding**: YOLO-style letterbox preprocessing with automatic transform metadata for reverse coordinate mapping
+- 📱 **Orientation Handling**: Opt-in UIImage/EXIF orientation normalization to fix silent rotation issues
 - 🎨 **Drawing/Visualization**: Draw boxes, keypoints, masks, and heatmaps for debugging
 - 🔲 **Grid/Patch Extraction**: Extract image patches in grid patterns for sliding window inference
 - 🎲 **Random Crop with Seed**: Reproducible random crops for data augmentation pipelines
@@ -549,9 +550,56 @@ let result = try await PixelExtractor.getPixelData(
         colorFormat: .rgb,
         normalization: .imagenet,
         dataLayout: .nchw,
-        outputFormat: .float32Array
+        outputFormat: .float32Array,
+        normalizeOrientation: true  // Fix UIImage EXIF rotation issues
     )
 )
+
+// Access results
+result.data           // [Float] - normalized pixel data
+result.float16Data    // [UInt16]? - Float16 as bit patterns (when outputFormat is .float16Array)
+result.letterboxInfo  // LetterboxInfo? - transform metadata (when using .letterbox resize)
+```
+
+#### Output Formats
+
+```swift
+// Float16 output for Core ML / Metal efficiency
+let result = try await PixelExtractor.getPixelData(
+    source: .uiImage(image),
+    options: PixelDataOptions(
+        resize: ResizeOptions(width: 224, height: 224, strategy: .cover),
+        outputFormat: .float16Array  // Efficient for Apple Silicon
+    )
+)
+// result.float16Data contains UInt16 bit patterns
+// Convert back: Float16(bitPattern: result.float16Data![i])
+```
+
+#### Letterbox with Transform Metadata
+
+```swift
+// Letterbox resize automatically captures transform info
+let result = try await PixelExtractor.getPixelData(
+    source: .uiImage(image),
+    options: PixelDataOptions(
+        resize: ResizeOptions(width: 640, height: 640, strategy: .letterbox),
+        colorFormat: .rgb,
+        normalization: .scale,
+        dataLayout: .nchw
+    )
+)
+
+// Use letterboxInfo to reverse-transform detection coordinates
+if let info = result.letterboxInfo {
+    print("Scale: \(info.scale)")
+    print("Offset: \(info.offset)")
+    print("Original size: \(info.originalSize)")
+    
+    // Reverse transform a detection box from model output to original image
+    let originalX = (modelX - Float(info.offset.x)) / info.scale
+    let originalY = (modelY - Float(info.offset.y)) / info.scale
+}
 ```
 
 #### `batchGetPixelData(sources:options:concurrency:)`

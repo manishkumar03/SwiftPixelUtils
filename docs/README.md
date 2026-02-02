@@ -60,16 +60,16 @@ let mask = try SegmentationDecoder.decode(
 ## 📖 Guide Descriptions
 
 ### [01 - Image Preprocessing Fundamentals](01-image-preprocessing-fundamentals.md)
-Everything you need to know about preparing images for ML inference. Covers pixel extraction from various iOS/macOS image sources, color format conversions (RGB, BGR, HSV, YUV, LAB), resizing strategies, normalization schemes (0-1, -1 to 1, ImageNet), data layouts (HWC, CHW, NHWC, NCHW), and batch processing.
+Everything you need to know about preparing images for ML inference. Covers pixel extraction from various iOS/macOS image sources, color format conversions (RGB, BGR, HSV, YUV, LAB), resizing strategies with automatic letterbox transform metadata, normalization schemes (0-1, -1 to 1, ImageNet), data layouts (HWC, CHW, NHWC, NCHW), orientation handling, Float16 output, and batch processing.
 
 ### [02 - Quantization Guide](02-quantization-guide.md)
-Deep dive into model quantization for efficient mobile inference. Explains quantization theory and math, different schemes (PTQ, QAT, dynamic), data types (INT8, UINT8, FP16, BF16), framework-specific quantization (TFLite, CoreML, PyTorch), preprocessing for quantized models, and accuracy considerations.
+Deep dive into model quantization for efficient mobile inference. Explains quantization theory and math, different schemes (PTQ, QAT, dynamic), data types (INT8, UINT8, FP16/Float16, BF16, INT4), framework-specific quantization (TFLite, CoreML, PyTorch), preprocessing for quantized models, Float16 output for Apple Silicon, and accuracy considerations.
 
 ### [03 - Classification Output](03-classification-output.md)
 Complete reference for image classification. Covers classification theory, softmax deep dive with numerical stability, top-K prediction extraction, popular architectures (MobileNet, EfficientNet, ResNet, Vision Transformer), transfer learning strategies, confidence calibration, and ImageNet label handling.
 
 ### [04 - Detection Output](04-detection-output.md)
-Comprehensive YOLO and object detection guide. Explains YOLO architecture evolution (v1-v11), detection pipelines, output tensor formats, bounding box coordinate systems, NMS algorithms (standard, soft, class-specific), anchor boxes, multi-scale detection, and COCO 80-class labels.
+Comprehensive YOLO and object detection guide. Explains YOLO architecture evolution (v1-v11), detection pipelines, output tensor formats, bounding box coordinate systems, NMS algorithms (standard, soft, class-specific), anchor boxes, multi-scale detection, automatic letterbox coordinate correction, and COCO 80-class labels.
 
 ### [05 - Segmentation Output](05-segmentation-output.md)
 Complete semantic segmentation reference. Covers segmentation types (semantic, instance, panoptic), encoder-decoder architectures, DeepLab family (V1-V3+), dilated convolutions, ASPP, output processing techniques, upsampling methods, color map generation, and Pascal VOC labels.
@@ -114,7 +114,10 @@ Guides: 01 (verification) → 07 (debugging section)
 
 - **Pixel Extraction**: Extract pixels from UIImage, CGImage, CVPixelBuffer, CIImage
 - **Preprocessing**: Resize, normalize, and format images for any ML model
-- **Quantization Support**: Handle INT8, UINT8, FP16 quantized models
+- **Output Formats**: Float32, Float16, Int32, UInt8 arrays for different ML frameworks
+- **Letterbox Transform**: Automatic transform metadata for reverse coordinate mapping
+- **Orientation Handling**: Opt-in UIImage/EXIF orientation normalization
+- **Quantization Support**: Handle INT8, UINT8, INT4, FP16 quantized models
 - **Detection Decoding**: Parse YOLO outputs with NMS
 - **Segmentation Decoding**: Process mask outputs with color mapping
 - **Classification**: Top-K predictions with labels

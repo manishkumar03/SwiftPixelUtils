@@ -569,14 +569,42 @@ Special values: ±Inf, NaN, denormals
 ```
 
 **Advantages:**
-- Native GPU support
+- Native GPU support on Apple Silicon (A11+, M1+)
 - No calibration needed
 - Very small accuracy drop
+- 2× memory bandwidth reduction
 
 **Disadvantages:**
-- Only 2× size reduction
+- Only 2× size reduction (vs 4× for int8)
 - Overflow risk with large values
-- Less efficient than int8
+- Less efficient than int8 for pure CPU inference
+
+**SwiftPixelUtils Float16 Output:**
+
+SwiftPixelUtils can output pixel data directly as Float16 for efficient Core ML/Metal pipelines:
+
+```swift
+// Get Float16 output for Apple Silicon efficiency
+let result = try await PixelExtractor.getPixelData(
+    source: .uiImage(image),
+    options: PixelDataOptions(
+        resize: ResizeOptions(width: 224, height: 224, strategy: .cover),
+        colorFormat: .rgb,
+        normalization: .imagenet,
+        dataLayout: .nchw,
+        outputFormat: .float16Array  // Float16 output
+    )
+)
+
+// Access Float16 data (stored as UInt16 bit patterns)
+if let float16Data = result.float16Data {
+    // Convert back to Float16 if needed
+    let firstValue = Float16(bitPattern: float16Data[0])
+    
+    // Or pass directly to Core ML / Metal buffers
+    // float16Data is already in the correct memory format
+}
+```
 
 ### BF16 (BFloat16)
 

@@ -426,6 +426,7 @@ public enum DataLayout: String, Codable {
 public enum OutputFormat: String, Codable {
     case array
     case float32Array
+    case float16Array
     case int32Array
     case uint8Array
 }
@@ -753,6 +754,9 @@ public struct PixelDataOptions {
     public var normalization: Normalization
     public var dataLayout: DataLayout
     public var outputFormat: OutputFormat
+    /// When true, normalizes UIImage orientation before processing (fixes EXIF rotation issues).
+    /// Default is false for backward compatibility.
+    public var normalizeOrientation: Bool
     
     public init(
         colorFormat: ColorFormat = .rgb,
@@ -760,7 +764,8 @@ public struct PixelDataOptions {
         roi: ROI? = nil,
         normalization: Normalization = .scale,
         dataLayout: DataLayout = .hwc,
-        outputFormat: OutputFormat = .float32Array
+        outputFormat: OutputFormat = .float32Array,
+        normalizeOrientation: Bool = false
     ) {
         self.colorFormat = colorFormat
         self.resize = resize
@@ -768,6 +773,7 @@ public struct PixelDataOptions {
         self.normalization = normalization
         self.dataLayout = dataLayout
         self.outputFormat = outputFormat
+        self.normalizeOrientation = normalizeOrientation
     }
 }
 
@@ -781,6 +787,9 @@ public struct PixelDataResult {
     public let uint8Data: [UInt8]?
     /// Int32 pixel data (populated when outputFormat is .int32Array)
     public let int32Data: [Int32]?
+    /// Float16 pixel data as raw UInt16 bits (populated when outputFormat is .float16Array).
+    /// Use `Float16(bitPattern:)` to convert each value back to Float16.
+    public let float16Data: [UInt16]?
     public let width: Int
     public let height: Int
     public let channels: Int
@@ -788,22 +797,28 @@ public struct PixelDataResult {
     public let dataLayout: DataLayout
     public let shape: [Int]
     public let processingTimeMs: Double
+    /// Letterbox transform info (populated when resize strategy is .letterbox).
+    /// Use this to reverse-transform detection coordinates back to original image space.
+    public let letterboxInfo: LetterboxInfo?
     
     public init(
         data: [Float],
         uint8Data: [UInt8]? = nil,
         int32Data: [Int32]? = nil,
+        float16Data: [UInt16]? = nil,
         width: Int,
         height: Int,
         channels: Int,
         colorFormat: ColorFormat,
         dataLayout: DataLayout,
         shape: [Int],
-        processingTimeMs: Double
+        processingTimeMs: Double,
+        letterboxInfo: LetterboxInfo? = nil
     ) {
         self.data = data
         self.uint8Data = uint8Data
         self.int32Data = int32Data
+        self.float16Data = float16Data
         self.width = width
         self.height = height
         self.channels = channels
@@ -811,6 +826,7 @@ public struct PixelDataResult {
         self.dataLayout = dataLayout
         self.shape = shape
         self.processingTimeMs = processingTimeMs
+        self.letterboxInfo = letterboxInfo
     }
 }
 

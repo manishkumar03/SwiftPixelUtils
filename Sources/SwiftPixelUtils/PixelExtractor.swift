@@ -116,8 +116,11 @@ public enum PixelExtractor {
     ) async throws -> PixelDataResult {
         let startTime = CFAbsoluteTimeGetCurrent()
         
-        // Load CGImage from source
-        let cgImage = try await loadCGImage(from: source)
+        // Load CGImage from source, optionally normalizing orientation
+        let cgImage = try await loadCGImage(from: source, normalizeOrientation: options.normalizeOrientation)
+        
+        // Track original size for letterbox info
+        let originalSize = CGSize(width: cgImage.width, height: cgImage.height)
         
         // Apply ROI if specified
         var processedImage = cgImage
@@ -125,9 +128,12 @@ public enum PixelExtractor {
             processedImage = try applyROI(to: processedImage, roi: roi)
         }
         
-        // Apply resize if specified
+        // Apply resize if specified, capture letterbox info
+        var letterboxInfo: LetterboxInfo? = nil
         if let resize = options.resize {
-            processedImage = try applyResize(to: processedImage, options: resize)
+            let resizeResult = try applyResize(to: processedImage, options: resize, originalSize: originalSize)
+            processedImage = resizeResult.image
+            letterboxInfo = resizeResult.letterboxInfo
         }
         
         let width = processedImage.width
@@ -195,6 +201,14 @@ public enum PixelExtractor {
             int32Data = nil
         }
         
+        // Generate float16Data if requested
+        let float16Data: [UInt16]?
+        if options.outputFormat == .float16Array {
+            float16Data = convertToFloat16(layoutData)
+        } else {
+            float16Data = nil
+        }
+        
         let processingTime = (CFAbsoluteTimeGetCurrent() - startTime) * 1000
         
         let shape = calculateShape(
@@ -208,13 +222,15 @@ public enum PixelExtractor {
             data: layoutData,
             uint8Data: uint8Data,
             int32Data: int32Data,
+            float16Data: float16Data,
             width: width,
             height: height,
             channels: channels,
             colorFormat: options.colorFormat,
             dataLayout: options.dataLayout,
             shape: shape,
-            processingTimeMs: processingTime
+            processingTimeMs: processingTime,
+            letterboxInfo: letterboxInfo
         )
     }
     
@@ -353,7 +369,7 @@ public enum PixelExtractor {
     
     // MARK: - Image Loading
     
-    private static func loadCGImage(from source: ImageSource) async throws -> CGImage {
+    private static func loadCGImage(from source: ImageSource, normalizeOrientation: Bool = false) async throws -> CGImage {
         switch source {
         case .url(let url):
             return try await loadFromURL(url)
@@ -372,6 +388,14 @@ public enum PixelExtractor {
             
         #if canImport(UIKit)
         case .uiImage(let uiImage):
+            // Handle orientation normalization if requested
+            if normalizeOrientation && uiImage.imageOrientation != .up {
+                let normalizedImage = normalizeImageOrientation(uiImage)
+                guard let cgImage = normalizedImage.cgImage else {
+                    throw PixelUtilsError.loadFailed("Cannot get CGImage from normalized UIImage")
+                }
+                return cgImage
+            }
             guard let cgImage = uiImage.cgImage else {
                 throw PixelUtilsError.loadFailed("Cannot get CGImage from UIImage")
             }
@@ -387,6 +411,21 @@ public enum PixelExtractor {
         #endif
         }
     }
+    
+    #if canImport(UIKit)
+    /// Normalizes UIImage orientation by redrawing to .up orientation.
+    /// This fixes EXIF rotation issues that cause silent flips/rotations.
+    private static func normalizeImageOrientation(_ image: UIImage) -> UIImage {
+        guard image.imageOrientation != .up else { return image }
+        
+        let size = image.size
+        UIGraphicsBeginImageContextWithOptions(size, false, image.scale)
+        defer { UIGraphicsEndImageContext() }
+        
+        image.draw(in: CGRect(origin: .zero, size: size))
+        return UIGraphicsGetImageFromCurrentImageContext() ?? image
+    }
+    #endif
     
     private static func loadFromURL(_ url: URL) async throws -> CGImage {
         let (data, _) = try await URLSession.shared.data(from: url)
@@ -446,6 +485,12 @@ public enum PixelExtractor {
     
     // MARK: - Image Processing
     
+    /// Internal result from resize operations that includes optional letterbox info
+    private struct ResizeResult {
+        let image: CGImage
+        let letterboxInfo: LetterboxInfo?
+    }
+    
     private static func applyROI(to image: CGImage, roi: ROI) throws -> CGImage {
         let rect = CGRect(x: roi.x, y: roi.y, width: roi.width, height: roi.height)
         
@@ -462,19 +507,21 @@ public enum PixelExtractor {
         return cropped
     }
     
-    private static func applyResize(to image: CGImage, options: ResizeOptions) throws -> CGImage {
+    private static func applyResize(to image: CGImage, options: ResizeOptions, originalSize: CGSize) throws -> ResizeResult {
         let targetSize = CGSize(width: options.width, height: options.height)
-        let sourceSize = CGSize(width: image.width, height: image.height)
         
         switch options.strategy {
         case .cover:
-            return try resizeCover(image: image, targetSize: targetSize)
+            let resized = try resizeCover(image: image, targetSize: targetSize)
+            return ResizeResult(image: resized, letterboxInfo: nil)
         case .contain:
-            return try resizeContain(image: image, targetSize: targetSize, padColor: options.padColor)
+            let resized = try resizeContain(image: image, targetSize: targetSize, padColor: options.padColor)
+            return ResizeResult(image: resized, letterboxInfo: nil)
         case .stretch:
-            return try resizeStretch(image: image, targetSize: targetSize)
+            let resized = try resizeStretch(image: image, targetSize: targetSize)
+            return ResizeResult(image: resized, letterboxInfo: nil)
         case .letterbox:
-            return try resizeLetterbox(image: image, targetSize: targetSize, fillColor: options.letterboxColor)
+            return try resizeLetterboxWithInfo(image: image, targetSize: targetSize, fillColor: options.letterboxColor, originalSize: originalSize)
         }
     }
     
@@ -556,6 +603,41 @@ public enum PixelExtractor {
             throw PixelUtilsError.processingFailed("Failed to create letterboxed image")
         }
         return result
+    }
+    
+    /// Letterbox resize that also returns transform info for reverse coordinate mapping
+    private static func resizeLetterboxWithInfo(image: CGImage, targetSize: CGSize, fillColor: [Float]?, originalSize: CGSize) throws -> ResizeResult {
+        let sourceSize = CGSize(width: image.width, height: image.height)
+        let scale = min(targetSize.width / sourceSize.width, targetSize.height / sourceSize.height)
+        let scaledSize = CGSize(width: sourceSize.width * scale, height: sourceSize.height * scale)
+        
+        let x = (targetSize.width - scaledSize.width) / 2
+        let y = (targetSize.height - scaledSize.height) / 2
+        
+        let context = try createContext(size: targetSize)
+        
+        // Fill with letterbox color (default YOLO gray)
+        let color = fillColor ?? [114, 114, 114]
+        context.setFillColor(red: CGFloat(color[0]) / 255.0,
+                           green: CGFloat(color[1]) / 255.0,
+                           blue: CGFloat(color[2]) / 255.0,
+                           alpha: 1.0)
+        context.fill(CGRect(origin: .zero, size: targetSize))
+        
+        context.draw(image, in: CGRect(x: x, y: y, width: scaledSize.width, height: scaledSize.height))
+        
+        guard let result = context.makeImage() else {
+            throw PixelUtilsError.processingFailed("Failed to create letterboxed image")
+        }
+        
+        let letterboxInfo = LetterboxInfo(
+            scale: Float(scale),
+            offset: CGPoint(x: x, y: y),
+            originalSize: originalSize,
+            letterboxedSize: targetSize
+        )
+        
+        return ResizeResult(image: result, letterboxInfo: letterboxInfo)
     }
     
     private static func createContext(size: CGSize) throws -> CGContext {
@@ -1446,6 +1528,33 @@ public enum PixelExtractor {
         case .nchw:
             return [1, channels, height, width]
         }
+    }
+    
+    /// Convert Float32 array to Float16 (stored as UInt16 bit patterns).
+    /// Uses Accelerate framework for efficient SIMD conversion on Apple Silicon.
+    private static func convertToFloat16(_ floatData: [Float]) -> [UInt16] {
+        var float16Data = [UInt16](repeating: 0, count: floatData.count)
+        
+        // Use Accelerate for fast SIMD conversion
+        floatData.withUnsafeBufferPointer { srcBuffer in
+            float16Data.withUnsafeMutableBufferPointer { dstBuffer in
+                var src = vImage_Buffer(
+                    data: UnsafeMutableRawPointer(mutating: srcBuffer.baseAddress!),
+                    height: 1,
+                    width: vImagePixelCount(floatData.count),
+                    rowBytes: floatData.count * MemoryLayout<Float>.size
+                )
+                var dst = vImage_Buffer(
+                    data: dstBuffer.baseAddress!,
+                    height: 1,
+                    width: vImagePixelCount(floatData.count),
+                    rowBytes: floatData.count * MemoryLayout<UInt16>.size
+                )
+                vImageConvert_PlanarFtoPlanar16F(&src, &dst, vImage_Flags(kvImageNoFlags))
+            }
+        }
+        
+        return float16Data
     }
 }
 

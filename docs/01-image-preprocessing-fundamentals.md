@@ -697,6 +697,36 @@ let originalCoords = Letterbox.reverseTransform(
 )
 ```
 
+**Automatic Letterbox Info with getPixelData:**
+
+When using `getPixelData` with letterbox resize, transform metadata is automatically captured:
+
+```swift
+let result = try await PixelExtractor.getPixelData(
+    source: .uiImage(image),
+    options: PixelDataOptions(
+        resize: ResizeOptions(width: 640, height: 640, strategy: .letterbox),
+        colorFormat: .rgb,
+        normalization: .scale,
+        dataLayout: .nchw
+    )
+)
+
+// Transform info is now available in the result
+if let info = result.letterboxInfo {
+    print("Scale: \(info.scale)")           // e.g., 0.5 if image was scaled down
+    print("Offset: \(info.offset)")         // e.g., (0, 80) for top/bottom padding
+    print("Original: \(info.originalSize)") // Original image dimensions
+    
+    // Reverse transform detection coordinates
+    func reverseTransform(x: Float, y: Float) -> (Float, Float) {
+        let origX = (x - Float(info.offset.x)) / info.scale
+        let origY = (y - Float(info.offset.y)) / info.scale
+        return (origX, origY)
+    }
+}
+```
+
 ### Interpolation Methods
 
 When resizing, how do we calculate new pixel values?
@@ -1177,16 +1207,24 @@ let input = try await PixelExtractor.getModelInput(
     width: 224,
     height: 224
 )
-
-// Handle orientation
-let orientedImage = UIImage(cgImage: myUIImage.cgImage!, 
-                            scale: myUIImage.scale, 
-                            orientation: .up)
 ```
 
 **UIImage orientation handling:**
+
+UIImage may have EXIF orientation metadata that causes silent rotations when accessing `.cgImage`. SwiftPixelUtils provides built-in orientation normalization:
+
 ```swift
-// UIImage may have orientation metadata - ensure proper handling
+// Option 1: Enable automatic orientation normalization (recommended)
+let result = try await PixelExtractor.getPixelData(
+    source: .uiImage(myUIImage),
+    options: PixelDataOptions(
+        colorFormat: .rgb,
+        resize: ResizeOptions(width: 224, height: 224, strategy: .cover),
+        normalizeOrientation: true  // Fixes EXIF rotation automatically
+    )
+)
+
+// Option 2: Manual normalization (if needed elsewhere)
 func normalizeOrientation(_ image: UIImage) -> UIImage {
     if image.imageOrientation == .up { return image }
     
@@ -1445,13 +1483,75 @@ enum MLFramework {
 
 ```swift
 struct PixelDataOptions {
-    var targetSize: CGSize?
     var colorFormat: ColorFormat = .rgb
-    var normalization: Normalization = .zeroToOne
+    var resize: ResizeOptions? = nil
+    var roi: ROI? = nil
+    var normalization: Normalization = .scale
     var dataLayout: DataLayout = .hwc
-    var dataType: DataType = .float32
-    var resizeStrategy: ResizeStrategy = .contain(padding: .black)
-    var alphaHandling: AlphaHandling = .remove
+    var outputFormat: OutputFormat = .float32Array
+    var normalizeOrientation: Bool = false  // Fix UIImage EXIF rotation issues
+}
+```
+
+#### Output Formats
+
+```swift
+enum OutputFormat {
+    case array
+    case float32Array    // [Float] - standard ML inference
+    case float16Array    // [UInt16] - Float16 as bit patterns for Core ML/Metal
+    case int32Array      // [Int32] - integer inference
+    case uint8Array      // [UInt8] - quantized models
+}
+```
+
+#### Orientation Handling
+
+When loading from UIImage, EXIF orientation metadata can cause silent rotations:
+
+```swift
+// Enable orientation normalization to fix EXIF rotation issues
+let options = PixelDataOptions(
+    colorFormat: .rgb,
+    normalizeOrientation: true  // Redraws image with .up orientation
+)
+```
+
+### PixelDataResult
+
+```swift
+struct PixelDataResult {
+    let data: [Float]              // Normalized pixel data (always populated)
+    let uint8Data: [UInt8]?        // Raw 0-255 values (when outputFormat is .uint8Array)
+    let int32Data: [Int32]?        // Int32 values (when outputFormat is .int32Array)
+    let float16Data: [UInt16]?     // Float16 as bit patterns (when outputFormat is .float16Array)
+    let width: Int
+    let height: Int
+    let channels: Int
+    let colorFormat: ColorFormat
+    let dataLayout: DataLayout
+    let shape: [Int]
+    let processingTimeMs: Double
+    let letterboxInfo: LetterboxInfo?  // Transform metadata (when using .letterbox resize)
+}
+```
+
+#### Letterbox Transform Info
+
+When using letterbox resize, `letterboxInfo` is populated with transform metadata:
+
+```swift
+struct LetterboxInfo {
+    let scale: Float           // Scale factor applied to image
+    let offset: CGPoint        // Padding offset (x, y)
+    let originalSize: CGSize   // Original image dimensions
+    let letterboxedSize: CGSize // Final letterboxed dimensions
+}
+
+// Use to reverse-transform detection coordinates
+if let info = result.letterboxInfo {
+    let originalX = (modelOutputX - Float(info.offset.x)) / info.scale
+    let originalY = (modelOutputY - Float(info.offset.y)) / info.scale
 }
 ```
 

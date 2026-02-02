@@ -23,6 +23,7 @@ High-performance Swift library for image preprocessing optimized for ML/AI infer
 - 🔢 **Raw Pixel Data**: Extract pixel values as typed arrays (Float, Float16, Int32, UInt8) ready for ML inference
 - 🎨 **Multiple Color Formats**: RGB, RGBA, BGR, BGRA, Grayscale, HSV, HSL, LAB, YUV, YCbCr
 - 📐 **Flexible Resizing**: Cover, contain, stretch, and letterbox strategies with automatic transform metadata
+- ✂️ **ROI Pipeline**: Crop → resize → normalize in a single call via ROI options
 - 🔢 **ML-Ready Normalization**: ImageNet, TensorFlow, custom presets
 - 📊 **Multiple Data Layouts**: HWC, CHW, NHWC, NCHW (PyTorch/TensorFlow compatible)
 - 🖼️ **Multiple Sources**: URL, file, base64, assets, photo library

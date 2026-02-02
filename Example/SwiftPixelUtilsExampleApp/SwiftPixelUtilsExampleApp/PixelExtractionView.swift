@@ -21,12 +21,8 @@ struct PixelExtractionView: View {
             ScrollView {
                 VStack(spacing: 20) {
                     // Model Presets Section
-                    GroupBox("Model Presets") {
+                    GroupBox("Classification Presets") {
                         VStack(spacing: 12) {
-                            PresetButton(title: "YOLOv8", preset: ModelPresets.yolov8, accessibilityId: "pixel-preset-yolov8") { result, time in
-                                self.result = result
-                                self.processingTime = time
-                            }
                             PresetButton(title: "MobileNet", preset: ModelPresets.mobilenet, accessibilityId: "pixel-preset-mobilenet") { result, time in
                                 self.result = result
                                 self.processingTime = time
@@ -40,6 +36,64 @@ struct PixelExtractionView: View {
                                 self.processingTime = time
                             }
                             PresetButton(title: "CLIP", preset: ModelPresets.clip, accessibilityId: "pixel-preset-clip") { result, time in
+                                self.result = result
+                                self.processingTime = time
+                            }
+                        }
+                    }
+                    
+                    // Detection Presets
+                    GroupBox("Detection Presets") {
+                        VStack(spacing: 12) {
+                            PresetButton(title: "YOLOv8", preset: ModelPresets.yolov8, accessibilityId: "pixel-preset-yolov8") { result, time in
+                                self.result = result
+                                self.processingTime = time
+                            }
+                            PresetButton(title: "RT-DETR", preset: ModelPresets.rtdetr, accessibilityId: "pixel-preset-rtdetr") { result, time in
+                                self.result = result
+                                self.processingTime = time
+                            }
+                        }
+                    }
+                    
+                    // ONNX Presets Section
+                    GroupBox("ONNX Presets") {
+                        VStack(spacing: 12) {
+                            PresetButton(title: "ONNX YOLOv8", preset: ModelPresets.onnx_yolov8, accessibilityId: "pixel-preset-onnx-yolov8") { result, time in
+                                self.result = result
+                                self.processingTime = time
+                            }
+                            PresetButton(title: "ONNX RT-DETR", preset: ModelPresets.onnx_rtdetr, accessibilityId: "pixel-preset-onnx-rtdetr") { result, time in
+                                self.result = result
+                                self.processingTime = time
+                            }
+                            PresetButton(title: "ONNX ResNet", preset: ModelPresets.onnx_resnet, accessibilityId: "pixel-preset-onnx-resnet") { result, time in
+                                self.result = result
+                                self.processingTime = time
+                            }
+                            PresetButton(title: "ONNX MobileNetV2", preset: ModelPresets.onnx_mobilenetv2, accessibilityId: "pixel-preset-onnx-mobilenetv2") { result, time in
+                                self.result = result
+                                self.processingTime = time
+                            }
+                            PresetButton(title: "ONNX ViT", preset: ModelPresets.onnx_vit, accessibilityId: "pixel-preset-onnx-vit") { result, time in
+                                self.result = result
+                                self.processingTime = time
+                            }
+                        }
+                    }
+                    
+                    // ONNX Quantized Presets
+                    GroupBox("ONNX Quantized") {
+                        VStack(spacing: 12) {
+                            PresetButton(title: "ONNX UInt8", preset: ModelPresets.onnx_quantized_uint8, accessibilityId: "pixel-preset-onnx-uint8") { result, time in
+                                self.result = result
+                                self.processingTime = time
+                            }
+                            PresetButton(title: "ONNX Int8", preset: ModelPresets.onnx_quantized_int8, accessibilityId: "pixel-preset-onnx-int8") { result, time in
+                                self.result = result
+                                self.processingTime = time
+                            }
+                            PresetButton(title: "ONNX Float16", preset: ModelPresets.onnx_float16, accessibilityId: "pixel-preset-onnx-float16") { result, time in
                                 self.result = result
                                 self.processingTime = time
                             }

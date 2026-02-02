@@ -18,37 +18,50 @@ High-performance Swift library for image preprocessing optimized for ML/AI infer
 
 ## ✨ Features
 
+### Core Preprocessing
 - 🚀 **High Performance**: Native implementations using Apple frameworks (Core Image, Accelerate, vImage, Core ML)
-- 🤖 **Simplified ML APIs**: One-line preprocessing (`getModelInput`) and postprocessing (`ClassificationOutput`, `DetectionOutput`, `SegmentationOutput`, `DepthEstimationOutput`) for all major frameworks
 - 🔢 **Raw Pixel Data**: Extract pixel values as typed arrays (Float, Float16, Int32, UInt8) ready for ML inference
 - 🎨 **Multiple Color Formats**: RGB, RGBA, BGR, BGRA, Grayscale, HSV, HSL, LAB, YUV, YCbCr
 - 📐 **Flexible Resizing**: Cover, contain, stretch, and letterbox strategies with automatic transform metadata
 - 🔢 **ML-Ready Normalization**: ImageNet, TensorFlow, custom presets
 - 📊 **Multiple Data Layouts**: HWC, CHW, NHWC, NCHW (PyTorch/TensorFlow compatible)
-- 📦 **Batch Processing**: Process multiple images with concurrency control
 - 🖼️ **Multiple Sources**: URL, file, base64, assets, photo library
+- 📱 **Orientation Handling**: Opt-in UIImage/EXIF orientation normalization to fix silent rotation issues
+
+### ML Framework Integration
+- 🤖 **Simplified ML APIs**: One-line preprocessing (`getModelInput`) and postprocessing (`ClassificationOutput`, `DetectionOutput`, `SegmentationOutput`, `DepthEstimationOutput`) for all major frameworks
 - 🤖 **Model Presets**: Pre-configured settings for YOLO (v8/v9/v10), RT-DETR, MobileNet, EfficientNet, ResNet, ViT, CLIP, SAM/SAM2, DINO, DETR, Mask2Former, UNet, DeepLab, SegFormer, FCN, PSPNet
 - 🎯 **Framework Targets**: Automatic configuration for PyTorch, TensorFlow, TFLite, CoreML, ONNX, ExecuTorch, OpenCV
-- 🔄 **Image Augmentation**: Rotation, flip, brightness, contrast, saturation, blur
-- 🎨 **Color Jitter**: Granular brightness/contrast/saturation/hue control with range support and seeded randomness
-- ✂️ **Cutout/Random Erasing**: Mask random regions with constant/noise fill for robustness training
-- 📈 **Image Analysis**: Statistics, metadata, validation, blur detection
-- 🧮 **Tensor Operations**: Channel extraction, patch extraction, permutation, batch concatenation
-- 🔙 **Tensor to Image**: Convert processed tensors back to images
+- 🏷️ **Label Database**: Built-in labels for COCO, ImageNet, VOC, CIFAR, Places365, ADE20K, Open Images, LVIS, Objects365, Kinetics
+
+### Quantization
 - 🎯 **Native Quantization**: Float→Int8/UInt8/Int16/INT4 with per-tensor and per-channel support (TFLite/ExecuTorch compatible)
 - 🔢 **INT4 Quantization**: 4-bit quantization (8× compression) for LLM weights and edge deployment
 - 📊 **Per-Channel Quantization**: Channel-wise scale/zeroPoint for higher accuracy (CNN, Transformer weights)
-- 🏷️ **Label Database**: Built-in labels for COCO, ImageNet, VOC, CIFAR, Places365, ADE20K, Open Images, LVIS, Objects365, Kinetics
-- 📏 **Depth Estimation**: Process MiDaS, DPT, ZoeDepth, Depth Anything outputs with scientific colormaps (Viridis, Plasma, Turbo) and custom colormaps
 - 🔄 **Float16 Conversion**: IEEE 754 half-precision ↔ Float32 utilities for CVPixelBuffer processing
+
+### Detection & Segmentation
 - 📦 **Bounding Box Utilities**: Format conversion (xyxy/xywh/cxcywh), scaling, clipping, IoU, NMS
 - 🖼️ **Letterbox Padding**: YOLO-style letterbox preprocessing with automatic transform metadata for reverse coordinate mapping
-- 📱 **Orientation Handling**: Opt-in UIImage/EXIF orientation normalization to fix silent rotation issues
-- 🎨 **Drawing/Visualization**: Draw boxes, keypoints, masks, and heatmaps for debugging
-- 🔲 **Grid/Patch Extraction**: Extract image patches in grid patterns for sliding window inference
+- 📏 **Depth Estimation**: Process MiDaS, DPT, ZoeDepth, Depth Anything outputs with scientific colormaps (Viridis, Plasma, Turbo) and custom colormaps
+
+### Data Augmentation
+- 🔄 **Image Augmentation**: Rotation, flip, brightness, contrast, saturation, blur
+- 🎨 **Color Jitter**: Granular brightness/contrast/saturation/hue control with range support and seeded randomness
+- ✂️ **Cutout/Random Erasing**: Mask random regions with constant/noise fill for robustness training
 - 🎲 **Random Crop with Seed**: Reproducible random crops for data augmentation pipelines
+
+### Tensor Operations
+- 🧮 **Tensor Operations**: Channel extraction, patch extraction, permutation, batch concatenation
+- 🔙 **Tensor to Image**: Convert processed tensors back to images
+- 🔲 **Grid/Patch Extraction**: Extract image patches in grid patterns for sliding window inference
 - ✅ **Tensor Validation**: Validate tensor shapes, dtypes, and value ranges before inference
 - 📦 **Batch Assembly**: Combine multiple images into NCHW/NHWC batch tensors
+- 📦 **Batch Processing**: Process multiple images with concurrency control
+
+### Visualization & Analysis
+- 🎨 **Drawing/Visualization**: Draw boxes, keypoints, masks, and heatmaps for debugging
+- 📈 **Image Analysis**: Statistics, metadata, validation, blur detection
 
 ## 📱 Example App
 

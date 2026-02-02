@@ -17,6 +17,7 @@ Comprehensive guides and references for machine learning on iOS and macOS.
 | [07 - Visualization](07-visualization-guide.md) | Drawing ML results | Boxes, masks, heatmaps, debugging |
 | [08 - Label Database](08-label-database.md) | Complete class label reference | ImageNet, COCO, VOC, Open Images, LVIS, Kinetics |
 | [09 - Depth Estimation](09-depth-estimation.md) | Monocular depth estimation | MiDaS, DPT, ZoeDepth, Depth Anything, colormaps, Float16 utilities |
+| [10 - ONNX Runtime](10-onnx-runtime-integration.md) | ONNX Runtime integration | Tensor creation, output parsing, YOLOv8, RT-DETR, batch inference |
 
 ## 🚀 Quick Start
 
@@ -83,6 +84,9 @@ Drawing and displaying ML results. Covers color theory for visualization, drawin
 ### [08 - Label Database](08-label-database.md)
 Complete class label reference for major datasets. Includes full ImageNet-1K labels (1000 classes), COCO 80 classes with category IDs, Pascal VOC 21 classes with color palette, Cityscapes 19/35 classes, ADE20K 150 classes, and cross-dataset mapping utilities.
 
+### [10 - ONNX Runtime Integration](10-onnx-runtime-integration.md)
+Comprehensive ONNX Runtime integration guide. Covers MLFramework ONNX variants (Float32, Float16, UInt8, Int8), tensor creation with `ONNXHelper`, pre-configured model configs (YOLOv8, RT-DETR, ResNet, ViT), output parsing for detection/classification/segmentation, batch inference, and complete working examples. **Note:** ONNX Runtime requires separate setup - see the guide for CocoaPods/SPM installation instructions.
+
 ## 🎯 Use Cases
 
 ### Image Classification
@@ -98,6 +102,11 @@ Guides: 01 → 02 (if quantized) → 04 → 07 → 08
 ### Semantic Segmentation
 ```
 Guides: 01 → 02 (if quantized) → 05 → 07 → 08
+```
+
+### ONNX Runtime Inference
+```
+Guides: 01 → 10 → 04/03/05 (based on task) → 07
 ```
 
 ### Model Training

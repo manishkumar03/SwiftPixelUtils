@@ -473,6 +473,10 @@ public enum OutputFormat: String, Codable {
 /// | `.coreML` | NHWC | [0,1] scale | Float32 |
 /// | `.coreMLImageNet` | NHWC | ImageNet | Float32 |
 /// | `.onnx` | NCHW | ImageNet | Float32 |
+/// | `.onnxRaw` | NCHW | [0,1] scale | Float32 |
+/// | `.onnxQuantizedUInt8` | NCHW | raw [0,255] | UInt8 |
+/// | `.onnxQuantizedInt8` | NCHW | raw [0,255] | Int8 |
+/// | `.onnxFloat16` | NCHW | ImageNet | Float16 |
 /// | `.execuTorch` | NCHW | ImageNet | Float32 |
 /// | `.execuTorchQuantized` | NCHW | raw [0,255] | Int8 |
 /// | `.openCV` | HWC/BGR | [0,255] | UInt8 |
@@ -495,6 +499,14 @@ public enum MLFramework: String, Codable {
     case coreMLImageNet
     /// ONNX Runtime models (NCHW, ImageNet normalization, Float32)
     case onnx
+    /// ONNX Runtime models with simple [0,1] scaling (NCHW, Float32)
+    case onnxRaw
+    /// ONNX Runtime quantized models (NCHW, raw [0,255], UInt8)
+    case onnxQuantizedUInt8
+    /// ONNX Runtime quantized models (NCHW, raw [0,255], Int8)
+    case onnxQuantizedInt8
+    /// ONNX Runtime Float16 models (NCHW, ImageNet normalization, Float16)
+    case onnxFloat16
     /// ExecuTorch models (NCHW, ImageNet normalization, Float32)
     case execuTorch
     /// ExecuTorch quantized models (NCHW, raw, Int8)
@@ -567,6 +579,34 @@ public enum MLFramework: String, Codable {
                 normalization: .imagenet,
                 dataLayout: .nchw,
                 outputFormat: .float32Array
+            )
+        case .onnxRaw:
+            return PixelDataOptions(
+                colorFormat: .rgb,
+                normalization: .scale,
+                dataLayout: .nchw,
+                outputFormat: .float32Array
+            )
+        case .onnxQuantizedUInt8:
+            return PixelDataOptions(
+                colorFormat: .rgb,
+                normalization: .raw,
+                dataLayout: .nchw,
+                outputFormat: .uint8Array
+            )
+        case .onnxQuantizedInt8:
+            return PixelDataOptions(
+                colorFormat: .rgb,
+                normalization: .raw,
+                dataLayout: .nchw,
+                outputFormat: .int32Array
+            )
+        case .onnxFloat16:
+            return PixelDataOptions(
+                colorFormat: .rgb,
+                normalization: .imagenet,
+                dataLayout: .nchw,
+                outputFormat: .float16Array
             )
         case .execuTorch:
             return PixelDataOptions(
@@ -1415,4 +1455,255 @@ public struct BoxAnnotation {
         self.classIndex = classIndex
         self.color = color
     }
+}
+
+// MARK: - ONNX Runtime Types
+
+/// ONNX tensor data type for explicit type specification.
+///
+/// ONNX Runtime supports multiple data types. Use this to specify
+/// the exact tensor element type when creating ONNX inputs.
+///
+/// ## Common Use Cases
+///
+/// | Type | Use Case |
+/// |------|----------|
+/// | `.float32` | Standard inference |
+/// | `.float16` | Memory-efficient GPU inference |
+/// | `.uint8` | Quantized models (common) |
+/// | `.int8` | Quantized models (signed) |
+/// | `.int64` | Shape tensors, indices |
+public enum ONNXDataType: String, Codable {
+    /// 32-bit floating point (default for most models)
+    case float32
+    /// 16-bit floating point (for optimized models)
+    case float16
+    /// 8-bit unsigned integer (quantized models)
+    case uint8
+    /// 8-bit signed integer (quantized models)
+    case int8
+    /// 32-bit signed integer
+    case int32
+    /// 64-bit signed integer (often used for shapes)
+    case int64
+    /// Boolean type
+    case bool
+    
+    /// Size in bytes for each element
+    public var elementSize: Int {
+        switch self {
+        case .float32, .int32: return 4
+        case .float16: return 2
+        case .uint8, .int8, .bool: return 1
+        case .int64: return 8
+        }
+    }
+    
+    /// ONNX Runtime type name
+    public var onnxTypeName: String {
+        switch self {
+        case .float32: return "tensor(float)"
+        case .float16: return "tensor(float16)"
+        case .uint8: return "tensor(uint8)"
+        case .int8: return "tensor(int8)"
+        case .int32: return "tensor(int32)"
+        case .int64: return "tensor(int64)"
+        case .bool: return "tensor(bool)"
+        }
+    }
+}
+
+/// ONNX tensor input specification.
+///
+/// Represents a complete tensor ready for ONNX Runtime inference,
+/// including data, shape, and type information.
+///
+/// ## Usage
+///
+/// ```swift
+/// let tensorInput = ONNXTensorInput(
+///     name: "images",
+///     data: imageData,
+///     shape: [1, 3, 640, 640],
+///     dataType: .float32
+/// )
+/// ```
+public struct ONNXTensorInput: Codable {
+    /// Tensor name (must match model's input name)
+    public let name: String
+    /// Raw tensor data
+    public let data: Data
+    /// Tensor shape (e.g., [1, 3, 224, 224] for NCHW image)
+    public let shape: [Int]
+    /// Data type of tensor elements
+    public let dataType: ONNXDataType
+    
+    public init(name: String, data: Data, shape: [Int], dataType: ONNXDataType) {
+        self.name = name
+        self.data = data
+        self.shape = shape
+        self.dataType = dataType
+    }
+    
+    /// Total number of elements in the tensor
+    public var elementCount: Int {
+        shape.reduce(1, *)
+    }
+    
+    /// Expected data size in bytes
+    public var expectedDataSize: Int {
+        elementCount * dataType.elementSize
+    }
+    
+    /// Validate that data size matches expected size
+    public var isValid: Bool {
+        data.count == expectedDataSize
+    }
+}
+
+/// ONNX detection output format specification.
+///
+/// Different ONNX detection models output boxes in different formats.
+/// This enum helps specify how to parse the raw output tensor.
+///
+/// ## Common Formats
+///
+/// | Model | Format | Output Shape |
+/// |-------|--------|--------------|
+/// | YOLOv8 | `.yoloV8` | [1, 84, 8400] |
+/// | YOLOv5 | `.yoloV5` | [1, 25200, 85] |
+/// | RT-DETR | `.rtdetr` | [1, 300, 4+classes] |
+/// | SSD | `.ssd` | boxes: [1, N, 4], scores: [1, N, C] |
+public enum ONNXDetectionFormat: String, Codable {
+    /// YOLOv8/YOLOv9/YOLOv10 format: [batch, 4+classes, num_boxes]
+    case yoloV8
+    /// YOLOv5 format: [batch, num_boxes, 4+1+classes]
+    case yoloV5
+    /// RT-DETR format: [batch, num_queries, 4+classes]
+    case rtdetr
+    /// SSD-style: separate boxes and scores tensors
+    case ssd
+    /// Generic format: [batch, num_boxes, 4+classes]
+    case generic
+    
+    /// Whether boxes are in center format (cx, cy, w, h)
+    public var isCenterFormat: Bool {
+        switch self {
+        case .yoloV8, .yoloV5, .rtdetr:
+            return true
+        case .ssd, .generic:
+            return false
+        }
+    }
+    
+    /// Whether scores need sigmoid activation
+    public var needsSigmoid: Bool {
+        switch self {
+        case .yoloV8, .yoloV5:
+            return true
+        case .rtdetr, .ssd, .generic:
+            return false // RT-DETR uses softmax
+        }
+    }
+}
+
+/// ONNX model input configuration for common architectures.
+///
+/// Pre-configured settings for popular ONNX model architectures.
+public struct ONNXModelConfig: Codable {
+    /// Expected input tensor name
+    public let inputName: String
+    /// Expected input shape (use -1 for dynamic dimensions)
+    public let inputShape: [Int]
+    /// Input data type
+    public let inputDataType: ONNXDataType
+    /// Preprocessing framework preset
+    public let framework: MLFramework
+    /// Detection output format (nil for non-detection models)
+    public let detectionFormat: ONNXDetectionFormat?
+    
+    public init(
+        inputName: String,
+        inputShape: [Int],
+        inputDataType: ONNXDataType = .float32,
+        framework: MLFramework = .onnx,
+        detectionFormat: ONNXDetectionFormat? = nil
+    ) {
+        self.inputName = inputName
+        self.inputShape = inputShape
+        self.inputDataType = inputDataType
+        self.framework = framework
+        self.detectionFormat = detectionFormat
+    }
+    
+    // MARK: - Common ONNX Model Configurations
+    
+    /// YOLOv8 detection model configuration
+    public static let yolov8 = ONNXModelConfig(
+        inputName: "images",
+        inputShape: [1, 3, 640, 640],
+        inputDataType: .float32,
+        framework: .onnxRaw,
+        detectionFormat: .yoloV8
+    )
+    
+    /// YOLOv8 nano configuration
+    public static let yolov8n = yolov8
+    
+    /// YOLOv8 small configuration
+    public static let yolov8s = yolov8
+    
+    /// YOLOv8 medium configuration
+    public static let yolov8m = yolov8
+    
+    /// YOLOv8 large configuration
+    public static let yolov8l = yolov8
+    
+    /// YOLOv8 extra-large configuration
+    public static let yolov8x = yolov8
+    
+    /// RT-DETR detection model configuration
+    public static let rtdetr = ONNXModelConfig(
+        inputName: "images",
+        inputShape: [1, 3, 640, 640],
+        inputDataType: .float32,
+        framework: .onnx,
+        detectionFormat: .rtdetr
+    )
+    
+    /// ResNet classification model configuration
+    public static let resnet = ONNXModelConfig(
+        inputName: "input",
+        inputShape: [1, 3, 224, 224],
+        inputDataType: .float32,
+        framework: .onnx,
+        detectionFormat: nil
+    )
+    
+    /// MobileNetV2 classification model configuration
+    public static let mobilenetv2 = ONNXModelConfig(
+        inputName: "input",
+        inputShape: [1, 3, 224, 224],
+        inputDataType: .float32,
+        framework: .onnx,
+        detectionFormat: nil
+    )
+    
+    /// Vision Transformer (ViT) configuration
+    public static let vit = ONNXModelConfig(
+        inputName: "pixel_values",
+        inputShape: [1, 3, 224, 224],
+        inputDataType: .float32,
+        framework: .onnx,
+        detectionFormat: nil
+    )
+    
+    /// CLIP vision encoder configuration
+    public static let clip = ONNXModelConfig(
+        inputName: "pixel_values",
+        inputShape: [1, 3, 224, 224],
+        inputDataType: .float32,
+        framework: .onnx,
+        detectionFormat: nil
+    )
 }

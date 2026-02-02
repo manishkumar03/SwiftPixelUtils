@@ -292,7 +292,7 @@ public enum PixelExtractor {
         let dataType: String
         
         switch framework {
-        case .tfliteQuantized, .openCV:
+        case .tfliteQuantized, .openCV, .onnxQuantizedUInt8:
             // UInt8 output
             guard let uint8Data = result.uint8Data else {
                 throw PixelUtilsError.processingFailed("Failed to generate UInt8 data for \(framework)")
@@ -300,7 +300,7 @@ public enum PixelExtractor {
             outputData = Data(uint8Data)
             dataType = "UInt8"
             
-        case .execuTorchQuantized:
+        case .execuTorchQuantized, .onnxQuantizedInt8:
             // Int8 output (convert from raw 0-255 to -128 to 127)
             guard let uint8Data = result.uint8Data else {
                 throw PixelUtilsError.processingFailed("Failed to generate data for \(framework)")
@@ -308,6 +308,16 @@ public enum PixelExtractor {
             let int8Data = uint8Data.map { Int8(bitPattern: $0 &- 128) }
             outputData = int8Data.withUnsafeBufferPointer { Data(buffer: $0) }
             dataType = "Int8"
+            
+        case .onnxFloat16:
+            // Float16 output
+            guard let float16Data = result.float16Data else {
+                throw PixelUtilsError.processingFailed("Failed to generate Float16 data for \(framework)")
+            }
+            outputData = float16Data.withUnsafeBufferPointer { ptr in
+                Data(buffer: ptr)
+            }
+            dataType = "Float16"
             
         default:
             // Float32 output

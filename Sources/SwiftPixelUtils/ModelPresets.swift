@@ -789,4 +789,174 @@ public enum ModelPresets {
         dataLayout: .nchw,
         outputFormat: .float32Array
     )
+    
+    // MARK: - ONNX Runtime Models
+    
+    /// ONNX Runtime YOLOv8 preprocessing.
+    ///
+    /// ## Configuration Rationale
+    ///
+    /// - **Size 640×640**: Standard YOLO input size.
+    ///
+    /// - **Letterbox resize**: Preserves aspect ratio.
+    ///
+    /// - **Scale normalization [0, 1]**: YOLO uses simple 0-1 scaling.
+    ///
+    /// - **NCHW layout**: ONNX models use channels-first format.
+    ///
+    /// ## Usage with ONNX Runtime
+    ///
+    /// ```swift
+    /// let tensorInput = try await ONNXHelper.createTensorData(
+    ///     from: .uiImage(image),
+    ///     config: .yolov8
+    /// )
+    /// // Use tensorInput.data and tensorInput.shape with ONNX Runtime
+    /// ```
+    public static let onnx_yolov8 = PixelDataOptions(
+        colorFormat: .rgb,
+        resize: ResizeOptions(width: 640, height: 640, strategy: .letterbox),
+        normalization: .scale,
+        dataLayout: .nchw,
+        outputFormat: .float32Array
+    )
+    
+    /// ONNX Runtime YOLOv8 nano variant.
+    public static let onnx_yolov8n = onnx_yolov8
+    
+    /// ONNX Runtime YOLOv8 small variant.
+    public static let onnx_yolov8s = onnx_yolov8
+    
+    /// ONNX Runtime YOLOv8 medium variant.
+    public static let onnx_yolov8m = onnx_yolov8
+    
+    /// ONNX Runtime YOLOv8 large variant.
+    public static let onnx_yolov8l = onnx_yolov8
+    
+    /// ONNX Runtime YOLOv8 extra-large variant.
+    public static let onnx_yolov8x = onnx_yolov8
+    
+    /// ONNX Runtime ResNet preprocessing.
+    ///
+    /// ## Configuration Rationale
+    ///
+    /// - **Size 224×224**: Standard ImageNet classification input.
+    ///
+    /// - **ImageNet normalization**: Mean/std normalization.
+    ///
+    /// - **NCHW layout**: ONNX convention.
+    ///
+    /// ## Usage
+    ///
+    /// ```swift
+    /// let input = try await PixelExtractor.getModelInput(
+    ///     source: .uiImage(image),
+    ///     framework: .onnx,
+    ///     width: 224,
+    ///     height: 224
+    /// )
+    /// ```
+    public static let onnx_resnet = PixelDataOptions(
+        colorFormat: .rgb,
+        resize: ResizeOptions(width: 224, height: 224, strategy: .cover),
+        normalization: .imagenet,
+        dataLayout: .nchw,
+        outputFormat: .float32Array
+    )
+    
+    /// ONNX Runtime ResNet-50 variant.
+    public static let onnx_resnet50 = onnx_resnet
+    
+    /// ONNX Runtime MobileNetV2 preprocessing.
+    ///
+    /// Standard ImageNet classification preprocessing for MobileNetV2 ONNX models.
+    public static let onnx_mobilenetv2 = PixelDataOptions(
+        colorFormat: .rgb,
+        resize: ResizeOptions(width: 224, height: 224, strategy: .cover),
+        normalization: .imagenet,
+        dataLayout: .nchw,
+        outputFormat: .float32Array
+    )
+    
+    /// ONNX Runtime Vision Transformer (ViT) preprocessing.
+    ///
+    /// ## Configuration Rationale
+    ///
+    /// - **Size 224×224**: ViT-Base input size.
+    ///
+    /// - **ImageNet normalization**: Standard ImageNet statistics.
+    ///
+    /// - **NCHW layout**: ONNX convention.
+    public static let onnx_vit = PixelDataOptions(
+        colorFormat: .rgb,
+        resize: ResizeOptions(width: 224, height: 224, strategy: .cover),
+        normalization: .imagenet,
+        dataLayout: .nchw,
+        outputFormat: .float32Array
+    )
+    
+    /// ONNX Runtime quantized model preprocessing (UInt8).
+    ///
+    /// For ONNX models quantized to UInt8 format.
+    ///
+    /// ## Configuration
+    ///
+    /// - **Raw normalization**: Keeps values in [0, 255] range.
+    /// - **UInt8 output**: Direct byte representation.
+    public static let onnx_quantized_uint8 = PixelDataOptions(
+        colorFormat: .rgb,
+        resize: ResizeOptions(width: 224, height: 224, strategy: .cover),
+        normalization: .raw,
+        dataLayout: .nchw,
+        outputFormat: .uint8Array
+    )
+    
+    /// ONNX Runtime quantized model preprocessing (Int8).
+    ///
+    /// For ONNX models quantized to Int8 format.
+    public static let onnx_quantized_int8 = PixelDataOptions(
+        colorFormat: .rgb,
+        resize: ResizeOptions(width: 224, height: 224, strategy: .cover),
+        normalization: .raw,
+        dataLayout: .nchw,
+        outputFormat: .int32Array
+    )
+    
+    /// ONNX Runtime Float16 model preprocessing.
+    ///
+    /// For ONNX models that use Float16 for reduced memory and faster inference.
+    ///
+    /// ## Configuration
+    ///
+    /// - **Float16 output**: Half-precision floating point.
+    /// - **ImageNet normalization**: Standard mean/std.
+    public static let onnx_float16 = PixelDataOptions(
+        colorFormat: .rgb,
+        resize: ResizeOptions(width: 224, height: 224, strategy: .cover),
+        normalization: .imagenet,
+        dataLayout: .nchw,
+        outputFormat: .float16Array
+    )
+    
+    /// ONNX Runtime RT-DETR preprocessing.
+    ///
+    /// ## Configuration Rationale
+    ///
+    /// - **Size 640×640**: RT-DETR default input size.
+    ///
+    /// - **ImageNet normalization**: RT-DETR uses ImageNet statistics.
+    ///
+    /// - **Letterbox resize**: Preserves aspect ratio for detection.
+    public static let onnx_rtdetr = PixelDataOptions(
+        colorFormat: .rgb,
+        resize: ResizeOptions(width: 640, height: 640, strategy: .letterbox),
+        normalization: .imagenet,
+        dataLayout: .nchw,
+        outputFormat: .float32Array
+    )
+    
+    /// ONNX Runtime CLIP preprocessing.
+    ///
+    /// For CLIP vision encoder ONNX models (e.g., for image embeddings).
+    public static let onnx_clip = clip
 }

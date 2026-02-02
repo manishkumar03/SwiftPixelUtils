@@ -708,4 +708,264 @@ final class PixelExtractorTests: XCTestCase {
             wait(for: [expectation], timeout: 10.0)
         }
     }
+    
+    // MARK: - getModelInput Tests
+    
+    func testGetModelInputONNXFramework() async throws {
+        let image = createTestCGImage(width: 224, height: 224)
+        
+        let result = try await PixelExtractor.getModelInput(
+            source: .cgImage(image),
+            framework: .onnx,
+            width: 224,
+            height: 224
+        )
+        
+        // ONNX uses NCHW layout with ImageNet normalization, Float32
+        XCTAssertEqual(result.width, 224)
+        XCTAssertEqual(result.height, 224)
+        XCTAssertEqual(result.channels, 3)
+        
+        // Float32: 1 * 3 * 224 * 224 * 4 bytes
+        let expectedSize = 1 * 3 * 224 * 224 * MemoryLayout<Float>.size
+        XCTAssertEqual(result.data.count, expectedSize)
+        
+        // Verify data is Float32 and normalized (ImageNet normalization produces values roughly in [-2, 3])
+        let floats = result.data.withUnsafeBytes { ptr -> [Float] in
+            let floatPtr = ptr.bindMemory(to: Float.self)
+            return Array(floatPtr)
+        }
+        XCTAssertEqual(floats.count, 1 * 3 * 224 * 224)
+        
+        // ImageNet normalized values should be in a reasonable range
+        let minVal = floats.min() ?? 0
+        let maxVal = floats.max() ?? 0
+        XCTAssertGreaterThan(minVal, -10)
+        XCTAssertLessThan(maxVal, 10)
+    }
+    
+    func testGetModelInputONNXRawFramework() async throws {
+        let image = createTestCGImage(width: 224, height: 224)
+        
+        let result = try await PixelExtractor.getModelInput(
+            source: .cgImage(image),
+            framework: .onnxRaw,
+            width: 224,
+            height: 224
+        )
+        
+        // ONNX Raw uses NCHW layout with [0,1] scale normalization, Float32
+        XCTAssertEqual(result.width, 224)
+        XCTAssertEqual(result.height, 224)
+        
+        let floats = result.data.withUnsafeBytes { ptr -> [Float] in
+            let floatPtr = ptr.bindMemory(to: Float.self)
+            return Array(floatPtr)
+        }
+        
+        // Scale normalization should produce values in [0, 1]
+        let minVal = floats.min() ?? 0
+        let maxVal = floats.max() ?? 0
+        XCTAssertGreaterThanOrEqual(minVal, 0)
+        XCTAssertLessThanOrEqual(maxVal, 1)
+    }
+    
+    func testGetModelInputONNXQuantizedUInt8() async throws {
+        let image = createTestCGImage(width: 224, height: 224)
+        
+        let result = try await PixelExtractor.getModelInput(
+            source: .cgImage(image),
+            framework: .onnxQuantizedUInt8,
+            width: 224,
+            height: 224
+        )
+        
+        // ONNX Quantized UInt8 uses NCHW layout, raw [0,255] values, UInt8
+        XCTAssertEqual(result.width, 224)
+        XCTAssertEqual(result.height, 224)
+        
+        // UInt8: 1 * 3 * 224 * 224 * 1 byte
+        let expectedSize = 1 * 3 * 224 * 224 * MemoryLayout<UInt8>.size
+        XCTAssertEqual(result.data.count, expectedSize)
+        
+        // Verify data contains UInt8 values in [0, 255]
+        let uint8Values = [UInt8](result.data)
+        XCTAssertEqual(uint8Values.count, 1 * 3 * 224 * 224)
+        
+        let minVal = uint8Values.min() ?? 0
+        let maxVal = uint8Values.max() ?? 0
+        XCTAssertGreaterThanOrEqual(minVal, 0)
+        XCTAssertLessThanOrEqual(maxVal, 255)
+    }
+    
+    func testGetModelInputONNXQuantizedInt8() async throws {
+        let image = createTestCGImage(width: 224, height: 224)
+        
+        let result = try await PixelExtractor.getModelInput(
+            source: .cgImage(image),
+            framework: .onnxQuantizedInt8,
+            width: 224,
+            height: 224
+        )
+        
+        // ONNX Quantized Int8 uses NCHW layout, raw values, Int8
+        XCTAssertEqual(result.width, 224)
+        XCTAssertEqual(result.height, 224)
+        
+        // Int8: 1 * 3 * 224 * 224 * 1 byte
+        let expectedSize = 1 * 3 * 224 * 224 * MemoryLayout<Int8>.size
+        XCTAssertEqual(result.data.count, expectedSize)
+        
+        // Verify data contains Int8 values
+        let int8Values = result.data.withUnsafeBytes { ptr -> [Int8] in
+            let int8Ptr = ptr.bindMemory(to: Int8.self)
+            return Array(int8Ptr)
+        }
+        XCTAssertEqual(int8Values.count, 1 * 3 * 224 * 224)
+    }
+    
+    func testGetModelInputONNXFloat16() async throws {
+        let image = createTestCGImage(width: 224, height: 224)
+        
+        let result = try await PixelExtractor.getModelInput(
+            source: .cgImage(image),
+            framework: .onnxFloat16,
+            width: 224,
+            height: 224
+        )
+        
+        // ONNX Float16 uses NCHW layout with ImageNet normalization, Float16
+        XCTAssertEqual(result.width, 224)
+        XCTAssertEqual(result.height, 224)
+        
+        // Float16: 1 * 3 * 224 * 224 * 2 bytes
+        let expectedSize = 1 * 3 * 224 * 224 * 2  // Float16 is 2 bytes
+        XCTAssertEqual(result.data.count, expectedSize)
+    }
+    
+    func testGetModelInputONNXWithLetterbox() async throws {
+        // Non-square image to test letterboxing
+        let image = createTestCGImage(width: 300, height: 200)
+        
+        let result = try await PixelExtractor.getModelInput(
+            source: .cgImage(image),
+            framework: .onnx,
+            width: 640,
+            height: 640,
+            resizeStrategy: .letterbox
+        )
+        
+        XCTAssertEqual(result.width, 640)
+        XCTAssertEqual(result.height, 640)
+        
+        // Verify the shape is correct for NCHW layout
+        XCTAssertEqual(result.shape, [1, 3, 640, 640])
+        
+        // Verify data size is correct
+        let expectedSize = 1 * 3 * 640 * 640 * MemoryLayout<Float>.size
+        XCTAssertEqual(result.data.count, expectedSize)
+    }
+    
+    func testGetModelInputPyTorchFramework() async throws {
+        let image = createTestCGImage(width: 224, height: 224)
+        
+        let result = try await PixelExtractor.getModelInput(
+            source: .cgImage(image),
+            framework: .pytorch,
+            width: 224,
+            height: 224
+        )
+        
+        // PyTorch uses NCHW layout with ImageNet normalization, Float32
+        XCTAssertEqual(result.width, 224)
+        XCTAssertEqual(result.height, 224)
+        XCTAssertEqual(result.channels, 3)
+        
+        let expectedSize = 1 * 3 * 224 * 224 * MemoryLayout<Float>.size
+        XCTAssertEqual(result.data.count, expectedSize)
+    }
+    
+    func testGetModelInputTFLiteQuantized() async throws {
+        let image = createTestCGImage(width: 224, height: 224)
+        
+        let result = try await PixelExtractor.getModelInput(
+            source: .cgImage(image),
+            framework: .tfliteQuantized,
+            width: 224,
+            height: 224
+        )
+        
+        // TFLite Quantized uses NHWC layout, raw [0,255] values, UInt8
+        XCTAssertEqual(result.width, 224)
+        XCTAssertEqual(result.height, 224)
+        
+        // UInt8 NHWC: 1 * 224 * 224 * 3 * 1 byte
+        let expectedSize = 1 * 224 * 224 * 3 * MemoryLayout<UInt8>.size
+        XCTAssertEqual(result.data.count, expectedSize)
+    }
+    
+    func testGetModelInputExecuTorch() async throws {
+        let image = createTestCGImage(width: 224, height: 224)
+        
+        let result = try await PixelExtractor.getModelInput(
+            source: .cgImage(image),
+            framework: .execuTorch,
+            width: 224,
+            height: 224
+        )
+        
+        // ExecuTorch uses NCHW layout with ImageNet normalization, Float32
+        XCTAssertEqual(result.width, 224)
+        XCTAssertEqual(result.height, 224)
+        
+        let expectedSize = 1 * 3 * 224 * 224 * MemoryLayout<Float>.size
+        XCTAssertEqual(result.data.count, expectedSize)
+    }
+    
+    func testGetModelInputCoreML() async throws {
+        let image = createTestCGImage(width: 224, height: 224)
+        
+        let result = try await PixelExtractor.getModelInput(
+            source: .cgImage(image),
+            framework: .coreML,
+            width: 224,
+            height: 224
+        )
+        
+        // CoreML uses NHWC layout with [0,1] scale normalization, Float32
+        XCTAssertEqual(result.width, 224)
+        XCTAssertEqual(result.height, 224)
+        
+        let floats = result.data.withUnsafeBytes { ptr -> [Float] in
+            let floatPtr = ptr.bindMemory(to: Float.self)
+            return Array(floatPtr)
+        }
+        
+        // Scale normalization should produce values in [0, 1]
+        let minVal = floats.min() ?? 0
+        let maxVal = floats.max() ?? 0
+        XCTAssertGreaterThanOrEqual(minVal, 0)
+        XCTAssertLessThanOrEqual(maxVal, 1)
+    }
+    
+    func testGetModelInputAllONNXVariantsProduceNCHW() async throws {
+        let image = createTestCGImage(width: 64, height: 64)
+        
+        let frameworks: [MLFramework] = [.onnx, .onnxRaw, .onnxQuantizedUInt8, .onnxQuantizedInt8, .onnxFloat16]
+        
+        for framework in frameworks {
+            let result = try await PixelExtractor.getModelInput(
+                source: .cgImage(image),
+                framework: framework,
+                width: 64,
+                height: 64
+            )
+            
+            // All ONNX variants should use NCHW layout
+            // For 64x64x3 image with batch=1, NCHW shape is [1, 3, 64, 64]
+            XCTAssertEqual(result.width, 64, "Framework \(framework) width mismatch")
+            XCTAssertEqual(result.height, 64, "Framework \(framework) height mismatch")
+            XCTAssertEqual(result.channels, 3, "Framework \(framework) channels mismatch")
+        }
+    }
 }

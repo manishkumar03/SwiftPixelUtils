@@ -7,11 +7,11 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		5FB014563EE615870C809B0D /* Pods_SwiftPixelUtilsExampleApp.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 0D7B8BAE8808E62F77F85773 /* Pods_SwiftPixelUtilsExampleApp.framework */; };
 		7941C6A82F2E905B001DD805 /* SwiftPixelUtils in Frameworks */ = {isa = PBXBuildFile; productRef = 7941C6A72F2E905B001DD805 /* SwiftPixelUtils */; };
 		79B91A792F2F1A930044970A /* backend_xnnpack in Frameworks */ = {isa = PBXBuildFile; productRef = 79B91A782F2F1A930044970A /* backend_xnnpack */; };
 		79B91A7B2F2F1A930044970A /* executorch in Frameworks */ = {isa = PBXBuildFile; productRef = 79B91A7A2F2F1A930044970A /* executorch */; };
 		79B91A7D2F2F1A930044970A /* kernels_optimized in Frameworks */ = {isa = PBXBuildFile; productRef = 79B91A7C2F2F1A930044970A /* kernels_optimized */; };
-		B2C357F1C66384DD6180341A /* Pods_SwiftPixelUtilsExampleApp.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = BEB81E061C551E41E9B08EAC /* Pods_SwiftPixelUtilsExampleApp.framework */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -32,27 +32,33 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
-		5D2B01C643FBC65B8C3E37DE /* Pods-SwiftPixelUtilsExampleApp.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-SwiftPixelUtilsExampleApp.release.xcconfig"; path = "Target Support Files/Pods-SwiftPixelUtilsExampleApp/Pods-SwiftPixelUtilsExampleApp.release.xcconfig"; sourceTree = "<group>"; };
-		677893A1DEB95A600B617837 /* Pods-SwiftPixelUtilsExampleApp.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-SwiftPixelUtilsExampleApp.debug.xcconfig"; path = "Target Support Files/Pods-SwiftPixelUtilsExampleApp/Pods-SwiftPixelUtilsExampleApp.debug.xcconfig"; sourceTree = "<group>"; };
+		0D7B8BAE8808E62F77F85773 /* Pods_SwiftPixelUtilsExampleApp.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_SwiftPixelUtilsExampleApp.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		7941C6702F2E8FB3001DD805 /* SwiftPixelUtilsExampleApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SwiftPixelUtilsExampleApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		7941C67D2F2E8FB5001DD805 /* SwiftPixelUtilsExampleAppTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = SwiftPixelUtilsExampleAppTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		7941C6872F2E8FB5001DD805 /* SwiftPixelUtilsExampleAppUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = SwiftPixelUtilsExampleAppUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		BEB81E061C551E41E9B08EAC /* Pods_SwiftPixelUtilsExampleApp.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_SwiftPixelUtilsExampleApp.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		A9E029FFA01EA4E6D947FEAC /* Pods-SwiftPixelUtilsExampleApp.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-SwiftPixelUtilsExampleApp.release.xcconfig"; path = "Target Support Files/Pods-SwiftPixelUtilsExampleApp/Pods-SwiftPixelUtilsExampleApp.release.xcconfig"; sourceTree = "<group>"; };
+		FAD1CCB7F7EB7741FE1019DF /* Pods-SwiftPixelUtilsExampleApp.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-SwiftPixelUtilsExampleApp.debug.xcconfig"; path = "Target Support Files/Pods-SwiftPixelUtilsExampleApp/Pods-SwiftPixelUtilsExampleApp.debug.xcconfig"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		7941C6722F2E8FB3001DD805 /* SwiftPixelUtilsExampleApp */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+			);
 			path = SwiftPixelUtilsExampleApp;
 			sourceTree = "<group>";
 		};
 		7941C6802F2E8FB5001DD805 /* SwiftPixelUtilsExampleAppTests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+			);
 			path = SwiftPixelUtilsExampleAppTests;
 			sourceTree = "<group>";
 		};
 		7941C68A2F2E8FB5001DD805 /* SwiftPixelUtilsExampleAppUITests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+			);
 			path = SwiftPixelUtilsExampleAppUITests;
 			sourceTree = "<group>";
 		};
@@ -66,8 +72,8 @@
 				79B91A7B2F2F1A930044970A /* executorch in Frameworks */,
 				7941C6A82F2E905B001DD805 /* SwiftPixelUtils in Frameworks */,
 				79B91A7D2F2F1A930044970A /* kernels_optimized in Frameworks */,
-				B2C357F1C66384DD6180341A /* Pods_SwiftPixelUtilsExampleApp.framework in Frameworks */,
 				79B91A792F2F1A930044970A /* backend_xnnpack in Frameworks */,
+				5FB014563EE615870C809B0D /* Pods_SwiftPixelUtilsExampleApp.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -88,14 +94,6 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
-		4D860945ADDE0EEEA9062B85 /* Frameworks */ = {
-			isa = PBXGroup;
-			children = (
-				BEB81E061C551E41E9B08EAC /* Pods_SwiftPixelUtilsExampleApp.framework */,
-			);
-			name = Frameworks;
-			sourceTree = "<group>";
-		};
 		7941C6672F2E8FB3001DD805 = {
 			isa = PBXGroup;
 			children = (
@@ -104,7 +102,7 @@
 				7941C68A2F2E8FB5001DD805 /* SwiftPixelUtilsExampleAppUITests */,
 				7941C6712F2E8FB3001DD805 /* Products */,
 				8CE098FF06B10F4C7A87B42F /* Pods */,
-				4D860945ADDE0EEEA9062B85 /* Frameworks */,
+				90ED713CEE58AF7B297BCB63 /* Frameworks */,
 			);
 			sourceTree = "<group>";
 		};
@@ -121,10 +119,18 @@
 		8CE098FF06B10F4C7A87B42F /* Pods */ = {
 			isa = PBXGroup;
 			children = (
-				677893A1DEB95A600B617837 /* Pods-SwiftPixelUtilsExampleApp.debug.xcconfig */,
-				5D2B01C643FBC65B8C3E37DE /* Pods-SwiftPixelUtilsExampleApp.release.xcconfig */,
+				FAD1CCB7F7EB7741FE1019DF /* Pods-SwiftPixelUtilsExampleApp.debug.xcconfig */,
+				A9E029FFA01EA4E6D947FEAC /* Pods-SwiftPixelUtilsExampleApp.release.xcconfig */,
 			);
 			path = Pods;
+			sourceTree = "<group>";
+		};
+		90ED713CEE58AF7B297BCB63 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				0D7B8BAE8808E62F77F85773 /* Pods_SwiftPixelUtilsExampleApp.framework */,
+			);
+			name = Frameworks;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -134,11 +140,11 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 7941C6912F2E8FB5001DD805 /* Build configuration list for PBXNativeTarget "SwiftPixelUtilsExampleApp" */;
 			buildPhases = (
-				5A7D54FF2F819F01B07BF26D /* [CP] Check Pods Manifest.lock */,
+				C0F85E38F0A3CFE69DE532A3 /* [CP] Check Pods Manifest.lock */,
 				7941C66C2F2E8FB3001DD805 /* Sources */,
 				7941C66D2F2E8FB3001DD805 /* Frameworks */,
 				7941C66E2F2E8FB3001DD805 /* Resources */,
-				5F60A7E23ED12A85F8393ABB /* [CP] Copy Pods Resources */,
+				FDB8F005C175B35550B1AC11 /* [CP] Copy Pods Resources */,
 			);
 			buildRules = (
 			);
@@ -233,7 +239,7 @@
 			mainGroup = 7941C6672F2E8FB3001DD805;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				7941C6A62F2E905B001DD805 /* XCLocalSwiftPackageReference "../../../SwiftPixelUtils" */,
+				7941C6A62F2E905B001DD805 /* XCLocalSwiftPackageReference "SwiftPixelUtils" */,
 				79B91A772F2F1A930044970A /* XCRemoteSwiftPackageReference "executorch" */,
 			);
 			preferredProjectObjectVersion = 77;
@@ -273,7 +279,7 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXShellScriptBuildPhase section */
-		5A7D54FF2F819F01B07BF26D /* [CP] Check Pods Manifest.lock */ = {
+		C0F85E38F0A3CFE69DE532A3 /* [CP] Check Pods Manifest.lock */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -295,7 +301,7 @@
 			shellScript = "diff \"${PODS_PODFILE_DIR_PATH}/Podfile.lock\" \"${PODS_ROOT}/Manifest.lock\" > /dev/null\nif [ $? != 0 ] ; then\n    # print error to STDERR\n    echo \"error: The sandbox is not in sync with the Podfile.lock. Run 'pod install' or update your CocoaPods installation.\" >&2\n    exit 1\nfi\n# This output is used by Xcode 'outputs' to avoid re-running this script phase.\necho \"SUCCESS\" > \"${SCRIPT_OUTPUT_FILE_0}\"\n";
 			showEnvVarsInLog = 0;
 		};
-		5F60A7E23ED12A85F8393ABB /* [CP] Copy Pods Resources */ = {
+		FDB8F005C175B35550B1AC11 /* [CP] Copy Pods Resources */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -303,13 +309,9 @@
 			inputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-SwiftPixelUtilsExampleApp/Pods-SwiftPixelUtilsExampleApp-resources-${CONFIGURATION}-input-files.xcfilelist",
 			);
-			inputPaths = (
-			);
 			name = "[CP] Copy Pods Resources";
 			outputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-SwiftPixelUtilsExampleApp/Pods-SwiftPixelUtilsExampleApp-resources-${CONFIGURATION}-output-files.xcfilelist",
-			);
-			outputPaths = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
@@ -479,7 +481,7 @@
 		};
 		7941C6922F2E8FB5001DD805 /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 677893A1DEB95A600B617837 /* Pods-SwiftPixelUtilsExampleApp.debug.xcconfig */;
+			baseConfigurationReference = FAD1CCB7F7EB7741FE1019DF /* Pods-SwiftPixelUtilsExampleApp.debug.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
@@ -524,7 +526,7 @@
 		};
 		7941C6932F2E8FB5001DD805 /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 5D2B01C643FBC65B8C3E37DE /* Pods-SwiftPixelUtilsExampleApp.release.xcconfig */;
+			baseConfigurationReference = A9E029FFA01EA4E6D947FEAC /* Pods-SwiftPixelUtilsExampleApp.release.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
@@ -695,7 +697,7 @@
 /* End XCConfigurationList section */
 
 /* Begin XCLocalSwiftPackageReference section */
-		7941C6A62F2E905B001DD805 /* XCLocalSwiftPackageReference "../../../SwiftPixelUtils" */ = {
+		7941C6A62F2E905B001DD805 /* XCLocalSwiftPackageReference "SwiftPixelUtils" */ = {
 			isa = XCLocalSwiftPackageReference;
 			relativePath = ../../../SwiftPixelUtils;
 		};

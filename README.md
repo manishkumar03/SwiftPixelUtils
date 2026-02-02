@@ -31,8 +31,15 @@ High-performance Swift library for image preprocessing optimized for ML/AI infer
 ### ML Framework Integration
 - 🤖 **Simplified ML APIs**: One-line preprocessing (`getModelInput`) and postprocessing (`ClassificationOutput`, `DetectionOutput`, `SegmentationOutput`, `DepthEstimationOutput`) for all major frameworks
 - 🤖 **Model Presets**: Pre-configured settings for YOLO (v8/v9/v10), RT-DETR, MobileNet, EfficientNet, ResNet, ViT, CLIP, SAM/SAM2, DINO, DETR, Mask2Former, UNet, DeepLab, SegFormer, FCN, PSPNet
-- 🎯 **Framework Targets**: Automatic configuration for PyTorch, TensorFlow, TFLite, CoreML, ONNX, ExecuTorch, OpenCV
+- 🎯 **Framework Targets**: Automatic configuration for PyTorch, TensorFlow, TFLite, CoreML, ONNX Runtime, ExecuTorch, OpenCV
 - 🏷️ **Label Database**: Built-in labels for COCO, ImageNet, VOC, CIFAR, Places365, ADE20K, Open Images, LVIS, Objects365, Kinetics
+
+### ONNX Runtime Integration
+- 🔌 **ONNX Helper**: Streamlined tensor creation for ONNX Runtime with `ONNXHelper.createTensorData()`
+- 📊 **ONNX Data Types**: Support for Float32, Float16, UInt8, Int8, Int32, Int64 tensor types
+- 🎯 **ONNX Model Configs**: Pre-configured settings for YOLOv8, RT-DETR, ResNet, MobileNetV2, ViT, CLIP
+- 🔍 **Output Parsing**: Built-in parsers for YOLOv8, YOLOv5, RT-DETR, SSD detection outputs
+- 🧮 **Segmentation Output**: Parse ONNX segmentation model outputs with argmax
 
 ### Quantization
 - 🎯 **Native Quantization**: Float→Int8/UInt8/Int16/INT4 with per-tensor and per-channel support (TFLite/ExecuTorch compatible)
@@ -185,6 +192,20 @@ let mobileNetResult = try await PixelExtractor.getPixelData(
 | `fcn` | 512×512 | contain | ImageNet | NCHW | Fully convolutional |
 | `pspnet` | 473×473 | contain | ImageNet | NCHW | Pyramid pooling |
 
+**ONNX Runtime Models**
+
+| Preset | Size | Resize | Normalization | Layout | Notes |
+|--------|------|--------|---------------|--------|-------|
+| `onnx_yolov8` / `onnx_yolov8n/s/m/l/x` | 640×640 | letterbox | scale | NCHW | ONNX YOLOv8 detection |
+| `onnx_rtdetr` | 640×640 | letterbox | ImageNet | NCHW | ONNX RT-DETR detection |
+| `onnx_resnet` / `onnx_resnet50` | 224×224 | cover | ImageNet | NCHW | ONNX ResNet classification |
+| `onnx_mobilenetv2` | 224×224 | cover | ImageNet | NCHW | ONNX MobileNetV2 |
+| `onnx_vit` | 224×224 | cover | ImageNet | NCHW | ONNX Vision Transformer |
+| `onnx_clip` | 224×224 | cover | CLIP-specific | NCHW | ONNX CLIP vision encoder |
+| `onnx_quantized_uint8` | 224×224 | cover | raw | NCHW | Quantized UInt8 models |
+| `onnx_quantized_int8` | 224×224 | cover | raw | NCHW | Quantized Int8 models |
+| `onnx_float16` | 224×224 | cover | ImageNet | NCHW | Float16 optimized models |
+
 ### ExecuTorch Compatibility
 
 All presets with **NCHW layout** work directly with ExecuTorch models exported from PyTorch. For quantized ExecuTorch models, use the output with `Quantizer` to convert to Int8:
@@ -212,6 +233,52 @@ let quantized = try Quantizer.quantize(
 )
 // Pass quantized.int8Data to ExecuTorch tensor
 ```
+
+### ONNX Runtime Integration
+
+SwiftPixelUtils provides comprehensive helpers for ONNX Runtime integration.
+
+> **⚠️ Important:** ONNX Runtime is not included in the example app due to XNNPACK symbol conflicts with TensorFlow Lite. To use ONNX Runtime features in your own project, you'll need to add the ONNX Runtime dependency separately. See the [ONNX Runtime Integration Guide](docs/10-onnx-runtime-integration.md) for setup instructions.
+
+```swift
+// Create tensor data using model config
+let tensorInput = try await ONNXHelper.createTensorData(
+    from: .uiImage(image),
+    config: .yolov8  // Pre-configured for YOLOv8 ONNX model
+)
+
+// Use with onnxruntime-objc
+let inputTensor = try ORTValue(
+    tensorData: NSMutableData(data: tensorInput.data),
+    elementType: .float,
+    shape: tensorInput.shape.map { NSNumber(value: $0) }
+)
+
+// Parse detection output
+let detections = ONNXHelper.parseYOLOv8Output(
+    data: outputData,
+    numClasses: 80,
+    confidenceThreshold: 0.25,
+    nmsThreshold: 0.45
+)
+
+// Scale detections back to original image coordinates
+let scaledDetections = ONNXHelper.scaleDetections(
+    detections,
+    modelSize: CGSize(width: 640, height: 640),
+    originalSize: image.size
+)
+```
+
+**ONNX Framework Variants:**
+
+| Framework | Layout | Normalization | Output Type |
+|-----------|--------|---------------|-------------|
+| `.onnx` | NCHW | ImageNet | Float32 |
+| `.onnxRaw` | NCHW | [0,1] scale | Float32 |
+| `.onnxQuantizedUInt8` | NCHW | raw [0,255] | UInt8 |
+| `.onnxQuantizedInt8` | NCHW | raw [0,255] | Int8 |
+| `.onnxFloat16` | NCHW | ImageNet | Float16 |
 
 ## 🤖 Simplified ML APIs
 

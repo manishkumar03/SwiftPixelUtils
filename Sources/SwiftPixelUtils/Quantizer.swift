@@ -521,8 +521,12 @@ public enum Quantizer {
         } else {
             // Asymmetric quantization
             let scale = (maxVal - minVal) / (qmax - qmin)
-            let zeroPoint = Int(round(qmin - minVal / max(scale, Float.leastNormalMagnitude)))
-            return (scale: max(scale, Float.leastNormalMagnitude), zeroPoint: clamp(zeroPoint, Int(qmin), Int(qmax)))
+            let safeScale = max(scale, Float.leastNormalMagnitude)
+            let rawZeroPoint = qmin - minVal / safeScale
+            // Clamp to prevent overflow when converting to Int
+            let clampedZeroPoint = max(min(rawZeroPoint, Float(Int.max)), Float(Int.min))
+            let zeroPoint = Int(round(clampedZeroPoint))
+            return (scale: safeScale, zeroPoint: clamp(zeroPoint, Int(qmin), Int(qmax)))
         }
     }
     
@@ -646,7 +650,10 @@ public enum Quantizer {
             } else {
                 let range = maxValues[c] - minValues[c]
                 scales[c] = max(range / (qmax - qmin), Float.leastNormalMagnitude)
-                let zp = Int(round(qmin - minValues[c] / scales[c]))
+                let rawZP = qmin - minValues[c] / scales[c]
+                // Clamp to prevent overflow when converting to Int
+                let clampedZP = max(min(rawZP, Float(Int.max)), Float(Int.min))
+                let zp = Int(round(clampedZP))
                 zeroPoints[c] = clamp(zp, Int(qmin), Int(qmax))
             }
         }
@@ -680,14 +687,16 @@ public enum Quantizer {
             if channelAxis == 0 {
                 // CHW layout
                 for c in 0..<channels {
-                    let s = actualScale[c]
+                    let s = max(actualScale[c], Float.leastNormalMagnitude)
                     let z = actualZeroPoint[c]
                     let startIdx = c * spatial
                     let endIdx = min(startIdx + spatial, data.count)
                     
                     for i in startIdx..<endIdx {
                         let quantized = round(data[i] / s) + Float(z)
-                        result[i] = Int8(clamp(Int(quantized), -128, 127))
+                        // Clamp to prevent overflow before Int conversion
+                        let clamped = max(min(quantized, 127), -128)
+                        result[i] = Int8(clamped)
                     }
                 }
             } else {
@@ -696,10 +705,12 @@ public enum Quantizer {
                     for c in 0..<channels {
                         let idx = i + c
                         if idx < data.count {
-                            let s = actualScale[c]
+                            let s = max(actualScale[c], Float.leastNormalMagnitude)
                             let z = actualZeroPoint[c]
                             let quantized = round(data[idx] / s) + Float(z)
-                            result[idx] = Int8(clamp(Int(quantized), -128, 127))
+                            // Clamp to prevent overflow before Int conversion
+                            let clamped = max(min(quantized, 127), -128)
+                            result[idx] = Int8(clamped)
                         }
                     }
                 }
@@ -712,12 +723,14 @@ public enum Quantizer {
                 actualZeroPoint = [z]
             }
             
-            let s = actualScale[0]
+            let s = max(actualScale[0], Float.leastNormalMagnitude)
             let z = actualZeroPoint[0]
             
             for i in 0..<data.count {
                 let quantized = round(data[i] / s) + Float(z)
-                result[i] = Int8(clamp(Int(quantized), -128, 127))
+                // Clamp to prevent overflow before Int conversion
+                let clamped = max(min(quantized, 127), -128)
+                result[i] = Int8(clamped)
             }
         }
         
@@ -795,14 +808,16 @@ public enum Quantizer {
             if channelAxis == 0 {
                 // CHW layout
                 for c in 0..<channels {
-                    let s = actualScale[c]
+                    let s = max(actualScale[c], Float.leastNormalMagnitude)
                     let z = actualZeroPoint[c]
                     let startIdx = c * spatial
                     let endIdx = min(startIdx + spatial, data.count)
                     
                     for i in startIdx..<endIdx {
                         let quantized = round(data[i] / s) + Float(z)
-                        result[i] = UInt8(clamp(Int(quantized), 0, 255))
+                        // Clamp to prevent overflow before Int conversion
+                        let clamped = max(min(quantized, 255), 0)
+                        result[i] = UInt8(clamped)
                     }
                 }
             } else {
@@ -811,10 +826,12 @@ public enum Quantizer {
                     for c in 0..<channels {
                         let idx = i + c
                         if idx < data.count {
-                            let s = actualScale[c]
+                            let s = max(actualScale[c], Float.leastNormalMagnitude)
                             let z = actualZeroPoint[c]
                             let quantized = round(data[idx] / s) + Float(z)
-                            result[idx] = UInt8(clamp(Int(quantized), 0, 255))
+                            // Clamp to prevent overflow before Int conversion
+                            let clamped = max(min(quantized, 255), 0)
+                            result[idx] = UInt8(clamped)
                         }
                     }
                 }
@@ -827,12 +844,14 @@ public enum Quantizer {
                 actualZeroPoint = [z]
             }
             
-            let s = actualScale[0]
+            let s = max(actualScale[0], Float.leastNormalMagnitude)
             let z = actualZeroPoint[0]
             
             for i in 0..<data.count {
                 let quantized = round(data[i] / s) + Float(z)
-                result[i] = UInt8(clamp(Int(quantized), 0, 255))
+                // Clamp to prevent overflow before Int conversion
+                let clamped = max(min(quantized, 255), 0)
+                result[i] = UInt8(clamped)
             }
         }
         
@@ -1028,14 +1047,16 @@ public enum Quantizer {
             if channelAxis == 0 {
                 // CHW layout
                 for c in 0..<channels {
-                    let s = actualScale[c]
+                    let s = max(actualScale[c], Float.leastNormalMagnitude)
                     let z = actualZeroPoint[c]
                     let startIdx = c * spatial
                     let endIdx = min(startIdx + spatial, data.count)
                     
                     for i in startIdx..<endIdx {
                         let quantized = round(data[i] / s) + Float(z)
-                        int4Values[i] = Int8(clamp(Int(quantized), -8, 7))
+                        // Clamp to prevent overflow before Int conversion
+                        let clamped = max(min(quantized, 7), -8)
+                        int4Values[i] = Int8(clamped)
                     }
                 }
             } else {
@@ -1044,10 +1065,12 @@ public enum Quantizer {
                     for c in 0..<channels {
                         let idx = i + c
                         if idx < data.count {
-                            let s = actualScale[c]
+                            let s = max(actualScale[c], Float.leastNormalMagnitude)
                             let z = actualZeroPoint[c]
                             let quantized = round(data[idx] / s) + Float(z)
-                            int4Values[idx] = Int8(clamp(Int(quantized), -8, 7))
+                            // Clamp to prevent overflow before Int conversion
+                            let clamped = max(min(quantized, 7), -8)
+                            int4Values[idx] = Int8(clamped)
                         }
                     }
                 }
@@ -1060,12 +1083,14 @@ public enum Quantizer {
                 actualZeroPoint = [z]
             }
             
-            let s = actualScale[0]
+            let s = max(actualScale[0], Float.leastNormalMagnitude)
             let z = actualZeroPoint[0]
             
             for i in 0..<data.count {
                 let quantized = round(data[i] / s) + Float(z)
-                int4Values[i] = Int8(clamp(Int(quantized), -8, 7))
+                // Clamp to prevent overflow before Int conversion
+                let clamped = max(min(quantized, 7), -8)
+                int4Values[i] = Int8(clamped)
             }
         }
         
@@ -1111,14 +1136,16 @@ public enum Quantizer {
             if channelAxis == 0 {
                 // CHW layout
                 for c in 0..<channels {
-                    let s = actualScale[c]
+                    let s = max(actualScale[c], Float.leastNormalMagnitude)
                     let z = actualZeroPoint[c]
                     let startIdx = c * spatial
                     let endIdx = min(startIdx + spatial, data.count)
                     
                     for i in startIdx..<endIdx {
                         let quantized = round(data[i] / s) + Float(z)
-                        uint4Values[i] = UInt8(clamp(Int(quantized), 0, 15))
+                        // Clamp to prevent overflow before conversion
+                        let clamped = max(min(quantized, 15), 0)
+                        uint4Values[i] = UInt8(clamped)
                     }
                 }
             } else {
@@ -1127,10 +1154,12 @@ public enum Quantizer {
                     for c in 0..<channels {
                         let idx = i + c
                         if idx < data.count {
-                            let s = actualScale[c]
+                            let s = max(actualScale[c], Float.leastNormalMagnitude)
                             let z = actualZeroPoint[c]
                             let quantized = round(data[idx] / s) + Float(z)
-                            uint4Values[idx] = UInt8(clamp(Int(quantized), 0, 15))
+                            // Clamp to prevent overflow before conversion
+                            let clamped = max(min(quantized, 15), 0)
+                            uint4Values[idx] = UInt8(clamped)
                         }
                     }
                 }
@@ -1143,12 +1172,14 @@ public enum Quantizer {
                 actualZeroPoint = [z]
             }
             
-            let s = actualScale[0]
+            let s = max(actualScale[0], Float.leastNormalMagnitude)
             let z = actualZeroPoint[0]
             
             for i in 0..<data.count {
                 let quantized = round(data[i] / s) + Float(z)
-                uint4Values[i] = UInt8(clamp(Int(quantized), 0, 15))
+                // Clamp to prevent overflow before conversion
+                let clamped = max(min(quantized, 15), 0)
+                uint4Values[i] = UInt8(clamped)
             }
         }
         

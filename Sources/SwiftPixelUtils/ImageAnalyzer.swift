@@ -277,7 +277,26 @@ public enum ImageAnalyzer {
         let height = cgImage.height
         let hasAlpha = cgImage.alphaInfo != .none && cgImage.alphaInfo != .noneSkipLast && cgImage.alphaInfo != .noneSkipFirst
         let channels = hasAlpha ? 4 : 3
-        let colorSpace = cgImage.colorSpace?.name as String? ?? "Unknown"
+        
+        // Simplify color space name
+        var colorSpace = "Unknown"
+        if let csName = cgImage.colorSpace?.name as String? {
+            let csNameLower = csName.lowercased()
+            if csName == "kCGColorSpaceSRGB" || csNameLower.contains("srgb") {
+                colorSpace = "sRGB"
+            } else if csName == "kCGColorSpaceDisplayP3" || csNameLower.contains("display p3") || csNameLower.contains("displayp3") {
+                colorSpace = "Display P3"
+            } else if csName == "kCGColorSpaceAdobeRGB1998" || csNameLower.contains("adobe") {
+                colorSpace = "Adobe RGB"
+            } else if csName == "kCGColorSpaceGenericGrayGamma2_2" || csNameLower.contains("gray") {
+                colorSpace = "Grayscale"
+            } else if csName == "kCGColorSpaceGenericCMYK" || csNameLower.contains("cmyk") {
+                colorSpace = "CMYK"
+            } else {
+                colorSpace = csName
+            }
+        }
+        
         let aspectRatio = Float(width) / Float(height)
         
         return ImageMetadata(

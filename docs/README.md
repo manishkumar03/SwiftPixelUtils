@@ -16,7 +16,7 @@ Comprehensive guides and references for machine learning on iOS and macOS.
 | [06 - Augmentation](06-image-augmentation.md) | Data augmentation techniques | Geometric, photometric, MixUp, AutoAugment |
 | [07 - Visualization](07-visualization-guide.md) | Drawing ML results | Boxes, masks, heatmaps, debugging |
 | [08 - Label Database](08-label-database.md) | Complete class label reference | ImageNet, COCO, VOC, Open Images, LVIS, Kinetics |
-| [09 - Depth Estimation](09-depth-estimation.md) | Monocular depth estimation | MiDaS, DPT, ZoeDepth, colormaps, model downloading |
+| [09 - Depth Estimation](09-depth-estimation.md) | Monocular depth estimation | MiDaS, DPT, ZoeDepth, Depth Anything, colormaps, Float16 utilities |
 
 ## 🚀 Quick Start
 

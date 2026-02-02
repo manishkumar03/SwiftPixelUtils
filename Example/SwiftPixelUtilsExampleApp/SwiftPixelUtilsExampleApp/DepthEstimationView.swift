@@ -203,8 +203,8 @@ struct DepthEstimationView: View {
                             Text("Opacity")
                                 .font(.caption)
                             Slider(value: $overlayAlpha, in: 0.1...0.9)
-                                .accessibilityIdentifier("depth-opacity-slider")
                         }
+                        .accessibilityIdentifier("depth-opacity-slider")
                     }
                 }
             } header: {
@@ -462,131 +462,31 @@ struct DepthEstimationView: View {
         
         inferenceTime = (inferenceEnd - inferenceStart) * 1000
         
-        // Process based on output type
+        // Process based on output type using SwiftPixelUtils
         if let pixelBuffer = resultPixelBuffer {
-            try await processDepthPixelBuffer(
+            // Use package's CVPixelBuffer processing
+            let result = try DepthEstimationOutput.process(
                 pixelBuffer: pixelBuffer,
+                modelType: .depthAnything,
                 originalWidth: cgImage.width,
                 originalHeight: cgImage.height
             )
+            try await processDepthResult(result)
         } else if let multiArray = resultMultiArray {
-            try await processDepthOutput(
+            // Use package's MLMultiArray processing
+            let result = try DepthEstimationOutput.process(
                 multiArray: multiArray,
+                modelType: .depthAnything,
                 originalWidth: cgImage.width,
                 originalHeight: cgImage.height
             )
+            try await processDepthResult(result)
         } else {
             throw PixelUtilsError.processingFailed("No depth output from model")
         }
     }
     
-    private func processDepthPixelBuffer(
-        pixelBuffer: CVPixelBuffer,
-        originalWidth: Int,
-        originalHeight: Int
-    ) async throws {
-        // Convert pixel buffer to MLMultiArray for processing with DepthEstimationOutput
-        let width = CVPixelBufferGetWidth(pixelBuffer)
-        let height = CVPixelBufferGetHeight(pixelBuffer)
-        
-        CVPixelBufferLockBaseAddress(pixelBuffer, .readOnly)
-        defer { CVPixelBufferUnlockBaseAddress(pixelBuffer, .readOnly) }
-        
-        guard let baseAddress = CVPixelBufferGetBaseAddress(pixelBuffer) else {
-            throw PixelUtilsError.processingFailed("Could not get pixel buffer base address")
-        }
-        
-        let bytesPerRow = CVPixelBufferGetBytesPerRow(pixelBuffer)
-        let pixelFormat = CVPixelBufferGetPixelFormatType(pixelBuffer)
-        
-        // Create MLMultiArray from pixel buffer
-        let multiArray = try MLMultiArray(shape: [1, NSNumber(value: height), NSNumber(value: width)], dataType: .float32)
-        
-        let floatPtr = multiArray.dataPointer.bindMemory(to: Float32.self, capacity: width * height)
-        
-        // Handle different pixel formats
-        switch pixelFormat {
-        case kCVPixelFormatType_OneComponent8:
-            // 8-bit grayscale
-            let ptr = baseAddress.assumingMemoryBound(to: UInt8.self)
-            for y in 0..<height {
-                for x in 0..<width {
-                    let value = ptr[y * bytesPerRow + x]
-                    floatPtr[y * width + x] = Float32(value) / 255.0
-                }
-            }
-            
-        case kCVPixelFormatType_OneComponent16Half:
-            // 16-bit float (Float16)
-            let ptr = baseAddress.assumingMemoryBound(to: UInt16.self)
-            let stride = bytesPerRow / 2
-            for y in 0..<height {
-                for x in 0..<width {
-                    let halfValue = ptr[y * stride + x]
-                    floatPtr[y * width + x] = float16ToFloat32(halfValue)
-                }
-            }
-            
-        case kCVPixelFormatType_OneComponent32Float:
-            // 32-bit float
-            let ptr = baseAddress.assumingMemoryBound(to: Float32.self)
-            let stride = bytesPerRow / 4
-            for y in 0..<height {
-                for x in 0..<width {
-                    floatPtr[y * width + x] = ptr[y * stride + x]
-                }
-            }
-            
-        default:
-            throw PixelUtilsError.processingFailed("Unsupported pixel format: \(pixelFormat)")
-        }
-        
-        // Now process with DepthEstimationOutput
-        try await processDepthOutput(
-            multiArray: multiArray,
-            originalWidth: originalWidth,
-            originalHeight: originalHeight
-        )
-    }
-    
-    /// Convert Float16 (stored as UInt16) to Float32
-    private func float16ToFloat32(_ half: UInt16) -> Float32 {
-        let sign = (half & 0x8000) >> 15
-        let exponent = (half & 0x7C00) >> 10
-        let fraction = half & 0x03FF
-        
-        if exponent == 0 {
-            if fraction == 0 {
-                return sign == 0 ? 0.0 : -0.0
-            }
-            // Denormalized
-            let f = Float32(fraction) / 1024.0
-            return (sign == 0 ? 1.0 : -1.0) * f * pow(2.0, -14.0)
-        } else if exponent == 31 {
-            if fraction == 0 {
-                return sign == 0 ? Float32.infinity : -Float32.infinity
-            }
-            return Float32.nan
-        }
-        
-        let f = 1.0 + Float32(fraction) / 1024.0
-        let e = Float32(Int(exponent) - 15)
-        return (sign == 0 ? 1.0 : -1.0) * f * pow(2.0, e)
-    }
-    
-    private func processDepthOutput(
-        multiArray: MLMultiArray,
-        originalWidth: Int,
-        originalHeight: Int
-    ) async throws {
-        // Process with SwiftPixelUtils DepthEstimationOutput
-        let result = try DepthEstimationOutput.process(
-            multiArray: multiArray,
-            modelType: .depthAnything,
-            originalWidth: originalWidth,
-            originalHeight: originalHeight
-        )
-        
+    private func processDepthResult(_ result: DepthEstimationResult) async throws {
         // Resize to original dimensions for better visualization
         let resizedResult = result.resizedToOriginal()
         

@@ -1,6 +1,6 @@
 # Depth Estimation Output Guide
 
-Process depth estimation model outputs from MiDaS, DPT, ZoeDepth, and other monocular depth models.
+Process depth estimation model outputs from MiDaS, DPT, ZoeDepth, Depth Anything, and other monocular depth models.
 
 ## Table of Contents
 
@@ -11,25 +11,33 @@ Process depth estimation model outputs from MiDaS, DPT, ZoeDepth, and other mono
 5. [Visualization](#visualization)
 6. [Depth Queries](#depth-queries)
 7. [Colormaps](#colormaps)
-8. [Complete Example](#complete-example)
+8. [Float16 Conversion Utilities](#float16-conversion-utilities)
+9. [Complete Example](#complete-example)
 
 ## Overview
 
 Monocular depth estimation predicts per-pixel depth from a single RGB image. SwiftPixelUtils provides:
 
-- **Output processing** for common depth model formats
-- **Visualization** with scientific colormaps (Viridis, Plasma, etc.)
+- **Output processing** for common depth model formats (MLMultiArray, CVPixelBuffer, Float arrays)
+- **Visualization** with scientific colormaps (Viridis, Plasma, etc.) and custom colormaps
 - **Model downloading** with caching support
 - **Depth queries** with bilinear interpolation
+- **Float16 conversion** utilities for half-precision depth buffers
 
 ### Depth Types
 
 | Type | Description | Models |
 |------|-------------|--------|
-| **Relative Inverse** | Higher values = closer, no metric scale | MiDaS, DPT |
+| **Relative Inverse** | Higher values = closer, no metric scale | MiDaS, DPT, Depth Anything |
 | **Metric** | Depth in meters, lower values = closer | ZoeDepth |
 
 ## Supported Models
+
+### Depth Anything (Apple)
+
+| Variant | Input | Size | Best For |
+|---------|-------|------|----------|
+| Depth Anything Small F16P6 | Flexible (518 min) | ~18MB | Mobile, quality balance |
 
 ### MiDaS (Intel ISL)
 
@@ -152,6 +160,46 @@ let result = try DepthEstimationOutput.process(
 )
 ```
 
+### From CVPixelBuffer (Vision Framework)
+
+When using Vision framework with `VNCoreMLRequest`, depth models often return `VNPixelBufferObservation` 
+instead of `VNCoreMLFeatureValueObservation`. SwiftPixelUtils handles common grayscale formats:
+
+- **OneComponent8**: 8-bit grayscale (0-255)
+- **OneComponent16Half**: 16-bit float (Float16)
+- **OneComponent32Float**: 32-bit float
+
+```swift
+import Vision
+
+// Create Vision request
+let request = VNCoreMLRequest(model: depthModel) { request, error in
+    // Handle pixel buffer output (common for Depth Anything models)
+    if let pixelBufferObs = request.results?.first as? VNPixelBufferObservation {
+        let result = try DepthEstimationOutput.process(
+            pixelBuffer: pixelBufferObs.pixelBuffer,
+            modelType: .depthAnything,
+            originalWidth: originalImage.width,
+            originalHeight: originalImage.height
+        )
+        // Use result...
+    }
+    
+    // Or MLMultiArray output (common for MiDaS models)
+    if let featureObs = request.results?.first as? VNCoreMLFeatureValueObservation,
+       let multiArray = featureObs.featureValue.multiArrayValue {
+        let result = try DepthEstimationOutput.process(
+            multiArray: multiArray,
+            modelType: .midas
+        )
+        // Use result...
+    }
+}
+```
+    originalHeight: image.height
+)
+```
+
 ## Visualization
 
 ### Grayscale Depth Map
@@ -254,6 +302,38 @@ for colormap in colormaps {
 }
 ```
 
+### Custom Colormaps
+
+Create your own colormaps by specifying key colors that will be linearly interpolated:
+
+```swift
+// Create a heat-style colormap (blue → yellow → red)
+let heatmap = DepthColormap.custom(
+    name: "Heat",
+    keyColors: [
+        (r: 0.0, g: 0.0, b: 1.0),   // Blue (far)
+        (r: 1.0, g: 1.0, b: 0.0),   // Yellow (mid)
+        (r: 1.0, g: 0.0, b: 0.0)    // Red (near)
+    ]
+)
+
+// Use custom colormap
+let coloredImage = result.toColoredImage(colormap: heatmap)
+```
+
+```swift
+// Create a sunset-style colormap
+let sunset = DepthColormap.custom(
+    name: "Sunset",
+    keyColors: [
+        (r: 0.1, g: 0.0, b: 0.3),   // Deep purple
+        (r: 0.8, g: 0.2, b: 0.4),   // Magenta
+        (r: 1.0, g: 0.5, b: 0.2),   // Orange
+        (r: 1.0, g: 0.9, b: 0.4)    // Light yellow
+    ]
+)
+```
+
 ### Colormap Comparison
 
 ```
@@ -264,6 +344,73 @@ Plasma:       [Dark Blue] → [Purple] → [Orange] → [Yellow]
 Inferno:      [Black] → [Purple] → [Orange] → [Yellow]
 Turbo:        [Blue] → [Cyan] → [Green] → [Yellow] → [Red]
 ```
+
+## Float16 Conversion Utilities
+
+Many CoreML depth models output Float16 (half-precision) data in CVPixelBuffers with 
+`kCVPixelFormatType_OneComponent16Half` format. SwiftPixelUtils provides public utilities 
+for converting between Float16 and Float32:
+
+```swift
+import SwiftPixelUtils
+
+// Convert Float16 (as UInt16 bits) to Float32
+let halfBits: UInt16 = 0x3C00  // Float16 representation of 1.0
+let floatValue = CVPixelBufferUtilities.float16ToFloat32(halfBits)
+print(floatValue)  // 1.0
+
+// Convert Float32 to Float16 (as UInt16 bits)
+let float32Value: Float = 0.5
+let halfValue = CVPixelBufferUtilities.float32ToFloat16(float32Value)
+print(String(format: "0x%04X", halfValue))  // 0x3800
+```
+
+### Manual CVPixelBuffer Processing
+
+For advanced use cases where you need to manually process Float16 depth buffers:
+
+```swift
+func processFloat16DepthBuffer(_ pixelBuffer: CVPixelBuffer) -> [Float] {
+    let width = CVPixelBufferGetWidth(pixelBuffer)
+    let height = CVPixelBufferGetHeight(pixelBuffer)
+    
+    CVPixelBufferLockBaseAddress(pixelBuffer, .readOnly)
+    defer { CVPixelBufferUnlockBaseAddress(pixelBuffer, .readOnly) }
+    
+    guard let baseAddress = CVPixelBufferGetBaseAddress(pixelBuffer) else {
+        return []
+    }
+    
+    let bytesPerRow = CVPixelBufferGetBytesPerRow(pixelBuffer)
+    let ptr = baseAddress.assumingMemoryBound(to: UInt16.self)
+    let stride = bytesPerRow / 2
+    
+    var depthValues = [Float](repeating: 0, count: width * height)
+    
+    for y in 0..<height {
+        for x in 0..<width {
+            let halfValue = ptr[y * stride + x]
+            depthValues[y * width + x] = CVPixelBufferUtilities.float16ToFloat32(halfValue)
+        }
+    }
+    
+    return depthValues
+}
+```
+
+### Special Values
+
+The Float16 conversion handles IEEE 754 special values correctly:
+
+| Value | Float16 (hex) | Float32 Result |
+|-------|---------------|----------------|
+| Zero | 0x0000 | 0.0 |
+| Negative Zero | 0x8000 | -0.0 |
+| One | 0x3C00 | 1.0 |
+| Half | 0x3800 | 0.5 |
+| +Infinity | 0x7C00 | +∞ |
+| -Infinity | 0xFC00 | -∞ |
+| NaN | 0x7E00 | NaN |
 
 ## Complete Example
 

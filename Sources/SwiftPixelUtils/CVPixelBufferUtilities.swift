@@ -418,4 +418,86 @@ public enum CVPixelBufferUtilities {
         
         return result
     }
+    
+    // MARK: - Float16 Conversion
+    
+    /// Convert Float16 (stored as UInt16) to Float32.
+    ///
+    /// This handles the IEEE 754 half-precision format commonly used by CoreML models
+    /// and CVPixelBuffers with `kCVPixelFormatType_OneComponent16Half` format.
+    ///
+    /// ## Usage
+    ///
+    /// ```swift
+    /// let halfValue: UInt16 = // raw Float16 bits
+    /// let floatValue = CVPixelBufferUtilities.float16ToFloat32(halfValue)
+    /// ```
+    ///
+    /// - Parameter half: The raw UInt16 bits of a Float16 value
+    /// - Returns: The equivalent Float32 value
+    public static func float16ToFloat32(_ half: UInt16) -> Float {
+        let sign = (half & 0x8000) >> 15
+        let exponent = (half & 0x7C00) >> 10
+        let fraction = half & 0x03FF
+        
+        if exponent == 0 {
+            if fraction == 0 {
+                return sign == 0 ? 0.0 : -0.0
+            }
+            // Denormalized number
+            let f = Float(fraction) / 1024.0
+            return (sign == 0 ? 1.0 : -1.0) * f * pow(2.0, -14.0)
+        } else if exponent == 31 {
+            if fraction == 0 {
+                return sign == 0 ? Float.infinity : -Float.infinity
+            }
+            return Float.nan
+        }
+        
+        // Normalized number
+        let f = 1.0 + Float(fraction) / 1024.0
+        let e = Float(Int(exponent) - 15)
+        return (sign == 0 ? 1.0 : -1.0) * f * pow(2.0, e)
+    }
+    
+    /// Convert Float32 to Float16 (stored as UInt16).
+    ///
+    /// This converts a Float32 value to IEEE 754 half-precision format.
+    /// Useful for creating CVPixelBuffers with `kCVPixelFormatType_OneComponent16Half` format.
+    ///
+    /// - Parameter value: The Float32 value to convert
+    /// - Returns: The raw UInt16 bits of the equivalent Float16 value
+    public static func float32ToFloat16(_ value: Float) -> UInt16 {
+        if value.isNaN {
+            return 0x7E00 // NaN
+        }
+        if value.isInfinite {
+            return value > 0 ? 0x7C00 : 0xFC00
+        }
+        
+        let bits = value.bitPattern
+        let sign = (bits >> 31) & 1
+        let exponent = Int((bits >> 23) & 0xFF) - 127
+        let fraction = bits & 0x7FFFFF
+        
+        if exponent > 15 {
+            // Overflow to infinity
+            return UInt16((sign << 15) | 0x7C00)
+        }
+        if exponent < -14 {
+            // Underflow to denormalized or zero
+            if exponent < -24 {
+                return UInt16(sign << 15) // Zero
+            }
+            // Denormalized
+            let shift = -14 - exponent
+            let denormFraction = (0x800000 | fraction) >> (shift + 13)
+            return UInt16((sign << 15) | denormFraction)
+        }
+        
+        // Normalized
+        let halfExponent = UInt16(exponent + 15)
+        let halfFraction = UInt16(fraction >> 13)
+        return UInt16((sign << 15) | (UInt32(halfExponent) << 10) | UInt32(halfFraction))
+    }
 }

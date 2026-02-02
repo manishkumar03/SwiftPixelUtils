@@ -6,6 +6,7 @@
 //
 
 import XCTest
+import CoreVideo
 @testable import SwiftPixelUtils
 
 final class DepthEstimationOutputTests: XCTestCase {
@@ -391,4 +392,254 @@ final class DepthEstimationOutputTests: XCTestCase {
         XCTAssertEqual(array2D[0], [1, 2, 3])
         XCTAssertEqual(array2D[1], [4, 5, 6])
     }
+    
+    // MARK: - CVPixelBuffer Processing Tests
+    
+    func testProcessGrayscale8PixelBuffer() throws {
+        // Create a grayscale 8-bit pixel buffer
+        let width = 10
+        let height = 10
+        
+        var pixelBuffer: CVPixelBuffer?
+        let status = CVPixelBufferCreate(
+            kCFAllocatorDefault,
+            width,
+            height,
+            kCVPixelFormatType_OneComponent8,
+            nil,
+            &pixelBuffer
+        )
+        
+        guard status == kCVReturnSuccess, let buffer = pixelBuffer else {
+            XCTFail("Failed to create pixel buffer")
+            return
+        }
+        
+        // Fill with gradient values
+        CVPixelBufferLockBaseAddress(buffer, [])
+        if let baseAddress = CVPixelBufferGetBaseAddress(buffer) {
+            let ptr = baseAddress.assumingMemoryBound(to: UInt8.self)
+            let bytesPerRow = CVPixelBufferGetBytesPerRow(buffer)
+            for y in 0..<height {
+                for x in 0..<width {
+                    ptr[y * bytesPerRow + x] = UInt8((y * width + x) * 255 / (width * height - 1))
+                }
+            }
+        }
+        CVPixelBufferUnlockBaseAddress(buffer, [])
+        
+        // Process with DepthEstimationOutput
+        let result = try DepthEstimationOutput.process(
+            pixelBuffer: buffer,
+            modelType: .depthAnything,
+            originalWidth: width,
+            originalHeight: height
+        )
+        
+        XCTAssertEqual(result.width, width)
+        XCTAssertEqual(result.height, height)
+        XCTAssertEqual(result.depthMap.count, width * height)
+        
+        // Values should be normalized 0-1
+        XCTAssertGreaterThanOrEqual(result.minDepth, 0)
+        XCTAssertLessThanOrEqual(result.maxDepth, 1)
+    }
+    
+    func testProcessGrayscale32FloatPixelBuffer() throws {
+        // Create a grayscale 32-bit float pixel buffer
+        let width = 8
+        let height = 8
+        
+        var pixelBuffer: CVPixelBuffer?
+        let status = CVPixelBufferCreate(
+            kCFAllocatorDefault,
+            width,
+            height,
+            kCVPixelFormatType_OneComponent32Float,
+            nil,
+            &pixelBuffer
+        )
+        
+        guard status == kCVReturnSuccess, let buffer = pixelBuffer else {
+            XCTFail("Failed to create pixel buffer")
+            return
+        }
+        
+        // Fill with known values
+        CVPixelBufferLockBaseAddress(buffer, [])
+        if let baseAddress = CVPixelBufferGetBaseAddress(buffer) {
+            let ptr = baseAddress.assumingMemoryBound(to: Float.self)
+            let bytesPerRow = CVPixelBufferGetBytesPerRow(buffer)
+            let stride = bytesPerRow / MemoryLayout<Float>.stride
+            for y in 0..<height {
+                for x in 0..<width {
+                    ptr[y * stride + x] = Float(y * width + x) / Float(width * height - 1)
+                }
+            }
+        }
+        CVPixelBufferUnlockBaseAddress(buffer, [])
+        
+        // Process with DepthEstimationOutput
+        let result = try DepthEstimationOutput.process(
+            pixelBuffer: buffer,
+            modelType: .midas,
+            originalWidth: 100,
+            originalHeight: 100
+        )
+        
+        XCTAssertEqual(result.width, width)
+        XCTAssertEqual(result.height, height)
+        XCTAssertEqual(result.originalWidth, 100)
+        XCTAssertEqual(result.originalHeight, 100)
+        
+        // Test first and last values
+        let firstValue = result.depthAt(x: 0, y: 0)
+        let lastValue = result.depthAt(x: width - 1, y: height - 1)
+        XCTAssertNotNil(firstValue)
+        XCTAssertNotNil(lastValue)
+        XCTAssertEqual(Double(firstValue!), 0.0, accuracy: 0.01)
+        XCTAssertEqual(Double(lastValue!), 1.0, accuracy: 0.01)
+    }
+    
+    func testProcessPixelBufferPreservesModelType() throws {
+        let width = 4
+        let height = 4
+        
+        var pixelBuffer: CVPixelBuffer?
+        CVPixelBufferCreate(
+            kCFAllocatorDefault,
+            width,
+            height,
+            kCVPixelFormatType_OneComponent8,
+            nil,
+            &pixelBuffer
+        )
+        
+        guard let buffer = pixelBuffer else {
+            XCTFail("Failed to create pixel buffer")
+            return
+        }
+        
+        // Test Depth Anything model type
+        let resultDepthAnything = try DepthEstimationOutput.process(
+            pixelBuffer: buffer,
+            modelType: .depthAnything
+        )
+        XCTAssertTrue(resultDepthAnything.isInverse)
+        XCTAssertFalse(resultDepthAnything.isMetric)
+        
+        // Test ZoeDepth model type
+        let resultZoe = try DepthEstimationOutput.process(
+            pixelBuffer: buffer,
+            modelType: .zoeDepth
+        )
+        XCTAssertFalse(resultZoe.isInverse)
+        XCTAssertTrue(resultZoe.isMetric)
+    }
+    
+    func testProcessPixelBufferUnsupportedFormat() {
+        let width = 4
+        let height = 4
+        
+        var pixelBuffer: CVPixelBuffer?
+        // Create BGRA format which is not supported for depth
+        CVPixelBufferCreate(
+            kCFAllocatorDefault,
+            width,
+            height,
+            kCVPixelFormatType_32BGRA,
+            nil,
+            &pixelBuffer
+        )
+        
+        guard let buffer = pixelBuffer else {
+            XCTFail("Failed to create pixel buffer")
+            return
+        }
+        
+        XCTAssertThrowsError(try DepthEstimationOutput.process(
+            pixelBuffer: buffer,
+            modelType: .depthAnything
+        ))
+    }
+    
+    // MARK: - Custom Colormap Tests
+    
+    func testCustomColormapCreation() {
+        // Create a simple red-to-blue colormap
+        let colormap = DepthColormap.custom(
+            name: "RedBlue",
+            keyColors: [
+                (r: 1.0, g: 0.0, b: 0.0),  // Red at 0
+                (r: 0.0, g: 0.0, b: 1.0)   // Blue at 1
+            ]
+        )
+        
+        XCTAssertEqual(colormap.name, "RedBlue")
+        
+        // At value 0, should be red (allow small tolerance due to interpolation)
+        let colorAt0 = colormap.color(forValue: 0.0)
+        XCTAssertGreaterThan(colorAt0.r, 250)
+        XCTAssertLessThan(colorAt0.g, 5)
+        XCTAssertLessThan(colorAt0.b, 5)
+        
+        // At value 1, should be blue
+        let colorAt1 = colormap.color(forValue: 1.0)
+        XCTAssertLessThan(colorAt1.r, 5)
+        XCTAssertLessThan(colorAt1.g, 5)
+        XCTAssertGreaterThan(colorAt1.b, 250)
+        
+        // At value 0.5, should be purple-ish (interpolated)
+        let colorAtMid = colormap.color(forValue: 0.5)
+        XCTAssertTrue(colorAtMid.r > 100 && colorAtMid.r < 150)
+        XCTAssertTrue(colorAtMid.b > 100 && colorAtMid.b < 150)
+    }
+    
+    func testCustomColormapThreeColors() {
+        // Create red -> green -> blue colormap
+        let colormap = DepthColormap.custom(
+            name: "RGB",
+            keyColors: [
+                (r: 1.0, g: 0.0, b: 0.0),  // Red at 0
+                (r: 0.0, g: 1.0, b: 0.0),  // Green at 0.5
+                (r: 0.0, g: 0.0, b: 1.0)   // Blue at 1
+            ]
+        )
+        
+        XCTAssertEqual(colormap.name, "RGB")
+        
+        // Check endpoints (allow small tolerance)
+        let colorAt0 = colormap.color(forValue: 0.0)
+        XCTAssertGreaterThan(colorAt0.r, 250)
+        
+        let colorAt1 = colormap.color(forValue: 1.0)
+        XCTAssertGreaterThan(colorAt1.b, 250)
+    }
+    
+    func testCustomColormapWithDepthResult() throws {
+        // Create a simple depth map
+        let depthOutput: [Float] = [0.0, 0.5, 0.5, 1.0]
+        
+        let result = try DepthEstimationOutput.process(
+            output: depthOutput,
+            width: 2,
+            height: 2,
+            modelType: .midas
+        )
+        
+        // Create custom colormap
+        let heatmap = DepthColormap.custom(
+            name: "Heat",
+            keyColors: [
+                (r: 0.0, g: 0.0, b: 1.0),  // Blue (far)
+                (r: 1.0, g: 1.0, b: 0.0),  // Yellow (mid)
+                (r: 1.0, g: 0.0, b: 0.0)   // Red (near)
+            ]
+        )
+        
+        // Should be able to create colored image with custom colormap
+        let image = result.toColoredImage(colormap: heatmap)
+        XCTAssertNotNil(image)
+    }
 }
+

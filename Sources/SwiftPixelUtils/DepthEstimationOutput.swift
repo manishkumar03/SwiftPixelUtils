@@ -542,6 +542,40 @@ public struct DepthColormap {
         
         return lut
     }
+    
+    // MARK: - Custom Colormap Creation
+    
+    /// Create a custom colormap from key colors.
+    ///
+    /// Key colors are interpolated linearly to create a smooth 256-entry lookup table.
+    /// Provide at least 2 colors for gradient interpolation.
+    ///
+    /// ## Usage
+    ///
+    /// ```swift
+    /// // Create a blue-to-red colormap
+    /// let heatmap = DepthColormap.custom(
+    ///     name: "Heat",
+    ///     keyColors: [
+    ///         (0.0, 0.0, 1.0),   // Blue (far)
+    ///         (1.0, 1.0, 0.0),   // Yellow (mid)
+    ///         (1.0, 0.0, 0.0)    // Red (near)
+    ///     ]
+    /// )
+    /// let image = depthResult.toColoredImage(colormap: heatmap)
+    /// ```
+    ///
+    /// - Parameters:
+    ///   - name: Display name for the colormap
+    ///   - keyColors: Array of (r, g, b) tuples with values in 0.0-1.0 range
+    /// - Returns: Custom colormap for depth visualization
+    public static func custom(
+        name: String,
+        keyColors: [(r: Float, g: Float, b: Float)]
+    ) -> DepthColormap {
+        let tuples = keyColors.map { ($0.r, $0.g, $0.b) }
+        return DepthColormap(name: name, lut: interpolateColormap(keyColors: tuples))
+    }
 }
 
 // MARK: - DepthEstimationOutput Main API
@@ -727,6 +761,98 @@ public enum DepthEstimationOutput {
             originalWidth: originalWidth,
             originalHeight: originalHeight
         )
+    }
+    
+    /// Process CVPixelBuffer output from Vision/Core ML depth model.
+    ///
+    /// Vision framework returns depth model output as a pixel buffer (grayscale image)
+    /// rather than MLMultiArray. This function handles common grayscale formats:
+    /// - OneComponent8 (8-bit grayscale)
+    /// - OneComponent16Half (16-bit float, Float16)
+    /// - OneComponent32Float (32-bit float)
+    ///
+    /// - Parameters:
+    ///   - pixelBuffer: CVPixelBuffer from Vision request or CoreML output
+    ///   - modelType: Type of depth model
+    ///   - originalWidth: Original image width (for resize)
+    ///   - originalHeight: Original image height (for resize)
+    /// - Returns: Processed depth estimation result
+    /// - Throws: ``PixelUtilsError`` if the pixel format is unsupported
+    public static func process(
+        pixelBuffer: CVPixelBuffer,
+        modelType: DepthModelType = .depthAnything,
+        originalWidth: Int? = nil,
+        originalHeight: Int? = nil
+    ) throws -> DepthEstimationResult {
+        let width = CVPixelBufferGetWidth(pixelBuffer)
+        let height = CVPixelBufferGetHeight(pixelBuffer)
+        
+        CVPixelBufferLockBaseAddress(pixelBuffer, .readOnly)
+        defer { CVPixelBufferUnlockBaseAddress(pixelBuffer, .readOnly) }
+        
+        guard let baseAddress = CVPixelBufferGetBaseAddress(pixelBuffer) else {
+            throw PixelUtilsError.processingFailed("Could not get pixel buffer base address")
+        }
+        
+        let bytesPerRow = CVPixelBufferGetBytesPerRow(pixelBuffer)
+        let pixelFormat = CVPixelBufferGetPixelFormatType(pixelBuffer)
+        
+        var depthValues = [Float](repeating: 0, count: width * height)
+        
+        switch pixelFormat {
+        case kCVPixelFormatType_OneComponent8:
+            // 8-bit grayscale (0-255 -> 0.0-1.0)
+            let ptr = baseAddress.assumingMemoryBound(to: UInt8.self)
+            for y in 0..<height {
+                for x in 0..<width {
+                    let value = ptr[y * bytesPerRow + x]
+                    depthValues[y * width + x] = Float(value) / 255.0
+                }
+            }
+            
+        case kCVPixelFormatType_OneComponent16Half:
+            // 16-bit float (Float16)
+            let ptr = baseAddress.assumingMemoryBound(to: UInt16.self)
+            let stride = bytesPerRow / 2
+            for y in 0..<height {
+                for x in 0..<width {
+                    let halfValue = ptr[y * stride + x]
+                    depthValues[y * width + x] = float16ToFloat32(halfValue)
+                }
+            }
+            
+        case kCVPixelFormatType_OneComponent32Float:
+            // 32-bit float
+            let ptr = baseAddress.assumingMemoryBound(to: Float.self)
+            let stride = bytesPerRow / 4
+            for y in 0..<height {
+                for x in 0..<width {
+                    depthValues[y * width + x] = ptr[y * stride + x]
+                }
+            }
+            
+        default:
+            throw PixelUtilsError.processingFailed(
+                "Unsupported pixel format for depth: \(pixelFormat). Expected OneComponent8, OneComponent16Half, or OneComponent32Float."
+            )
+        }
+        
+        return try process(
+            output: depthValues,
+            width: width,
+            height: height,
+            modelType: modelType,
+            originalWidth: originalWidth,
+            originalHeight: originalHeight
+        )
+    }
+    
+    /// Convert Float16 (stored as UInt16) to Float32.
+    ///
+    /// This handles the IEEE 754 half-precision format used by CoreML models.
+    /// - Note: This is a convenience wrapper around ``CVPixelBufferUtilities/float16ToFloat32(_:)``
+    private static func float16ToFloat32(_ half: UInt16) -> Float {
+        return CVPixelBufferUtilities.float16ToFloat32(half)
     }
     #endif
 }

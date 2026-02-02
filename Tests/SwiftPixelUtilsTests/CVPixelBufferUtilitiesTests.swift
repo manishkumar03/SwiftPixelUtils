@@ -442,4 +442,99 @@ final class CVPixelBufferUtilitiesTests: XCTestCase {
             )
         }
     }
+    
+    // MARK: - Float16 Conversion Tests
+    
+    func testFloat16ToFloat32Zero() {
+        // Float16 zero: 0x0000
+        let result = CVPixelBufferUtilities.float16ToFloat32(0x0000)
+        XCTAssertEqual(result, 0.0, accuracy: 0.0001)
+        
+        // Negative zero: 0x8000
+        let negZero = CVPixelBufferUtilities.float16ToFloat32(0x8000)
+        XCTAssertEqual(negZero, 0.0, accuracy: 0.0001)
+    }
+    
+    func testFloat16ToFloat32One() {
+        // Float16 one: sign=0, exp=15, frac=0 -> 0x3C00
+        let result = CVPixelBufferUtilities.float16ToFloat32(0x3C00)
+        XCTAssertEqual(result, 1.0, accuracy: 0.0001)
+        
+        // Negative one: 0xBC00
+        let negOne = CVPixelBufferUtilities.float16ToFloat32(0xBC00)
+        XCTAssertEqual(negOne, -1.0, accuracy: 0.0001)
+    }
+    
+    func testFloat16ToFloat32CommonValues() {
+        // Float16 0.5: 0x3800
+        XCTAssertEqual(CVPixelBufferUtilities.float16ToFloat32(0x3800), 0.5, accuracy: 0.001)
+        
+        // Float16 2.0: 0x4000
+        XCTAssertEqual(CVPixelBufferUtilities.float16ToFloat32(0x4000), 2.0, accuracy: 0.001)
+        
+        // Float16 -2.0: 0xC000
+        XCTAssertEqual(CVPixelBufferUtilities.float16ToFloat32(0xC000), -2.0, accuracy: 0.001)
+        
+        // Float16 0.25: 0x3400
+        XCTAssertEqual(CVPixelBufferUtilities.float16ToFloat32(0x3400), 0.25, accuracy: 0.001)
+    }
+    
+    func testFloat16ToFloat32SpecialValues() {
+        // Positive infinity: 0x7C00
+        let posInf = CVPixelBufferUtilities.float16ToFloat32(0x7C00)
+        XCTAssertTrue(posInf.isInfinite && posInf > 0)
+        
+        // Negative infinity: 0xFC00
+        let negInf = CVPixelBufferUtilities.float16ToFloat32(0xFC00)
+        XCTAssertTrue(negInf.isInfinite && negInf < 0)
+        
+        // NaN: 0x7E00 (common NaN representation)
+        let nan = CVPixelBufferUtilities.float16ToFloat32(0x7E00)
+        XCTAssertTrue(nan.isNaN)
+    }
+    
+    func testFloat32ToFloat16Zero() {
+        let result = CVPixelBufferUtilities.float32ToFloat16(0.0)
+        XCTAssertEqual(result, 0x0000)
+    }
+    
+    func testFloat32ToFloat16One() {
+        let result = CVPixelBufferUtilities.float32ToFloat16(1.0)
+        XCTAssertEqual(result, 0x3C00)
+        
+        let negOne = CVPixelBufferUtilities.float32ToFloat16(-1.0)
+        XCTAssertEqual(negOne, 0xBC00)
+    }
+    
+    func testFloat32ToFloat16CommonValues() {
+        XCTAssertEqual(CVPixelBufferUtilities.float32ToFloat16(0.5), 0x3800)
+        XCTAssertEqual(CVPixelBufferUtilities.float32ToFloat16(2.0), 0x4000)
+        XCTAssertEqual(CVPixelBufferUtilities.float32ToFloat16(-2.0), 0xC000)
+    }
+    
+    func testFloat32ToFloat16SpecialValues() {
+        // Infinity
+        let posInf = CVPixelBufferUtilities.float32ToFloat16(Float.infinity)
+        XCTAssertEqual(posInf, 0x7C00)
+        
+        let negInf = CVPixelBufferUtilities.float32ToFloat16(-Float.infinity)
+        XCTAssertEqual(negInf, 0xFC00)
+        
+        // NaN
+        let nan = CVPixelBufferUtilities.float32ToFloat16(Float.nan)
+        XCTAssertEqual(nan, 0x7E00)
+    }
+    
+    func testFloat16RoundTrip() {
+        // Test round-trip conversion for various values
+        let testValues: [Float] = [0.0, 1.0, -1.0, 0.5, 0.25, 2.0, 100.0, -100.0, 0.001]
+        
+        for value in testValues {
+            let half = CVPixelBufferUtilities.float32ToFloat16(value)
+            let back = CVPixelBufferUtilities.float16ToFloat32(half)
+            // Float16 has limited precision, so allow some error
+            XCTAssertEqual(back, value, accuracy: abs(value) * 0.01 + 0.001,
+                          "Round-trip failed for \(value): got \(back)")
+        }
+    }
 }

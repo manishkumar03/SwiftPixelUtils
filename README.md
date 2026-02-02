@@ -39,7 +39,8 @@ High-performance Swift library for image preprocessing optimized for ML/AI infer
 - 🔢 **INT4 Quantization**: 4-bit quantization (8× compression) for LLM weights and edge deployment
 - 📊 **Per-Channel Quantization**: Channel-wise scale/zeroPoint for higher accuracy (CNN, Transformer weights)
 - 🏷️ **Label Database**: Built-in labels for COCO, ImageNet, VOC, CIFAR, Places365, ADE20K, Open Images, LVIS, Objects365, Kinetics
-- 📏 **Depth Estimation**: Process MiDaS, DPT, ZoeDepth, Depth Anything outputs with scientific colormaps (Viridis, Plasma, Turbo)
+- 📏 **Depth Estimation**: Process MiDaS, DPT, ZoeDepth, Depth Anything outputs with scientific colormaps (Viridis, Plasma, Turbo) and custom colormaps
+- 🔄 **Float16 Conversion**: IEEE 754 half-precision ↔ Float32 utilities for CVPixelBuffer processing
 - 📦 **Bounding Box Utilities**: Format conversion (xyxy/xywh/cxcywh), scaling, clipping, IoU, NMS
 - 🖼️ **Letterbox Padding**: YOLO-style letterbox preprocessing with reverse coordinate transform
 - 🎨 **Drawing/Visualization**: Draw boxes, keypoints, masks, and heatmaps for debugging
@@ -56,6 +57,7 @@ A comprehensive iOS example app is included in the `Example/` directory, demonst
 - **ExecuTorch Classification** - MobileNetV3 with TopK results
 - **Object Detection** - YOLOv8 with NMS and bounding box visualization  
 - **Semantic Segmentation** - DeepLabV3 with colored mask overlay
+- **Depth Estimation** - Depth Anything with colormaps and overlay visualization
 - **Pixel Extraction** - Model presets (YOLO, MobileNet, ResNet, ViT, CLIP) and custom options
 - **Bounding Box Utilities** - Format conversion, IoU calculation, NMS, scaling, clipping
 - **Image Augmentation** - Rotation, flip, brightness, contrast, saturation, blur

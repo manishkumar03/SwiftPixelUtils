@@ -419,6 +419,122 @@ final class PixelExtractorTests: XCTestCase {
         XCTAssertEqual(result.int32Data?.count, result.width * result.height * result.channels)
     }
     
+    func testGetPixelDataFloat16Output() async throws {
+        let image = createTestCGImage()
+        var options = PixelDataOptions()
+        options.outputFormat = .float16Array
+        options.normalization = .scale
+        
+        let result = try await PixelExtractor.getPixelData(
+            source: .cgImage(image),
+            options: options
+        )
+        
+        XCTAssertNotNil(result.float16Data)
+        XCTAssertEqual(result.float16Data?.count, result.width * result.height * result.channels)
+        // Verify float32 data is also populated
+        XCTAssertFalse(result.data.isEmpty)
+    }
+    
+    // MARK: - Letterbox Info Tests
+    
+    func testGetPixelDataLetterboxInfoWideImage() async throws {
+        // Wide image (2:1) letterboxed to square - should have vertical padding
+        let image = createTestCGImage(width: 200, height: 100)
+        var options = PixelDataOptions()
+        options.resize = ResizeOptions(width: 640, height: 640, strategy: .letterbox)
+        
+        let result = try await PixelExtractor.getPixelData(
+            source: .cgImage(image),
+            options: options
+        )
+        
+        XCTAssertNotNil(result.letterboxInfo)
+        XCTAssertGreaterThan(result.letterboxInfo!.offset.y, 0)  // Vertical padding
+        XCTAssertEqual(result.letterboxInfo!.offset.x, 0, accuracy: 1.0)  // No horizontal padding
+        XCTAssertGreaterThan(result.letterboxInfo!.scale, 0)
+    }
+    
+    func testGetPixelDataLetterboxInfoTallImage() async throws {
+        // Tall image (1:2) letterboxed to square - should have horizontal padding
+        let image = createTestCGImage(width: 100, height: 200)
+        var options = PixelDataOptions()
+        options.resize = ResizeOptions(width: 640, height: 640, strategy: .letterbox)
+        
+        let result = try await PixelExtractor.getPixelData(
+            source: .cgImage(image),
+            options: options
+        )
+        
+        XCTAssertNotNil(result.letterboxInfo)
+        XCTAssertGreaterThan(result.letterboxInfo!.offset.x, 0)  // Horizontal padding
+        XCTAssertEqual(result.letterboxInfo!.offset.y, 0, accuracy: 1.0)  // No vertical padding
+    }
+    
+    func testGetPixelDataLetterboxInfoSquareImage() async throws {
+        // Square image letterboxed to square - no padding needed
+        let image = createTestCGImage(width: 100, height: 100)
+        var options = PixelDataOptions()
+        options.resize = ResizeOptions(width: 640, height: 640, strategy: .letterbox)
+        
+        let result = try await PixelExtractor.getPixelData(
+            source: .cgImage(image),
+            options: options
+        )
+        
+        XCTAssertNotNil(result.letterboxInfo)
+        XCTAssertEqual(result.letterboxInfo!.offset.x, 0, accuracy: 1.0)
+        XCTAssertEqual(result.letterboxInfo!.offset.y, 0, accuracy: 1.0)
+    }
+    
+    func testGetPixelDataNoLetterboxInfoForStretch() async throws {
+        // Non-letterbox resize should not have letterboxInfo
+        let image = createTestCGImage(width: 200, height: 100)
+        var options = PixelDataOptions()
+        options.resize = ResizeOptions(width: 640, height: 640, strategy: .stretch)
+        
+        let result = try await PixelExtractor.getPixelData(
+            source: .cgImage(image),
+            options: options
+        )
+        
+        XCTAssertNil(result.letterboxInfo)
+    }
+    
+    // MARK: - Orientation Normalization Tests
+    
+    func testGetPixelDataOrientationNormalization() async throws {
+        let image = createTestCGImage()
+        var options = PixelDataOptions()
+        options.normalizeOrientation = true
+        
+        let result = try await PixelExtractor.getPixelData(
+            source: .cgImage(image),
+            options: options
+        )
+        
+        // Image dimensions should be preserved
+        XCTAssertEqual(result.width, 100)
+        XCTAssertEqual(result.height, 100)
+        XCTAssertFalse(result.data.isEmpty)
+    }
+    
+    func testGetPixelDataOrientationNormalizationDefault() async throws {
+        let image = createTestCGImage()
+        let options = PixelDataOptions()
+        
+        // Default should be false
+        XCTAssertFalse(options.normalizeOrientation)
+        
+        let result = try await PixelExtractor.getPixelData(
+            source: .cgImage(image),
+            options: options
+        )
+        
+        XCTAssertEqual(result.width, 100)
+        XCTAssertEqual(result.height, 100)
+    }
+    
     // MARK: - Batch Processing Tests
     
     func testBatchGetPixelData() async throws {

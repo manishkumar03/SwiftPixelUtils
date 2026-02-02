@@ -301,4 +301,125 @@ final class TypesTests: XCTestCase {
         XCTAssertEqual(grayscaleNorm.mean?.count, 1)
         XCTAssertEqual(grayscaleNorm.std?.count, 1)
     }
+    
+    // MARK: - OutputFormat Tests
+    
+    func testOutputFormatFloat16() {
+        let format = OutputFormat.float16Array
+        // Verify enum case exists and is distinct from other formats
+        XCTAssertNotEqual(format, OutputFormat.float32Array)
+        XCTAssertNotEqual(format, OutputFormat.uint8Array)
+        XCTAssertNotEqual(format, OutputFormat.int32Array)
+    }
+    
+    func testAllOutputFormats() {
+        let formats: [OutputFormat] = [.float32Array, .float16Array, .uint8Array, .int32Array]
+        XCTAssertEqual(formats.count, 4)
+        
+        // Ensure all are unique
+        let uniqueFormats = Set(formats.map { "\($0)" })
+        XCTAssertEqual(uniqueFormats.count, 4)
+    }
+    
+    // MARK: - PixelDataOptions Extension Tests
+    
+    func testPixelDataOptionsNormalizeOrientationDefault() {
+        let options = PixelDataOptions()
+        XCTAssertFalse(options.normalizeOrientation)  // Default should be false
+    }
+    
+    func testPixelDataOptionsNormalizeOrientationSet() {
+        var options = PixelDataOptions()
+        options.normalizeOrientation = true
+        XCTAssertTrue(options.normalizeOrientation)
+    }
+    
+    // MARK: - PixelDataResult Extension Tests
+    
+    func testPixelDataResultWithLetterboxInfo() {
+        let letterboxInfo = LetterboxInfo(
+            scale: 0.5,
+            offset: CGPoint(x: 0, y: 80),
+            originalSize: CGSize(width: 200, height: 100),
+            letterboxedSize: CGSize(width: 640, height: 640)
+        )
+        let result = PixelDataResult(
+            data: [Float](repeating: 0, count: 640 * 640 * 3),
+            width: 640,
+            height: 640,
+            channels: 3,
+            colorFormat: .rgb,
+            dataLayout: .hwc,
+            shape: [640, 640, 3],
+            processingTimeMs: 0.0,
+            letterboxInfo: letterboxInfo
+        )
+        
+        XCTAssertNotNil(result.letterboxInfo)
+        XCTAssertEqual(result.letterboxInfo?.offset.x, 0)
+        XCTAssertEqual(result.letterboxInfo?.offset.y, 80)
+        XCTAssertEqual(result.letterboxInfo?.scale, 0.5)
+    }
+    
+    func testPixelDataResultWithFloat16Data() {
+        let float16Data: [UInt16] = [0x3C00, 0x4000, 0x4200]  // 1.0, 2.0, 3.0 in Float16
+        let result = PixelDataResult(
+            data: [1.0, 2.0, 3.0],
+            float16Data: float16Data,
+            width: 1,
+            height: 1,
+            channels: 3,
+            colorFormat: .rgb,
+            dataLayout: .hwc,
+            shape: [1, 1, 3],
+            processingTimeMs: 0.0
+        )
+        
+        XCTAssertNotNil(result.float16Data)
+        XCTAssertEqual(result.float16Data?.count, 3)
+    }
+    
+    func testPixelDataResultLetterboxInfoNilByDefault() {
+        let result = PixelDataResult(
+            data: [Float](repeating: 0, count: 100),
+            width: 10,
+            height: 10,
+            channels: 1,
+            colorFormat: .grayscale,
+            dataLayout: .hwc,
+            shape: [10, 10, 1],
+            processingTimeMs: 0.0
+        )
+        
+        XCTAssertNil(result.letterboxInfo)
+        XCTAssertNil(result.float16Data)
+    }
+    
+    // MARK: - LetterboxInfo Tests
+    
+    func testLetterboxInfoInit() {
+        let info = LetterboxInfo(
+            scale: 0.75,
+            offset: CGPoint(x: 10.5, y: 20.0),
+            originalSize: CGSize(width: 200, height: 100),
+            letterboxedSize: CGSize(width: 640, height: 640)
+        )
+        XCTAssertEqual(info.scale, 0.75)
+        XCTAssertEqual(info.offset.x, 10.5)
+        XCTAssertEqual(info.offset.y, 20.0)
+        XCTAssertEqual(info.originalSize.width, 200)
+        XCTAssertEqual(info.letterboxedSize.width, 640)
+    }
+    
+    func testLetterboxInfoNoOffset() {
+        let info = LetterboxInfo(
+            scale: 1.0,
+            offset: CGPoint(x: 0, y: 0),
+            originalSize: CGSize(width: 640, height: 640),
+            letterboxedSize: CGSize(width: 640, height: 640)
+        )
+        XCTAssertEqual(info.offset.x, 0)
+        XCTAssertEqual(info.offset.y, 0)
+        XCTAssertEqual(info.scale, 1.0)
+    }
 }

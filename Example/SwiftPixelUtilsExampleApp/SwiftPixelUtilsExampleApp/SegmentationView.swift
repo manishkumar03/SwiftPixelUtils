@@ -62,17 +62,6 @@ struct SegmentationView: View {
     private let modelHeight = 257
     private let numClasses = 21
     
-    /// Load an image from the Resources folder in the bundle
-    private func loadBundleImage(named name: String) -> UIImage? {
-        if let path = Bundle.main.path(forResource: name, ofType: "jpg", inDirectory: "Resources") {
-            return UIImage(contentsOfFile: path)
-        }
-        if let path = Bundle.main.path(forResource: name, ofType: "jpg") {
-            return UIImage(contentsOfFile: path)
-        }
-        return UIImage(named: name)
-    }
-    
     var body: some View {
         List {
             // MARK: - Model Info Section

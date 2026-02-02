@@ -59,17 +59,6 @@ struct TFLiteClassificationView: View {
     @State private var topPredictions: [(label: String, confidence: Float)] = []
     @State private var inferenceTime: Double = 0
     
-    /// Load an image from the Resources folder in the bundle
-    private func loadBundleImage(named name: String) -> UIImage? {
-        if let path = Bundle.main.path(forResource: name, ofType: "jpg", inDirectory: "Resources") {
-            return UIImage(contentsOfFile: path)
-        }
-        if let path = Bundle.main.path(forResource: name, ofType: "jpg") {
-            return UIImage(contentsOfFile: path)
-        }
-        return UIImage(named: name)
-    }
-    
     var body: some View {
         List {
             // MARK: - Model Info Section
@@ -170,11 +159,10 @@ struct TFLiteClassificationView: View {
             if !topPredictions.isEmpty {
                 Section {
                     ForEach(Array(topPredictions.enumerated()), id: \.offset) { index, prediction in
-                        TFLitePredictionRow(
+                        ClassificationPredictionRow(
                             rank: index + 1,
                             label: prediction.label,
-                            confidence: prediction.confidence,
-                            isTop: index == 0
+                            confidence: prediction.confidence
                         )
                         .accessibilityIdentifier("tflite-prediction-row-\(index)")
                     }
@@ -325,85 +313,8 @@ struct TFLiteClassificationView: View {
     }
 }
 
-// MARK: - Prediction Row Component
-struct TFLitePredictionRow: View {
-    let rank: Int
-    let label: String
-    let confidence: Float
-    let isTop: Bool
-    
-    private var rankColor: Color {
-        switch rank {
-        case 1: return .yellow
-        case 2: return .gray
-        case 3: return .orange
-        default: return .secondary
-        }
-    }
-    
-    private var confidenceColor: Color {
-        if confidence > 0.5 { return .green }
-        if confidence > 0.2 { return .blue }
-        if confidence > 0.1 { return .orange }
-        return .secondary
-    }
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 12) {
-                ZStack {
-                    Circle()
-                        .fill(isTop ? rankColor.opacity(0.2) : Color.gray.opacity(0.1))
-                        .frame(width: 32, height: 32)
-                    Text("\(rank)")
-                        .font(.system(.subheadline, design: .rounded, weight: .bold))
-                        .foregroundColor(isTop ? rankColor : .secondary)
-                }
-                
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(label)
-                        .font(.system(.body, weight: isTop ? .semibold : .medium))
-                        .foregroundColor(.primary)
-                        .lineLimit(2)
-                }
-                
-                Spacer()
-                
-                Text(formatConfidence(confidence))
-                    .font(.system(.title3, design: .rounded, weight: .bold))
-                    .foregroundColor(confidenceColor)
-            }
-            
-            GeometryReader { geometry in
-                ZStack(alignment: .leading) {
-                    RoundedRectangle(cornerRadius: 4)
-                        .fill(Color.gray.opacity(0.15))
-                    
-                    RoundedRectangle(cornerRadius: 4)
-                        .fill(
-                            LinearGradient(
-                                colors: [confidenceColor.opacity(0.8), confidenceColor],
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            )
-                        )
-                        .frame(width: geometry.size.width * CGFloat(min(confidence, 1.0)))
-                }
-            }
-            .frame(height: 8)
-        }
-    }
-    
-    private func formatConfidence(_ value: Float) -> String {
-        if value >= 0.01 {
-            return String(format: "%.1f%%", value * 100)
-        } else if value >= 0.001 {
-            return String(format: "%.2f%%", value * 100)
-        } else {
-            return "<0.1%"
-        }
-    }
-}
+// MARK: - Preview
+// Using ClassificationPredictionRow from UIHelpers.swift
 
 #Preview {
     NavigationStack {

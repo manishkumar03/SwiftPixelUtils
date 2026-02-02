@@ -69,17 +69,6 @@ struct YOLODetectionView: View {
     @State private var detections: [ObjectDetection] = []
     @State private var inferenceTime: Double = 0
     
-    /// Load an image from the Resources folder in the bundle
-    private func loadBundleImage(named name: String) -> UIImage? {
-        if let path = Bundle.main.path(forResource: name, ofType: "jpg", inDirectory: "Resources") {
-            return UIImage(contentsOfFile: path)
-        }
-        if let path = Bundle.main.path(forResource: name, ofType: "jpg") {
-            return UIImage(contentsOfFile: path)
-        }
-        return UIImage(named: name)
-    }
-    
     var body: some View {
         List {
             // MARK: - Model Info Section
@@ -185,8 +174,13 @@ struct YOLODetectionView: View {
                 // Detection list
                 Section {
                     ForEach(Array(detections.enumerated()), id: \.offset) { index, detection in
-                        YOLODetectionRow(detection: detection, rank: index + 1)
-                            .accessibilityIdentifier("yolo-detection-row-\(index)")
+                        DetectionResultRow(
+                            rank: index + 1,
+                            label: detection.label,
+                            confidence: detection.confidence,
+                            box: detection.pixelBoundingBox.map { [Float($0.minX), Float($0.minY), Float($0.width), Float($0.height)] }
+                        )
+                        .accessibilityIdentifier("yolo-detection-row-\(index)")
                     }
                 } header: {
                     Label("Detected Objects (\(detections.count))", systemImage: "list.bullet.rectangle")
@@ -486,56 +480,8 @@ struct YOLODetectionView: View {
     }
 }
 
-// MARK: - Detection Row Component
-struct YOLODetectionRow: View {
-    let detection: ObjectDetection
-    let rank: Int
-    
-    private var confidenceColor: Color {
-        if detection.confidence > 0.7 { return .green }
-        if detection.confidence > 0.5 { return .blue }
-        if detection.confidence > 0.3 { return .orange }
-        return .red
-    }
-    
-    var body: some View {
-        HStack(spacing: 12) {
-            // Rank badge
-            ZStack {
-                Circle()
-                    .fill(confidenceColor.opacity(0.2))
-                    .frame(width: 32, height: 32)
-                Text("\(rank)")
-                    .font(.system(.subheadline, design: .rounded, weight: .bold))
-                    .foregroundColor(confidenceColor)
-            }
-            
-            VStack(alignment: .leading, spacing: 4) {
-                Text(detection.label)
-                    .font(.headline)
-                
-                // Bounding box info (use pixelBoundingBox if available, otherwise boundingBox)
-                if let pixelBox = detection.pixelBoundingBox {
-                    Text(String(format: "Box: (%.0f, %.0f) %.0f×%.0f", pixelBox.minX, pixelBox.minY, pixelBox.width, pixelBox.height))
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
-                } else {
-                    let box = detection.boundingBox
-                    Text(String(format: "Box: (%.2f, %.2f) %.2f×%.2f", box.minX, box.minY, box.width, box.height))
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
-                }
-            }
-            
-            Spacer()
-            
-            Text(String(format: "%.0f%%", detection.confidence * 100))
-                .font(.system(.title3, design: .rounded, weight: .bold))
-                .foregroundColor(confidenceColor)
-        }
-        .padding(.vertical, 4)
-    }
-}
+// MARK: - Preview
+// Using DetectionResultRow from UIHelpers.swift
 
 #Preview {
     NavigationStack {

@@ -69,6 +69,11 @@ struct MoreFeaturesView: View {
                         Label("Multi-Crop", systemImage: "rectangle.split.3x3")
                     }
                     .accessibilityIdentifier("more-multicrop-link")
+
+                    NavigationLink(destination: CVPixelBufferFormatsView()) {
+                        Label("CVPixelBuffer", systemImage: "camera.viewfinder")
+                    }
+                    .accessibilityIdentifier("more-cvpixelbuffer-link")
                 }
                 
                 Section("Visualization") {

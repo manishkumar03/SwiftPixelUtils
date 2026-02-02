@@ -1287,6 +1287,9 @@ func captureOutput(_ output: AVCaptureOutput,
 kCVPixelFormatType_32BGRA      // Most common on iOS
 kCVPixelFormatType_420YpCbCr8BiPlanarFullRange  // Video, efficient
 kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange
+// RGB565 formats (16-bit)
+kCVPixelFormatType_16LE565
+kCVPixelFormatType_16BE565
 ```
 
 ### CIImage (Core Image)

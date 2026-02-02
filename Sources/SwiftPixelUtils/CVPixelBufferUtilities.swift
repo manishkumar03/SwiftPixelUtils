@@ -196,6 +196,22 @@ public enum CVPixelBufferUtilities {
         case kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange,
              kCVPixelFormatType_420YpCbCr8BiPlanarFullRange:
             rgbaData = try extractYUV420BiPlanar(pixelBuffer: pixelBuffer)
+
+        case kCVPixelFormatType_16LE565:
+            guard let baseAddress = CVPixelBufferGetBaseAddress(pixelBuffer) else {
+                throw PixelUtilsError.processingFailed("Cannot access pixel buffer")
+            }
+            let bytesPerRow = CVPixelBufferGetBytesPerRow(pixelBuffer)
+            // RGB565 little-endian: low byte first (R5G6B5 packed into 16 bits).
+            rgbaData = extractRGB565(baseAddress: baseAddress, width: width, height: height, bytesPerRow: bytesPerRow, littleEndian: true)
+
+        case kCVPixelFormatType_16BE565:
+            guard let baseAddress = CVPixelBufferGetBaseAddress(pixelBuffer) else {
+                throw PixelUtilsError.processingFailed("Cannot access pixel buffer")
+            }
+            let bytesPerRow = CVPixelBufferGetBytesPerRow(pixelBuffer)
+            // RGB565 big-endian: high byte first (R5G6B5 packed into 16 bits).
+            rgbaData = extractRGB565(baseAddress: baseAddress, width: width, height: height, bytesPerRow: bytesPerRow, littleEndian: false)
             
         default:
             throw PixelUtilsError.processingFailed("Pixel format \(getPixelFormatDescription(pixelFormat)) not supported")
@@ -261,12 +277,21 @@ public enum CVPixelBufferUtilities {
         case kCVPixelFormatType_32ARGB: return "32ARGB"
         case kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange: return "420YpCbCr8BiPlanarVideoRange"
         case kCVPixelFormatType_420YpCbCr8BiPlanarFullRange: return "420YpCbCr8BiPlanarFullRange"
+        case kCVPixelFormatType_16LE565: return "16LE565"
+        case kCVPixelFormatType_16BE565: return "16BE565"
         default: return "Unknown(\(format))"
         }
     }
     
     // MARK: Private Helpers
     
+    /// Extracts RGBA bytes from a BGRA pixel buffer base address.
+    /// - Parameters:
+    ///   - baseAddress: Base address of the pixel buffer.
+    ///   - width: Image width in pixels.
+    ///   - height: Image height in pixels.
+    ///   - bytesPerRow: Bytes per row in the pixel buffer.
+    /// - Returns: RGBA byte array.
     private static func extractBGRA(baseAddress: UnsafeMutableRawPointer, width: Int, height: Int, bytesPerRow: Int) -> [UInt8] {
         let ptr = baseAddress.assumingMemoryBound(to: UInt8.self)
         var rgba = [UInt8](repeating: 0, count: width * height * 4)
@@ -285,6 +310,13 @@ public enum CVPixelBufferUtilities {
         return rgba
     }
     
+    /// Extracts RGBA bytes from an RGBA pixel buffer base address.
+    /// - Parameters:
+    ///   - baseAddress: Base address of the pixel buffer.
+    ///   - width: Image width in pixels.
+    ///   - height: Image height in pixels.
+    ///   - bytesPerRow: Bytes per row in the pixel buffer.
+    /// - Returns: RGBA byte array.
     private static func extractRGBA(baseAddress: UnsafeMutableRawPointer, width: Int, height: Int, bytesPerRow: Int) -> [UInt8] {
         let ptr = baseAddress.assumingMemoryBound(to: UInt8.self)
         var rgba = [UInt8](repeating: 0, count: width * height * 4)
@@ -302,7 +334,66 @@ public enum CVPixelBufferUtilities {
         
         return rgba
     }
+
+    /// Extracts RGBA bytes from an RGB565 pixel buffer base address.
+    ///
+    /// - Note: This function explicitly handles both little-endian (LE565) and
+    ///   big-endian (BE565) byte order. Use `littleEndian: true` for
+    ///   `kCVPixelFormatType_16LE565`, and `littleEndian: false` for
+    ///   `kCVPixelFormatType_16BE565`.
+    /// - Parameters:
+    ///   - baseAddress: Base address of the pixel buffer.
+    ///   - width: Image width in pixels.
+    ///   - height: Image height in pixels.
+    ///   - bytesPerRow: Bytes per row in the pixel buffer.
+    ///   - littleEndian: Whether the 16-bit pixel values are little-endian.
+    /// - Returns: RGBA byte array.
+    private static func extractRGB565(
+        baseAddress: UnsafeMutableRawPointer,
+        width: Int,
+        height: Int,
+        bytesPerRow: Int,
+        littleEndian: Bool
+    ) -> [UInt8] {
+        let ptr = baseAddress.assumingMemoryBound(to: UInt8.self)
+        var rgba = [UInt8](repeating: 0, count: width * height * 4)
+
+        for y in 0..<height {
+            for x in 0..<width {
+                let byteIndex = y * bytesPerRow + x * 2
+                let b0 = UInt16(ptr[byteIndex])
+                let b1 = UInt16(ptr[byteIndex + 1])
+
+                let value: UInt16
+                if littleEndian {
+                    value = b0 | (b1 << 8)
+                } else {
+                    value = (b0 << 8) | b1
+                }
+
+                let r5 = (value >> 11) & 0x1F
+                let g6 = (value >> 5) & 0x3F
+                let b5 = value & 0x1F
+
+                let r = UInt8((Int(r5) * 255) / 31)
+                let g = UInt8((Int(g6) * 255) / 63)
+                let b = UInt8((Int(b5) * 255) / 31)
+
+                let dstIdx = (y * width + x) * 4
+                rgba[dstIdx] = r
+                rgba[dstIdx + 1] = g
+                rgba[dstIdx + 2] = b
+                rgba[dstIdx + 3] = 255
+            }
+        }
+
+        return rgba
+    }
     
+    /// Extracts RGBA bytes from a bi-planar YUV420 (NV12) pixel buffer.
+    /// - Parameter pixelBuffer: Source pixel buffer.
+    /// - Returns: RGBA byte array.
+    /// - Throws: ``PixelUtilsError`` if planes are unavailable.
     private static func extractYUV420BiPlanar(pixelBuffer: CVPixelBuffer) throws -> [UInt8] {
         let width = CVPixelBufferGetWidth(pixelBuffer)
         let height = CVPixelBufferGetHeight(pixelBuffer)
@@ -353,6 +444,14 @@ public enum CVPixelBufferUtilities {
         return rgba
     }
     
+    /// Resizes an RGBA byte array using nearest-neighbor sampling.
+    /// - Parameters:
+    ///   - data: Source RGBA byte array.
+    ///   - sourceWidth: Source width in pixels.
+    ///   - sourceHeight: Source height in pixels.
+    ///   - targetWidth: Target width in pixels.
+    ///   - targetHeight: Target height in pixels.
+    /// - Returns: Resized RGBA byte array.
     private static func resizeRGBA(data: [UInt8], sourceWidth: Int, sourceHeight: Int, targetWidth: Int, targetHeight: Int) -> [UInt8] {
         var result = [UInt8](repeating: 0, count: targetWidth * targetHeight * 4)
         
@@ -376,6 +475,12 @@ public enum CVPixelBufferUtilities {
         return result
     }
     
+    /// Applies normalization to a float tensor.
+    /// - Parameters:
+    ///   - data: Input float data in RGB/BGR order.
+    ///   - normalization: Normalization preset and parameters.
+    ///   - channels: Number of channels per pixel.
+    /// - Returns: Normalized float data.
     private static func applyNormalization(_ data: [Float], normalization: Normalization, channels: Int) -> [Float] {
         var result = data
         

@@ -83,6 +83,12 @@ final class MoreFeaturesNavigationUITests: XCTestCase {
     func testNavigation_MultiCrop() throws {
         try navigateToMoreFeature(linkId: "more-multicrop-link", expectedTitle: "Multi-Crop")
     }
+
+    /// Test navigation to CVPixelBuffer view
+    @MainActor
+    func testNavigation_CVPixelBuffer() throws {
+        try navigateToMoreFeature(linkId: "more-cvpixelbuffer-link", expectedTitle: "CVPixelBuffer")
+    }
     
     // MARK: - Visualization Section
     

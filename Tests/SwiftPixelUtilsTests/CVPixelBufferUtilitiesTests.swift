@@ -117,6 +117,52 @@ final class CVPixelBufferUtilitiesTests: XCTestCase {
         
         return buffer
     }
+
+    private func createRGB565PixelBuffer(
+        width: Int,
+        height: Int,
+        r5: UInt16,
+        g6: UInt16,
+        b5: UInt16,
+        littleEndian: Bool
+    ) throws -> CVPixelBuffer {
+        let format: OSType = littleEndian ? kCVPixelFormatType_16LE565 : kCVPixelFormatType_16BE565
+        var pixelBuffer: CVPixelBuffer?
+        let status = CVPixelBufferCreate(
+            kCFAllocatorDefault,
+            width,
+            height,
+            format,
+            nil,
+            &pixelBuffer
+        )
+
+        guard status == kCVReturnSuccess, let buffer = pixelBuffer else {
+            throw PixelUtilsError.processingFailed("Failed to create RGB565 pixel buffer")
+        }
+
+        CVPixelBufferLockBaseAddress(buffer, [])
+        defer { CVPixelBufferUnlockBaseAddress(buffer, []) }
+
+        guard let baseAddress = CVPixelBufferGetBaseAddress(buffer) else {
+            throw PixelUtilsError.processingFailed("Failed to get base address")
+        }
+
+        let bytesPerRow = CVPixelBufferGetBytesPerRow(buffer)
+        let ptr = baseAddress.assumingMemoryBound(to: UInt16.self)
+        let pixelsPerRow = bytesPerRow / MemoryLayout<UInt16>.size
+
+        let packed = (r5 << 11) | (g6 << 5) | b5
+        let stored = littleEndian ? CFSwapInt16HostToLittle(packed) : CFSwapInt16HostToBig(packed)
+
+        for y in 0..<height {
+            for x in 0..<width {
+                ptr[y * pixelsPerRow + x] = stored
+            }
+        }
+
+        return buffer
+    }
     
     // MARK: - ConversionResult Tests
     
@@ -235,6 +281,46 @@ final class CVPixelBufferUtilitiesTests: XCTestCase {
         XCTAssertEqual(result.originalWidth, 10)
         XCTAssertEqual(result.originalHeight, 10)
         XCTAssertEqual(result.data.count, 10 * 10 * 3)
+    }
+
+    // MARK: - RGB565 Format Tests
+
+    func testRGB565LEPixelBuffer() throws {
+        let buffer: CVPixelBuffer
+        do {
+            buffer = try createRGB565PixelBuffer(width: 2, height: 2, r5: 31, g6: 0, b5: 0, littleEndian: true)
+        } catch {
+            throw XCTSkip("RGB565 pixel buffer creation not supported on this platform")
+        }
+
+        let result = try CVPixelBufferUtilities.toTensorData(buffer)
+
+        XCTAssertEqual(result.originalWidth, 2)
+        XCTAssertEqual(result.originalHeight, 2)
+        XCTAssertEqual(result.channels, 3)
+
+        XCTAssertEqual(result.data[0], 1.0, accuracy: 0.01)
+        XCTAssertEqual(result.data[1], 0.0, accuracy: 0.01)
+        XCTAssertEqual(result.data[2], 0.0, accuracy: 0.01)
+    }
+
+    func testRGB565BEPixelBuffer() throws {
+        let buffer: CVPixelBuffer
+        do {
+            buffer = try createRGB565PixelBuffer(width: 2, height: 2, r5: 0, g6: 63, b5: 0, littleEndian: false)
+        } catch {
+            throw XCTSkip("RGB565 pixel buffer creation not supported on this platform")
+        }
+
+        let result = try CVPixelBufferUtilities.toTensorData(buffer)
+
+        XCTAssertEqual(result.originalWidth, 2)
+        XCTAssertEqual(result.originalHeight, 2)
+        XCTAssertEqual(result.channels, 3)
+
+        XCTAssertEqual(result.data[0], 0.0, accuracy: 0.01)
+        XCTAssertEqual(result.data[1], 1.0, accuracy: 0.01)
+        XCTAssertEqual(result.data[2], 0.0, accuracy: 0.01)
     }
     
     // MARK: - Normalization Tests

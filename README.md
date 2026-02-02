@@ -46,6 +46,7 @@ High-performance Swift library for image preprocessing optimized for ML/AI infer
 - 🔢 **INT4 Quantization**: 4-bit quantization (8× compression) for LLM weights and edge deployment
 - 📊 **Per-Channel Quantization**: Channel-wise scale/zeroPoint for higher accuracy (CNN, Transformer weights)
 - 🔄 **Float16 Conversion**: IEEE 754 half-precision ↔ Float32 utilities for CVPixelBuffer processing
+- 🎥 **CVPixelBuffer Formats**: BGRA/RGBA, NV12, and RGB565 conversion to tensor data
 
 ### Detection & Segmentation
 - 📦 **Bounding Box Utilities**: Format conversion (xyxy/xywh/cxcywh), scaling, clipping, IoU, NMS

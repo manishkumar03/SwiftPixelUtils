@@ -9,13 +9,14 @@ Comprehensive guides and references for machine learning on iOS and macOS.
 | Guide | Description | Topics |
 |-------|-------------|--------|
 | [01 - Image Preprocessing](01-image-preprocessing-fundamentals.md) | Complete guide to preparing images for ML models | Pixel extraction, resizing, normalization, data layouts, batch processing |
-| [02 - Quantization](02-quantization-guide.md) | Understanding quantized models | INT8, UINT8, FP16, scale/zero-point, dequantization |
+| [02 - Quantization](02-quantization-guide.md) | Understanding quantized models | INT8, UINT8, FP16, INT4, scale/zero-point, per-channel |
 | [03 - Classification](03-classification-output.md) | Image classification reference | Softmax, top-K, architectures, ImageNet labels |
 | [04 - Detection](04-detection-output.md) | Object detection with YOLO | Bounding boxes, NMS, IoU, COCO labels |
 | [05 - Segmentation](05-segmentation-output.md) | Semantic segmentation guide | DeepLab, masks, color maps, VOC labels |
 | [06 - Augmentation](06-image-augmentation.md) | Data augmentation techniques | Geometric, photometric, MixUp, AutoAugment |
 | [07 - Visualization](07-visualization-guide.md) | Drawing ML results | Boxes, masks, heatmaps, debugging |
-| [08 - Label Database](08-label-database.md) | Complete class label reference | ImageNet, COCO, VOC, Cityscapes, ADE20K |
+| [08 - Label Database](08-label-database.md) | Complete class label reference | ImageNet, COCO, VOC, Open Images, LVIS, Kinetics |
+| [09 - Depth Estimation](09-depth-estimation.md) | Monocular depth estimation | MiDaS, DPT, ZoeDepth, colormaps, model downloading |
 
 ## 🚀 Quick Start
 

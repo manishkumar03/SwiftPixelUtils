@@ -19,7 +19,7 @@ High-performance Swift library for image preprocessing optimized for ML/AI infer
 ## ✨ Features
 
 - 🚀 **High Performance**: Native implementations using Apple frameworks (Core Image, Accelerate, vImage, Core ML)
-- 🤖 **Simplified ML APIs**: One-line preprocessing (`getModelInput`) and postprocessing (`ClassificationOutput`, `DetectionOutput`, `SegmentationOutput`) for all major frameworks
+- 🤖 **Simplified ML APIs**: One-line preprocessing (`getModelInput`) and postprocessing (`ClassificationOutput`, `DetectionOutput`, `SegmentationOutput`, `DepthEstimationOutput`) for all major frameworks
 - 🔢 **Raw Pixel Data**: Extract pixel values as typed arrays (Float, Int32, UInt8) ready for ML inference
 - 🎨 **Multiple Color Formats**: RGB, RGBA, BGR, BGRA, Grayscale, HSV, HSL, LAB, YUV, YCbCr
 - 📐 **Flexible Resizing**: Cover, contain, stretch, and letterbox strategies
@@ -39,6 +39,7 @@ High-performance Swift library for image preprocessing optimized for ML/AI infer
 - 🔢 **INT4 Quantization**: 4-bit quantization (8× compression) for LLM weights and edge deployment
 - 📊 **Per-Channel Quantization**: Channel-wise scale/zeroPoint for higher accuracy (CNN, Transformer weights)
 - 🏷️ **Label Database**: Built-in labels for COCO, ImageNet, VOC, CIFAR, Places365, ADE20K, Open Images, LVIS, Objects365, Kinetics
+- 📏 **Depth Estimation**: Process MiDaS, DPT, ZoeDepth, Depth Anything outputs with scientific colormaps (Viridis, Plasma, Turbo)
 - 📦 **Bounding Box Utilities**: Format conversion (xyxy/xywh/cxcywh), scaling, clipping, IoU, NMS
 - 🖼️ **Letterbox Padding**: YOLO-style letterbox preprocessing with reverse coordinate transform
 - 🎨 **Drawing/Visualization**: Draw boxes, keypoints, masks, and heatmaps for debugging

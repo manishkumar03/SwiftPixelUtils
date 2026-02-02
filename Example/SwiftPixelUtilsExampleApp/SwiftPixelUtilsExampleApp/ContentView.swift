@@ -143,6 +143,34 @@ struct InferenceTabView: View {
             } footer: {
                 Text("Pixel-wise classification into semantic categories")
             }
+            
+            // MARK: - Depth Estimation Section
+            Section {
+                NavigationLink {
+                    DepthEstimationView()
+                } label: {
+                    HStack(spacing: 12) {
+                        Image(systemName: "cube.transparent")
+                            .font(.title2)
+                            .foregroundColor(.cyan)
+                            .frame(width: 32)
+                        
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Depth Anything")
+                                .font(.headline)
+                            Text("CoreML • Relative Depth • F16P6")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                    .padding(.vertical, 4)
+                }
+                .accessibilityIdentifier("inference-depth-estimation-link")
+            } header: {
+                Label("Depth Estimation", systemImage: "cube.transparent")
+            } footer: {
+                Text("Monocular depth prediction with visualization colormaps")
+            }
         }
         .listStyle(.insetGrouped)
         .navigationTitle("ML Inference")

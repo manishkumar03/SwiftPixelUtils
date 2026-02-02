@@ -1,11 +1,25 @@
 import Foundation
 import CoreVideo
 import Accelerate
+import CoreGraphics
 
 // MARK: - CVPixelBuffer Utilities
 
 /// Utilities for converting CVPixelBuffer to tensor-ready data
 public enum CVPixelBufferUtilities {
+    
+    /// Supported pixel formats for buffer creation
+    public enum PixelFormat {
+        case bgra8
+        case rgba8
+        
+        var cvFormat: OSType {
+            switch self {
+            case .bgra8: return kCVPixelFormatType_32BGRA
+            case .rgba8: return kCVPixelFormatType_32RGBA
+            }
+        }
+    }
     
     /// Result of CVPixelBuffer conversion
     public struct ConversionResult {
@@ -36,6 +50,106 @@ public enum CVPixelBufferUtilities {
     public enum ChannelOrder {
         case rgb
         case bgr
+    }
+    
+    // MARK: - Pixel Buffer Creation
+    
+    /// Creates a CVPixelBuffer from a CGImage, resized to the specified dimensions.
+    ///
+    /// This is useful for preparing images for CoreML model input.
+    ///
+    /// ## Usage
+    ///
+    /// ```swift
+    /// let pixelBuffer = try CVPixelBufferUtilities.createPixelBuffer(
+    ///     from: cgImage,
+    ///     width: 518,
+    ///     height: 518,
+    ///     pixelFormat: .bgra8
+    /// )
+    ///
+    /// let input = try MLDictionaryFeatureProvider(dictionary: [
+    ///     "image": MLFeatureValue(pixelBuffer: pixelBuffer)
+    /// ])
+    /// ```
+    ///
+    /// - Parameters:
+    ///   - cgImage: Source image to convert
+    ///   - width: Target width for the pixel buffer
+    ///   - height: Target height for the pixel buffer
+    ///   - pixelFormat: Pixel format for the buffer (default .bgra8)
+    /// - Returns: CVPixelBuffer containing the resized image
+    /// - Throws: ``PixelUtilsError`` if buffer creation fails
+    public static func createPixelBuffer(
+        from cgImage: CGImage,
+        width: Int,
+        height: Int,
+        pixelFormat: PixelFormat = .bgra8
+    ) throws -> CVPixelBuffer {
+        let attrs: [String: Any] = [
+            kCVPixelBufferCGImageCompatibilityKey as String: true,
+            kCVPixelBufferCGBitmapContextCompatibilityKey as String: true
+        ]
+        
+        var pixelBuffer: CVPixelBuffer?
+        let status = CVPixelBufferCreate(
+            kCFAllocatorDefault,
+            width,
+            height,
+            pixelFormat.cvFormat,
+            attrs as CFDictionary,
+            &pixelBuffer
+        )
+        
+        guard status == kCVReturnSuccess, let buffer = pixelBuffer else {
+            throw PixelUtilsError.processingFailed("Failed to create pixel buffer (status: \(status))")
+        }
+        
+        CVPixelBufferLockBaseAddress(buffer, [])
+        defer { CVPixelBufferUnlockBaseAddress(buffer, []) }
+        
+        let bitmapInfo: UInt32
+        switch pixelFormat {
+        case .bgra8:
+            bitmapInfo = CGImageAlphaInfo.noneSkipFirst.rawValue | CGBitmapInfo.byteOrder32Little.rawValue
+        case .rgba8:
+            bitmapInfo = CGImageAlphaInfo.noneSkipLast.rawValue | CGBitmapInfo.byteOrder32Big.rawValue
+        }
+        
+        guard let context = CGContext(
+            data: CVPixelBufferGetBaseAddress(buffer),
+            width: width,
+            height: height,
+            bitsPerComponent: 8,
+            bytesPerRow: CVPixelBufferGetBytesPerRow(buffer),
+            space: CGColorSpaceCreateDeviceRGB(),
+            bitmapInfo: bitmapInfo
+        ) else {
+            throw PixelUtilsError.processingFailed("Failed to create graphics context for pixel buffer")
+        }
+        
+        context.draw(cgImage, in: CGRect(x: 0, y: 0, width: width, height: height))
+        
+        return buffer
+    }
+    
+    /// Creates a CVPixelBuffer from a CGImage using the image's original dimensions.
+    ///
+    /// - Parameters:
+    ///   - cgImage: Source image to convert
+    ///   - pixelFormat: Pixel format for the buffer (default .bgra8)
+    /// - Returns: CVPixelBuffer containing the image at original size
+    /// - Throws: ``PixelUtilsError`` if buffer creation fails
+    public static func createPixelBuffer(
+        from cgImage: CGImage,
+        pixelFormat: PixelFormat = .bgra8
+    ) throws -> CVPixelBuffer {
+        return try createPixelBuffer(
+            from: cgImage,
+            width: cgImage.width,
+            height: cgImage.height,
+            pixelFormat: pixelFormat
+        )
     }
     
     /// Converts CVPixelBuffer to normalized Float array for model input.

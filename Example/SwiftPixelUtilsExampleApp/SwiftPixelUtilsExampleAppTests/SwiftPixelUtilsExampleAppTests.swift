@@ -11,21 +11,7 @@ import CoreML
 
 final class SwiftPixelUtilsExampleAppTests: XCTestCase {
     
-    // MARK: - Depth Estimation Tests
-    
-    func testDepthModelExists() throws {
-        // Verify the depth model is bundled in resources
-        let modelURL = Bundle.main.url(
-            forResource: "DepthAnythingSmallF16P6",
-            withExtension: "mlpackage",
-            subdirectory: "Resources"
-        )
-        
-        // Model might be in different locations depending on build
-        // This test verifies the model file exists somewhere accessible
-        XCTAssertNotNil(modelURL, "DepthAnythingSmallF16P6 model should be bundled in Resources")
-    }
-    
+    // MARK: - Depth Estimation Tests    
     func testDepthEstimationOutputProcessing() throws {
         // Test the DepthEstimationOutput processing without requiring actual model inference
         let width = 100

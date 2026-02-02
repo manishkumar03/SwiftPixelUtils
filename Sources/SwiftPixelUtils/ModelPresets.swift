@@ -348,4 +348,445 @@ public enum ModelPresets {
         dataLayout: .nchw,
         outputFormat: .float32Array
     )
+    
+    // MARK: - RT-DETR (Real-Time DETR)
+    
+    /// RT-DETR (Real-Time Detection Transformer) preprocessing.
+    ///
+    /// ## Configuration Rationale
+    ///
+    /// - **Size 640×640**: RT-DETR uses 640×640 by default for real-time performance.
+    ///   Supports multi-scale: 640 (fast), 800 (balanced), 1024 (accurate).
+    ///
+    /// - **Letterbox resize**: Like YOLO, preserves aspect ratio with gray padding.
+    ///   Critical for accurate localization without aspect ratio distortion.
+    ///
+    /// - **Scale normalization [0, 1]**: RT-DETR uses simple 0-1 scaling.
+    ///
+    /// - **NCHW layout**: PyTorch convention (Baidu PaddleDetection origin).
+    ///
+    /// ## Why RT-DETR?
+    ///
+    /// RT-DETR achieves real-time performance (30+ FPS) while maintaining
+    /// transformer-based detection accuracy. Key innovations:
+    /// - Efficient hybrid encoder (CNN + transformer)
+    /// - IoU-aware query selection
+    /// - Decoupled intra-scale and cross-scale feature interaction
+    ///
+    /// ## Variants
+    ///
+    /// - RT-DETR-L: 32M params, 53.0 AP on COCO
+    /// - RT-DETR-X: 67M params, 54.8 AP on COCO
+    public static let rtdetr = PixelDataOptions(
+        colorFormat: .rgb,
+        resize: ResizeOptions(width: 640, height: 640, strategy: .letterbox),
+        normalization: .scale,
+        dataLayout: .nchw,
+        outputFormat: .float32Array
+    )
+    
+    /// RT-DETR-L (Large variant) - same preprocessing as base.
+    public static let rtdetr_l = rtdetr
+    
+    /// RT-DETR-X (Extra-large variant) - same preprocessing as base.
+    public static let rtdetr_x = rtdetr
+    
+    // MARK: - YOLOv10
+    
+    /// YOLOv10 preprocessing.
+    ///
+    /// ## Configuration Rationale
+    ///
+    /// - **Size 640×640**: Standard YOLO input size for balanced speed/accuracy.
+    ///
+    /// - **Letterbox resize**: Preserves aspect ratio with gray (114, 114, 114) padding.
+    ///
+    /// - **Scale normalization [0, 1]**: Simple 0-1 scaling like other YOLO variants.
+    ///
+    /// - **NCHW layout**: PyTorch convention.
+    ///
+    /// ## YOLOv10 Innovations
+    ///
+    /// YOLOv10 introduces NMS-free training with consistent dual assignments:
+    /// - One-to-one head for inference (no NMS needed)
+    /// - One-to-many head for training (better supervision)
+    /// - Efficiency-accuracy driven model design
+    /// - Holistic efficiency-accuracy optimization
+    ///
+    /// ## Variants
+    ///
+    /// - YOLOv10-N: 2.3M params, 38.5 AP (nano)
+    /// - YOLOv10-S: 7.2M params, 46.3 AP (small)
+    /// - YOLOv10-M: 15.4M params, 51.1 AP (medium)
+    /// - YOLOv10-B: 19.1M params, 52.5 AP (balanced)
+    /// - YOLOv10-L: 24.4M params, 53.2 AP (large)
+    /// - YOLOv10-X: 29.5M params, 54.4 AP (extra-large)
+    public static let yolov10 = PixelDataOptions(
+        colorFormat: .rgb,
+        resize: ResizeOptions(width: 640, height: 640, strategy: .letterbox),
+        normalization: .scale,
+        dataLayout: .nchw,
+        outputFormat: .float32Array
+    )
+    
+    /// YOLOv10-N (Nano) - same preprocessing.
+    public static let yolov10_n = yolov10
+    
+    /// YOLOv10-S (Small) - same preprocessing.
+    public static let yolov10_s = yolov10
+    
+    /// YOLOv10-M (Medium) - same preprocessing.
+    public static let yolov10_m = yolov10
+    
+    /// YOLOv10-L (Large) - same preprocessing.
+    public static let yolov10_l = yolov10
+    
+    /// YOLOv10-X (Extra-large) - same preprocessing.
+    public static let yolov10_x = yolov10
+    
+    // MARK: - YOLOv9
+    
+    /// YOLOv9 preprocessing.
+    ///
+    /// ## Configuration Rationale
+    ///
+    /// Same preprocessing as other YOLO variants. YOLOv9 introduces:
+    /// - Programmable Gradient Information (PGI)
+    /// - Generalized Efficient Layer Aggregation Network (GELAN)
+    ///
+    /// ## Variants
+    ///
+    /// - YOLOv9-T: Tiny
+    /// - YOLOv9-S: Small
+    /// - YOLOv9-M: Medium
+    /// - YOLOv9-C: Compact (51.4 AP)
+    /// - YOLOv9-E: Extended (55.6 AP)
+    public static let yolov9 = yolo
+    
+    // MARK: - SAM2 (Segment Anything Model 2)
+    
+    /// SAM2 (Segment Anything Model 2) preprocessing.
+    ///
+    /// ## Configuration Rationale
+    ///
+    /// - **Size 1024×1024**: High resolution for precise segmentation.
+    ///   SAM2 maintains the same input resolution as SAM for compatibility.
+    ///
+    /// - **Contain resize**: Preserves aspect ratio, pads if necessary.
+    ///   Full image context is important for segmentation.
+    ///
+    /// - **ImageNet normalization**: Standard ImageNet statistics.
+    ///
+    /// - **NCHW layout**: PyTorch convention.
+    ///
+    /// ## SAM2 Improvements
+    ///
+    /// SAM2 extends SAM to video with streaming memory:
+    /// - 6× faster than SAM on images
+    /// - Memory attention for video object tracking
+    /// - Occlusion handling with memory bank
+    /// - Promptable visual segmentation across frames
+    ///
+    /// ## Model Sizes
+    ///
+    /// - SAM2-T: Tiny (38.9M params)
+    /// - SAM2-S: Small (46M params)
+    /// - SAM2-B+: Base Plus (80.8M params)
+    /// - SAM2-L: Large (224.4M params)
+    public static let sam2 = PixelDataOptions(
+        colorFormat: .rgb,
+        resize: ResizeOptions(width: 1024, height: 1024, strategy: .contain),
+        normalization: .imagenet,
+        dataLayout: .nchw,
+        outputFormat: .float32Array
+    )
+    
+    /// SAM2 Tiny variant - same preprocessing.
+    public static let sam2_t = sam2
+    
+    /// SAM2 Small variant - same preprocessing.
+    public static let sam2_s = sam2
+    
+    /// SAM2 Base Plus variant - same preprocessing.
+    public static let sam2_b_plus = sam2
+    
+    /// SAM2 Large variant - same preprocessing.
+    public static let sam2_l = sam2
+    
+    // MARK: - Mask2Former
+    
+    /// Mask2Former preprocessing for universal image segmentation.
+    ///
+    /// ## Configuration Rationale
+    ///
+    /// - **Size 512×512**: Default size balancing quality and speed.
+    ///   Can use 640×640 or 1024×1024 for higher accuracy.
+    ///
+    /// - **Contain resize**: Preserves aspect ratio for accurate segmentation.
+    ///
+    /// - **ImageNet normalization**: Backbone pretrained on ImageNet.
+    ///
+    /// - **NCHW layout**: PyTorch convention.
+    ///
+    /// ## Universal Segmentation
+    ///
+    /// Mask2Former unifies semantic, instance, and panoptic segmentation:
+    /// - Masked attention for efficient training
+    /// - Multi-scale high-resolution features
+    /// - Query-based mask prediction
+    ///
+    /// ## Backbones
+    ///
+    /// - ResNet-50: 44M params
+    /// - ResNet-101: 63M params
+    /// - Swin-T: 47M params
+    /// - Swin-L: 216M params (best accuracy)
+    public static let mask2former = PixelDataOptions(
+        colorFormat: .rgb,
+        resize: ResizeOptions(width: 512, height: 512, strategy: .contain),
+        normalization: .imagenet,
+        dataLayout: .nchw,
+        outputFormat: .float32Array
+    )
+    
+    /// Mask2Former with Swin-T backbone - same preprocessing.
+    public static let mask2former_swin_t = mask2former
+    
+    /// Mask2Former with Swin-L backbone - same preprocessing.
+    public static let mask2former_swin_l = mask2former
+    
+    // MARK: - UNet
+    
+    /// UNet preprocessing for semantic segmentation.
+    ///
+    /// ## Configuration Rationale
+    ///
+    /// - **Size 512×512**: Common UNet input size. Original paper used 572×572
+    ///   for biomedical images. Many implementations use powers of 2.
+    ///
+    /// - **Contain resize**: Preserves aspect ratio. For medical imaging,
+    ///   stretching could distort anatomical structures.
+    ///
+    /// - **Scale normalization [0, 1]**: Simple 0-1 scaling is common.
+    ///   Medical imaging may use dataset-specific normalization.
+    ///
+    /// - **NCHW layout**: PyTorch convention.
+    ///
+    /// ## Architecture
+    ///
+    /// ```
+    /// Encoder (Contracting)        Decoder (Expanding)
+    /// ┌─────────────────┐         ┌─────────────────┐
+    /// │   64 filters    │ ──────► │   64 filters    │
+    /// ├─────────────────┤         ├─────────────────┤
+    /// │   128 filters   │ ──────► │   128 filters   │
+    /// ├─────────────────┤         ├─────────────────┤
+    /// │   256 filters   │ ──────► │   256 filters   │
+    /// ├─────────────────┤         ├─────────────────┤
+    /// │   512 filters   │ ──────► │   512 filters   │
+    /// └─────────────────┘         └─────────────────┘
+    ///            └──── Bottleneck (1024) ────┘
+    /// ```
+    ///
+    /// Skip connections concatenate encoder features to decoder for precise localization.
+    public static let unet = PixelDataOptions(
+        colorFormat: .rgb,
+        resize: ResizeOptions(width: 512, height: 512, strategy: .contain),
+        normalization: .scale,
+        dataLayout: .nchw,
+        outputFormat: .float32Array
+    )
+    
+    /// UNet with 256×256 input - faster inference.
+    public static let unet_256 = PixelDataOptions(
+        colorFormat: .rgb,
+        resize: ResizeOptions(width: 256, height: 256, strategy: .contain),
+        normalization: .scale,
+        dataLayout: .nchw,
+        outputFormat: .float32Array
+    )
+    
+    /// UNet with 1024×1024 input - higher resolution segmentation.
+    public static let unet_1024 = PixelDataOptions(
+        colorFormat: .rgb,
+        resize: ResizeOptions(width: 1024, height: 1024, strategy: .contain),
+        normalization: .scale,
+        dataLayout: .nchw,
+        outputFormat: .float32Array
+    )
+    
+    // MARK: - DeepLab
+    
+    /// DeepLabV3/DeepLabV3+ preprocessing.
+    ///
+    /// ## Configuration Rationale
+    ///
+    /// - **Size 513×513**: DeepLab uses odd sizes (513, 769, 1025) due to
+    ///   atrous convolution stride alignment. 513 = 16×32 + 1.
+    ///
+    /// - **Contain resize**: Preserves aspect ratio for accurate segmentation.
+    ///
+    /// - **ImageNet normalization**: Backbone (ResNet, Xception) pretrained on ImageNet.
+    ///
+    /// - **NCHW layout**: PyTorch convention. NHWC for TensorFlow implementations.
+    ///
+    /// ## Atrous Spatial Pyramid Pooling (ASPP)
+    ///
+    /// DeepLab's key innovation captures multi-scale context:
+    /// ```
+    /// ┌─────────────────────────────────────┐
+    /// │            ASPP Module              │
+    /// │  ┌────┐ ┌────┐ ┌────┐ ┌────┐        │
+    /// │  │ 1×1│ │ 3×3│ │ 3×3│ │ 3×3│ Pool   │
+    /// │  │rate│ │ r=6│ │r=12│ │r=18│        │
+    /// │  │ =1 │ │    │ │    │ │    │        │
+    /// │  └────┘ └────┘ └────┘ └────┘        │
+    /// │           └── Concat ──┘            │
+    /// └─────────────────────────────────────┘
+    /// ```
+    ///
+    /// ## Variants
+    ///
+    /// - DeepLabV3: ASPP on top of ResNet
+    /// - DeepLabV3+: Adds decoder module for sharper boundaries
+    public static let deeplab = PixelDataOptions(
+        colorFormat: .rgb,
+        resize: ResizeOptions(width: 513, height: 513, strategy: .contain),
+        normalization: .imagenet,
+        dataLayout: .nchw,
+        outputFormat: .float32Array
+    )
+    
+    /// DeepLabV3 - same preprocessing as base.
+    public static let deeplabv3 = deeplab
+    
+    /// DeepLabV3+ - same preprocessing as base.
+    public static let deeplabv3_plus = deeplab
+    
+    /// DeepLab with 769×769 input - higher resolution.
+    public static let deeplab_769 = PixelDataOptions(
+        colorFormat: .rgb,
+        resize: ResizeOptions(width: 769, height: 769, strategy: .contain),
+        normalization: .imagenet,
+        dataLayout: .nchw,
+        outputFormat: .float32Array
+    )
+    
+    /// DeepLab with 1025×1025 input - highest resolution.
+    public static let deeplab_1025 = PixelDataOptions(
+        colorFormat: .rgb,
+        resize: ResizeOptions(width: 1025, height: 1025, strategy: .contain),
+        normalization: .imagenet,
+        dataLayout: .nchw,
+        outputFormat: .float32Array
+    )
+    
+    // MARK: - SegFormer
+    
+    /// SegFormer preprocessing for semantic segmentation.
+    ///
+    /// ## Configuration Rationale
+    ///
+    /// - **Size 512×512**: Default SegFormer input size.
+    ///
+    /// - **Contain resize**: Preserves aspect ratio.
+    ///
+    /// - **ImageNet normalization**: Standard ImageNet statistics.
+    ///
+    /// - **NCHW layout**: PyTorch convention.
+    ///
+    /// ## Transformer Segmentation
+    ///
+    /// SegFormer combines hierarchical transformers with lightweight MLP decoders:
+    /// - Mix-FFN: 3×3 convolutions in feed-forward network
+    /// - Efficient self-attention without positional encoding
+    /// - Multi-scale features without complex decoders
+    ///
+    /// ## Variants
+    ///
+    /// - SegFormer-B0: 3.8M params, 37.4 mIoU (ADE20K)
+    /// - SegFormer-B1: 13.7M params, 42.2 mIoU
+    /// - SegFormer-B2: 27.4M params, 46.5 mIoU
+    /// - SegFormer-B3: 47.3M params, 49.4 mIoU
+    /// - SegFormer-B4: 64.1M params, 50.3 mIoU
+    /// - SegFormer-B5: 84.7M params, 51.0 mIoU
+    public static let segformer = PixelDataOptions(
+        colorFormat: .rgb,
+        resize: ResizeOptions(width: 512, height: 512, strategy: .contain),
+        normalization: .imagenet,
+        dataLayout: .nchw,
+        outputFormat: .float32Array
+    )
+    
+    /// SegFormer-B0 (smallest) - same preprocessing.
+    public static let segformer_b0 = segformer
+    
+    /// SegFormer-B5 (largest) - same preprocessing.
+    public static let segformer_b5 = segformer
+    
+    // MARK: - FCN (Fully Convolutional Network)
+    
+    /// FCN preprocessing for semantic segmentation.
+    ///
+    /// ## Configuration Rationale
+    ///
+    /// - **Size 512×512**: Common FCN input size.
+    ///
+    /// - **Contain resize**: Preserves aspect ratio.
+    ///
+    /// - **ImageNet normalization**: VGG/ResNet backbone pretrained on ImageNet.
+    ///
+    /// - **NCHW layout**: PyTorch convention.
+    ///
+    /// ## Architecture Variants
+    ///
+    /// - FCN-32s: Single upsampling (coarse)
+    /// - FCN-16s: Skip from pool4 (medium)
+    /// - FCN-8s: Skips from pool3 and pool4 (fine)
+    ///
+    /// FCN pioneered dense prediction with fully convolutional architectures.
+    public static let fcn = PixelDataOptions(
+        colorFormat: .rgb,
+        resize: ResizeOptions(width: 512, height: 512, strategy: .contain),
+        normalization: .imagenet,
+        dataLayout: .nchw,
+        outputFormat: .float32Array
+    )
+    
+    // MARK: - PSPNet
+    
+    /// PSPNet (Pyramid Scene Parsing Network) preprocessing.
+    ///
+    /// ## Configuration Rationale
+    ///
+    /// - **Size 473×473**: PSPNet uses this size for scene parsing.
+    ///   Also common: 713×713 for higher resolution.
+    ///
+    /// - **Contain resize**: Preserves aspect ratio.
+    ///
+    /// - **ImageNet normalization**: ResNet backbone pretrained on ImageNet.
+    ///
+    /// - **NCHW layout**: PyTorch convention.
+    ///
+    /// ## Pyramid Pooling Module
+    ///
+    /// ```
+    /// ┌─────────────────────────────────────┐
+    /// │     Pyramid Pooling Module          │
+    /// │  ┌───┐ ┌───┐ ┌───┐ ┌───┐          │
+    /// │  │1×1│ │2×2│ │3×3│ │6×6│          │
+    /// │  │bin│ │bin│ │bin│ │bin│          │
+    /// │  └───┘ └───┘ └───┘ └───┘          │
+    /// │        └── Upsample & Concat ──┘   │
+    /// └─────────────────────────────────────┘
+    /// ```
+    ///
+    /// Captures global context at multiple scales.
+    public static let pspnet = PixelDataOptions(
+        colorFormat: .rgb,
+        resize: ResizeOptions(width: 473, height: 473, strategy: .contain),
+        normalization: .imagenet,
+        dataLayout: .nchw,
+        outputFormat: .float32Array
+    )
 }

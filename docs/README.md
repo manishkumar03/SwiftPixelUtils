@@ -69,10 +69,10 @@ Deep dive into model quantization for efficient mobile inference. Explains quant
 Complete reference for image classification. Covers classification theory, softmax deep dive with numerical stability, top-K prediction extraction, popular architectures (MobileNet, EfficientNet, ResNet, Vision Transformer), transfer learning strategies, confidence calibration, and ImageNet label handling.
 
 ### [04 - Detection Output](04-detection-output.md)
-Comprehensive YOLO and object detection guide. Explains YOLO architecture evolution (v1-v11), detection pipelines, output tensor formats, bounding box coordinate systems, NMS algorithms (standard, soft, class-specific), anchor boxes, multi-scale detection, automatic letterbox coordinate correction, and COCO 80-class labels.
+Comprehensive YOLO and object detection guide. Explains YOLO architecture evolution (v1-v11, plus YOLOv9/v10), RT-DETR real-time transformers, detection pipelines, output tensor formats, bounding box coordinate systems, NMS algorithms (standard, soft, class-specific), anchor boxes, multi-scale detection, automatic letterbox coordinate correction, and COCO 80-class labels.
 
 ### [05 - Segmentation Output](05-segmentation-output.md)
-Complete semantic segmentation reference. Covers segmentation types (semantic, instance, panoptic), encoder-decoder architectures, DeepLab family (V1-V3+), dilated convolutions, ASPP, output processing techniques, upsampling methods, color map generation, and Pascal VOC labels.
+Complete semantic segmentation reference. Covers segmentation types (semantic, instance, panoptic), encoder-decoder architectures, DeepLab family (V1-V3+), UNet, Mask2Former, SAM/SAM2, SegFormer, FCN, PSPNet, dilated convolutions, ASPP, output processing techniques, upsampling methods, color map generation, and Pascal VOC labels.
 
 ### [06 - Image Augmentation](06-image-augmentation.md)
 Data augmentation techniques for training. Includes geometric transforms (rotation, crop, flip, shear, perspective, elastic), photometric transforms (brightness, contrast, saturation, hue, gamma), noise and blur techniques, occlusion methods (cutout, GridMask), advanced methods (MixUp, CutMix, Mosaic), and AutoAugment/RandAugment.

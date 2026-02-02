@@ -883,6 +883,54 @@ Advantages:
 | YOLOv8l | 52.9 | 7.8 | Accuracy |
 | YOLOv8x | 53.9 | 13.0 | Best accuracy |
 
+**YOLOv9** introduces Programmable Gradient Information (PGI) and GELAN architecture:
+
+| Model | mAP (COCO) | Parameters |
+|-------|------------|------------|
+| YOLOv9-T | 38.3 | 2.0M |
+| YOLOv9-S | 46.8 | 7.2M |
+| YOLOv9-M | 51.4 | 20.1M |
+| YOLOv9-C | 53.0 | 25.5M |
+| YOLOv9-E | 55.6 | 58.1M |
+
+**YOLOv10** features NMS-free training with dual assignments:
+
+| Model | mAP (COCO) | Parameters | Latency (ms) |
+|-------|------------|------------|--------------|
+| YOLOv10-N | 38.5 | 2.3M | 1.84 |
+| YOLOv10-S | 46.3 | 7.2M | 2.49 |
+| YOLOv10-M | 51.1 | 15.4M | 4.74 |
+| YOLOv10-B | 52.5 | 19.1M | 5.74 |
+| YOLOv10-L | 53.2 | 24.4M | 7.28 |
+| YOLOv10-X | 54.4 | 29.5M | 10.70 |
+
+SwiftPixelUtils provides presets for all variants:
+```swift
+// All YOLO variants use the same preprocessing
+let result = try await PixelExtractor.getPixelData(
+    source: .cgImage(image),
+    options: ModelPresets.yolov10  // or yolov9, yolov8, yolo
+)
+// 640×640, letterbox, scale normalization, NCHW
+```
+
+### RT-DETR (Real-Time DETR)
+
+RT-DETR achieves real-time transformer-based detection without NMS:
+
+| Model | mAP (COCO) | Parameters | Latency (T4, ms) |
+|-------|------------|------------|------------------|
+| RT-DETR-L | 53.0 | 32M | 9.3 |
+| RT-DETR-X | 54.8 | 67M | 13.5 |
+
+```swift
+let result = try await PixelExtractor.getPixelData(
+    source: .cgImage(image),
+    options: ModelPresets.rtdetr  // or rtdetr_l, rtdetr_x
+)
+// 640×640, letterbox, scale normalization, NCHW
+```
+
 ### SSD
 
 **Single Shot MultiBox Detector:**
@@ -913,6 +961,14 @@ Advantages:
 - End-to-end training
 - Slower but elegant
 
+```swift
+let result = try await PixelExtractor.getPixelData(
+    source: .cgImage(image),
+    options: ModelPresets.detr
+)
+// 800×800, contain, ImageNet normalization, NCHW
+```
+
 ### Model Comparison
 
 | Model | mAP | FPS (V100) | Parameters | Use Case |
@@ -920,6 +976,8 @@ Advantages:
 | YOLOv8n | 37.3 | 850 | 3.2M | Real-time edge |
 | YOLOv8s | 44.9 | 470 | 11.2M | Real-time mobile |
 | YOLOv8m | 50.2 | 200 | 25.9M | Balanced |
+| YOLOv10-L | 53.2 | 137 | 24.4M | NMS-free |
+| RT-DETR-L | 53.0 | 108 | 32M | Real-time transformer |
 | EfficientDet-D0 | 33.8 | 100 | 3.9M | Edge |
 | Faster R-CNN | 42.0 | 25 | 41M | High accuracy |
 | DETR | 42.0 | 28 | 41M | Research |

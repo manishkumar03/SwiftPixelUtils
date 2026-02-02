@@ -689,6 +689,15 @@ FCN-16s: pool5 + pool4 (better)
 FCN-8s:  pool5 + pool4 + pool3 (best)
 ```
 
+SwiftPixelUtils preset:
+```swift
+let result = try await PixelExtractor.getPixelData(
+    source: .cgImage(image),
+    options: ModelPresets.fcn
+)
+// 512×512, contain, ImageNet normalization, NCHW
+```
+
 ### U-Net
 
 **Symmetric encoder-decoder with dense skip connections:**
@@ -718,6 +727,28 @@ Encoder           Decoder
 - Works with small datasets
 - Very good boundary details
 
+SwiftPixelUtils presets:
+```swift
+// Standard 512×512 UNet
+let result = try await PixelExtractor.getPixelData(
+    source: .cgImage(image),
+    options: ModelPresets.unet
+)
+
+// Fast 256×256 variant
+let fast = try await PixelExtractor.getPixelData(
+    source: .cgImage(image),
+    options: ModelPresets.unet_256
+)
+
+// High-res 1024×1024 variant
+let highRes = try await PixelExtractor.getPixelData(
+    source: .cgImage(image),
+    options: ModelPresets.unet_1024
+)
+// All use contain resize, scale normalization, NCHW
+```
+
 ### DeepLabV3+
 
 See [DeepLab Architecture Family](#deeplab-architecture-family) above.
@@ -726,6 +757,22 @@ See [DeepLab Architecture Family](#deeplab-architecture-family) above.
 - ASPP for multi-scale context
 - Simple effective decoder
 - State-of-art on multiple benchmarks
+
+SwiftPixelUtils presets:
+```swift
+// Standard 513×513 DeepLab
+let result = try await PixelExtractor.getPixelData(
+    source: .cgImage(image),
+    options: ModelPresets.deeplab  // or deeplabv3, deeplabv3_plus
+)
+
+// Higher resolution variants
+let highRes = try await PixelExtractor.getPixelData(
+    source: .cgImage(image),
+    options: ModelPresets.deeplab_769  // or deeplab_1025
+)
+// All use contain resize, ImageNet normalization, NCHW
+```
 
 ### PSPNet
 
@@ -756,6 +803,15 @@ See [DeepLab Architecture Family](#deeplab-architecture-family) above.
 
 **Key idea:** Global context at multiple scales through pooling pyramid.
 
+SwiftPixelUtils preset:
+```swift
+let result = try await PixelExtractor.getPixelData(
+    source: .cgImage(image),
+    options: ModelPresets.pspnet
+)
+// 473×473, contain, ImageNet normalization, NCHW
+```
+
 ### SegFormer (Transformer-based)
 
 **Modern transformer approach:**
@@ -783,15 +839,94 @@ See [DeepLab Architecture Family](#deeplab-architecture-family) above.
 - Efficient MLP decoder
 - Strong performance
 
+| Variant | mIoU (ADE20K) | Parameters |
+|---------|---------------|------------|
+| SegFormer-B0 | 37.4 | 3.8M |
+| SegFormer-B1 | 42.2 | 13.7M |
+| SegFormer-B2 | 46.5 | 27.4M |
+| SegFormer-B3 | 49.4 | 47.3M |
+| SegFormer-B4 | 50.3 | 64.1M |
+| SegFormer-B5 | 51.0 | 84.7M |
+
+SwiftPixelUtils presets:
+```swift
+let result = try await PixelExtractor.getPixelData(
+    source: .cgImage(image),
+    options: ModelPresets.segformer  // or segformer_b0, segformer_b5
+)
+// 512×512, contain, ImageNet normalization, NCHW
+```
+
+### Mask2Former
+
+**Universal segmentation with masked attention:**
+
+Mask2Former unifies semantic, instance, and panoptic segmentation with a single architecture:
+- Masked attention for efficient training
+- Multi-scale deformable attention
+- Query-based mask prediction
+
+| Backbone | mIoU (ADE20K) | PQ (COCO) | Parameters |
+|----------|---------------|-----------|------------|
+| ResNet-50 | 47.2 | 51.9 | 44M |
+| Swin-T | 47.7 | 52.1 | 47M |
+| Swin-L | 56.1 | 57.8 | 216M |
+
+SwiftPixelUtils presets:
+```swift
+let result = try await PixelExtractor.getPixelData(
+    source: .cgImage(image),
+    options: ModelPresets.mask2former  // or mask2former_swin_t, mask2former_swin_l
+)
+// 512×512, contain, ImageNet normalization, NCHW
+```
+
+### SAM / SAM2 (Segment Anything Model)
+
+**Promptable segmentation with zero-shot generalization:**
+
+SAM can segment any object given a point, box, or text prompt. SAM2 extends this to video with streaming memory.
+
+| Model | Description | Parameters |
+|-------|-------------|------------|
+| SAM ViT-H | Original SAM, high quality | 636M |
+| SAM2-T | Tiny, 6× faster than SAM | 38.9M |
+| SAM2-S | Small | 46M |
+| SAM2-B+ | Base Plus | 80.8M |
+| SAM2-L | Large, best quality | 224.4M |
+
+SAM2 improvements over SAM:
+- 6× faster image segmentation
+- Video object tracking with memory
+- Occlusion handling
+
+SwiftPixelUtils presets:
+```swift
+// SAM (original)
+let sam = try await PixelExtractor.getPixelData(
+    source: .cgImage(image),
+    options: ModelPresets.sam
+)
+
+// SAM2 variants
+let sam2 = try await PixelExtractor.getPixelData(
+    source: .cgImage(image),
+    options: ModelPresets.sam2  // or sam2_t, sam2_s, sam2_b_plus, sam2_l
+)
+// All use 1024×1024, contain, ImageNet normalization, NCHW
+```
+
 ### Model Comparison
 
-| Model | mIoU (VOC) | mIoU (Cityscapes) | Params | Best For |
-|-------|------------|-------------------|--------|----------|
-| FCN-8s | 62.2 | 65.3 | 134M | Baseline |
+| Model | mIoU (VOC) | mIoU (ADE20K) | Params | Best For |
+|-------|------------|---------------|--------|----------|
+| FCN-8s | 62.2 | 29.4 | 134M | Baseline |
 | U-Net | 66.0 | - | 31M | Medical, small data |
-| PSPNet | 82.6 | 78.4 | 65M | Scene parsing |
-| DeepLabV3+ | 87.8 | 82.1 | 54M | General purpose |
-| SegFormer-B4 | 84.0 | 81.0 | 61M | Modern, efficient |
+| PSPNet | 82.6 | 43.3 | 65M | Scene parsing |
+| DeepLabV3+ | 87.8 | 45.7 | 54M | General purpose |
+| SegFormer-B4 | 84.0 | 50.3 | 64M | Modern, efficient |
+| Mask2Former-Swin-L | - | 56.1 | 216M | Universal segmentation |
+| SAM2-L | - | - | 224M | Zero-shot, promptable |
 
 ---
 

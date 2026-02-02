@@ -27,7 +27,7 @@ High-performance Swift library for image preprocessing optimized for ML/AI infer
 - 📊 **Multiple Data Layouts**: HWC, CHW, NHWC, NCHW (PyTorch/TensorFlow compatible)
 - 📦 **Batch Processing**: Process multiple images with concurrency control
 - 🖼️ **Multiple Sources**: URL, file, base64, assets, photo library
-- 🤖 **Model Presets**: Pre-configured settings for YOLO, MobileNet, EfficientNet, ResNet, ViT, CLIP, SAM, DINO, DETR
+- 🤖 **Model Presets**: Pre-configured settings for YOLO (v8/v9/v10), RT-DETR, MobileNet, EfficientNet, ResNet, ViT, CLIP, SAM/SAM2, DINO, DETR, Mask2Former, UNet, DeepLab, SegFormer, FCN, PSPNet
 - 🎯 **Framework Targets**: Automatic configuration for PyTorch, TensorFlow, TFLite, CoreML, ONNX, ExecuTorch, OpenCV
 - 🔄 **Image Augmentation**: Rotation, flip, brightness, contrast, saturation, blur
 - 🎨 **Color Jitter**: Granular brightness/contrast/saturation/hue control with range support and seeded randomness
@@ -59,7 +59,7 @@ A comprehensive iOS example app is included in the `Example/` directory, demonst
 - **Object Detection** - YOLOv8 with NMS and bounding box visualization  
 - **Semantic Segmentation** - DeepLabV3 with colored mask overlay
 - **Depth Estimation** - Depth Anything with colormaps and overlay visualization
-- **Pixel Extraction** - Model presets (YOLO, MobileNet, ResNet, ViT, CLIP) and custom options
+- **Pixel Extraction** - Model presets (YOLO, RT-DETR, MobileNet, ResNet, ViT, CLIP, SAM2, DeepLab, etc.) and custom options
 - **Bounding Box Utilities** - Format conversion, IoU calculation, NMS, scaling, clipping
 - **Image Augmentation** - Rotation, flip, brightness, contrast, saturation, blur
 - **Tensor Operations** - Channel extraction, permutation, batch assembly
@@ -137,20 +137,40 @@ let mobileNetResult = try await PixelExtractor.getPixelData(
 
 ### Available Model Presets
 
+**Classification Models**
+
 | Preset | Size | Resize | Normalization | Layout |
 |--------|------|--------|---------------|--------|
-| `yolo` / `yolov8` | 640×640 | letterbox | scale | NCHW |
-| `mobilenet` | 224×224 | cover | ImageNet | NHWC |
-| `mobilenet_v2` | 224×224 | cover | ImageNet | NHWC |
-| `mobilenet_v3` | 224×224 | cover | ImageNet | NHWC |
+| `mobilenet` / `mobilenet_v2` / `mobilenet_v3` | 224×224 | cover | ImageNet | NHWC |
 | `efficientnet` | 224×224 | cover | ImageNet | NHWC |
-| `resnet` | 224×224 | cover | ImageNet | NCHW |
-| `resnet50` | 224×224 | cover | ImageNet | NCHW |
+| `resnet` / `resnet50` | 224×224 | cover | ImageNet | NCHW |
 | `vit` | 224×224 | cover | ImageNet | NCHW |
 | `clip` | 224×224 | cover | CLIP-specific | NCHW |
-| `sam` | 1024×1024 | contain | ImageNet | NCHW |
 | `dino` | 224×224 | cover | ImageNet | NCHW |
-| `detr` | 800×800 | contain | ImageNet | NCHW |
+
+**Detection Models**
+
+| Preset | Size | Resize | Normalization | Layout | Notes |
+|--------|------|--------|---------------|--------|-------|
+| `yolo` / `yolov8` | 640×640 | letterbox | scale | NCHW | Standard YOLO |
+| `yolov9` | 640×640 | letterbox | scale | NCHW | PGI + GELAN |
+| `yolov10` / `yolov10_n/s/m/l/x` | 640×640 | letterbox | scale | NCHW | NMS-free |
+| `rtdetr` / `rtdetr_l` / `rtdetr_x` | 640×640 | letterbox | scale | NCHW | Real-time DETR |
+| `detr` | 800×800 | contain | ImageNet | NCHW | Transformer detection |
+
+**Segmentation Models**
+
+| Preset | Size | Resize | Normalization | Layout | Notes |
+|--------|------|--------|---------------|--------|-------|
+| `sam` | 1024×1024 | contain | ImageNet | NCHW | Segment Anything |
+| `sam2` / `sam2_t/s/b_plus/l` | 1024×1024 | contain | ImageNet | NCHW | SAM2 with video |
+| `mask2former` / `mask2former_swin_t/l` | 512×512 | contain | ImageNet | NCHW | Universal segmentation |
+| `deeplab` / `deeplabv3` / `deeplabv3_plus` | 513×513 | contain | ImageNet | NCHW | ASPP module |
+| `deeplab_769` / `deeplab_1025` | 769/1025 | contain | ImageNet | NCHW | Higher resolution |
+| `unet` / `unet_256` / `unet_1024` | 512×512 | contain | scale | NCHW | Classic encoder-decoder |
+| `segformer` / `segformer_b0/b5` | 512×512 | contain | ImageNet | NCHW | Transformer + MLP |
+| `fcn` | 512×512 | contain | ImageNet | NCHW | Fully convolutional |
+| `pspnet` | 473×473 | contain | ImageNet | NCHW | Pyramid pooling |
 
 ### ExecuTorch Compatibility
 

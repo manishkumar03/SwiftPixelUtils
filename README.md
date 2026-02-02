@@ -9,7 +9,7 @@
   <a href="#quick-start">Quick Start</a> •
   <a href="#api-reference">API Reference</a> •
   <a href="#features">Features</a> •
-  <a href="Sources/SwiftPixelUtils/docs/README.md">📚 Docs</a>
+  <a href="docs/README.md">📚 Docs</a>
 </p>
 
 ---

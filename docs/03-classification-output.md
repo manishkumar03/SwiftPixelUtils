@@ -1054,7 +1054,7 @@ result.allProbabilities            // [Float] - all 1000 probabilities
 import SwiftPixelUtils
 import TensorFlowLite
 
-func classifyImage(_ image: UIImage) async throws -> ClassificationResult {
+func classifyImage(_ image: UIImage) throws -> ClassificationResult {
     // 1. Initialize interpreter
     let interpreter = try Interpreter(modelPath: "mobilenet_v2.tflite")
     try interpreter.allocateTensors()
@@ -1065,8 +1065,8 @@ func classifyImage(_ image: UIImage) async throws -> ClassificationResult {
     let height = inputShape.dimensions[1]
     let width = inputShape.dimensions[2]
     
-    // 3. Preprocess image
-    let input = try await PixelExtractor.getModelInput(
+    // 3. Preprocess image (synchronous)
+    let input = try PixelExtractor.getModelInput(
         source: .uiImage(image),
         framework: .tfliteFloat,
         width: width,
@@ -1089,27 +1089,25 @@ func classifyImage(_ image: UIImage) async throws -> ClassificationResult {
 }
 
 // Usage
-Task {
-    do {
-        let result = try await classifyImage(myImage)
-        print("Prediction: \(result.topPrediction.label)")
-        print("Confidence: \(result.topPrediction.confidence * 100)%")
-    } catch {
-        print("Error: \(error)")
-    }
+do {
+    let result = try classifyImage(myImage)
+    print("Prediction: \(result.topPrediction.label)")
+    print("Confidence: \(result.topPrediction.confidence * 100)%")
+} catch {
+    print("Error: \(error)")
 }
 ```
 
 ### Example 2: Multi-Model Ensemble
 
 ```swift
-func ensembleClassify(_ image: UIImage) async throws -> ClassificationResult {
+func ensembleClassify(_ image: UIImage) throws -> ClassificationResult {
     // Run multiple models
-    async let result1 = classifyWithMobileNet(image)
-    async let result2 = classifyWithEfficientNet(image)
-    async let result3 = classifyWithResNet(image)
+    let result1 = try classifyWithMobileNet(image)
+    let result2 = try classifyWithEfficientNet(image)
+    let result3 = try classifyWithResNet(image)
     
-    let results = try await [result1, result2, result3]
+    let results = [result1, result2, result3]
     
     // Average probabilities
     var avgProbs = [Float](repeating: 0, count: 1000)
@@ -1132,8 +1130,8 @@ func ensembleClassify(_ image: UIImage) async throws -> ClassificationResult {
 ### Example 3: Confidence-Based Decision Making
 
 ```swift
-func classifyWithConfidenceHandling(_ image: UIImage) async throws -> String {
-    let result = try await classifyImage(image)
+func classifyWithConfidenceHandling(_ image: UIImage) throws -> String {
+    let result = try classifyImage(image)
     
     let top = result.topPrediction
     let second = result.predictions[1]
@@ -1159,26 +1157,15 @@ func classifyWithConfidenceHandling(_ image: UIImage) async throws -> String {
 
 ```swift
 // Process multiple images efficiently
-func classifyBatch(_ images: [UIImage]) async throws -> [ClassificationResult] {
-    // Prepare all inputs
-    let inputs = try await withThrowingTaskGroup(of: (Int, ModelInput).self) { group in
-        for (i, image) in images.enumerated() {
-            group.addTask {
-                let input = try await PixelExtractor.getModelInput(
-                    source: .uiImage(image),
-                    framework: .tfliteFloat,
-                    width: 224,
-                    height: 224
-                )
-                return (i, input)
-            }
-        }
-        
-        var results = [(Int, ModelInput)]()
-        for try await result in group {
-            results.append(result)
-        }
-        return results.sorted { $0.0 < $1.0 }.map { $0.1 }
+func classifyBatch(_ images: [UIImage]) throws -> [ClassificationResult] {
+    // Prepare all inputs (synchronous)
+    let inputs = images.map { image in
+        try PixelExtractor.getModelInput(
+            source: .uiImage(image),
+            framework: .tfliteFloat,
+            width: 224,
+            height: 224
+        )
     }
     
     // Run inference (ideally batched if model supports)

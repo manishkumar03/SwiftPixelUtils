@@ -98,8 +98,8 @@ public enum MLFramework {
 ```swift
 import SwiftPixelUtils
 
-// Create tensor data for YOLOv8
-let tensorInput = try await ONNXHelper.createTensorData(
+// Create tensor data for YOLOv8 (synchronous)
+let tensorInput = try ONNXHelper.createTensorData(
     from: .uiImage(image),
     config: .yolov8
 )
@@ -113,7 +113,7 @@ print("Data size: \(tensorInput.data.count) bytes")
 ### Using Explicit Parameters
 
 ```swift
-let tensorInput = try await ONNXHelper.createTensorData(
+let tensorInput = try ONNXHelper.createTensorData(
     from: .uiImage(image),
     inputName: "input",
     width: 224,
@@ -128,7 +128,7 @@ let tensorInput = try await ONNXHelper.createTensorData(
 For simple cases, you can use the unified API:
 
 ```swift
-let input = try await PixelExtractor.getModelInput(
+let input = try PixelExtractor.getModelInput(
     source: .uiImage(image),
     framework: .onnx,
     width: 224,
@@ -283,7 +283,7 @@ Process multiple images efficiently:
 let images: [UIImage] = loadImages()
 let sources = images.map { ImageSource.uiImage($0) }
 
-let batchTensor = try await ONNXHelper.createBatchTensorData(
+let batchTensor = try ONNXHelper.createBatchTensorData(
     from: sources,
     config: .yolov8
 )
@@ -313,9 +313,9 @@ class ResNetClassifier {
         session = try ORTSession(env: env, modelPath: modelPath, sessionOptions: options)
     }
     
-    func classify(image: UIImage) async throws -> [(label: String, confidence: Float)] {
-        // 1. Preprocess image using SwiftPixelUtils
-        let modelInput = try await PixelExtractor.getModelInput(
+    func classify(image: UIImage) throws -> [(label: String, confidence: Float)] {
+        // 1. Preprocess image using SwiftPixelUtils (synchronous)
+        let modelInput = try PixelExtractor.getModelInput(
             source: .uiImage(image),
             framework: .onnx,  // Float32, NCHW, ImageNet normalized
             width: 224,
@@ -365,7 +365,7 @@ class ResNetClassifier {
 
 // Usage
 let classifier = try ResNetClassifier(modelPath: "resnet50.onnx")
-let results = try await classifier.classify(image: myImage)
+let results = try classifier.classify(image: myImage)
 
 for (label, confidence) in results {
     print("\(label): \(confidence * 100)%")
@@ -390,9 +390,9 @@ class YOLOv8Detector {
         session = try ORTSession(env: env, modelPath: modelPath, sessionOptions: options)
     }
     
-    func detect(image: UIImage) async throws -> [Detection] {
-        // 1. Preprocess image with letterbox
-        let modelInput = try await PixelExtractor.getModelInput(
+    func detect(image: UIImage) throws -> [Detection] {
+        // 1. Preprocess image with letterbox (synchronous)
+        let modelInput = try PixelExtractor.getModelInput(
             source: .uiImage(image),
             framework: .onnxRaw,  // Float32, NCHW, [0,1] scale
             width: 640,
@@ -442,7 +442,7 @@ class YOLOv8Detector {
 
 // Usage
 let detector = try YOLOv8Detector(modelPath: "yolov8n.onnx")
-let detections = try await detector.detect(image: myImage)
+let detections = try detector.detect(image: myImage)
 
 for detection in detections {
     let label = LabelDatabase.getLabel(detection.classIndex, dataset: .coco) ?? "Unknown"
@@ -455,8 +455,8 @@ for detection in detections {
 For quick preprocessing without `ONNXHelper`, use model presets:
 
 ```swift
-// Use preset options directly
-let result = try await PixelExtractor.getPixelData(
+// Use preset options directly (synchronous)
+let result = try PixelExtractor.getPixelData(
     source: .uiImage(image),
     options: ModelPresets.onnx_yolov8
 )
@@ -491,7 +491,7 @@ framework: .onnxQuantizedUInt8
 ### 2. Validate Tensor Data
 
 ```swift
-let tensor = try await ONNXHelper.createTensorData(from: source, config: config)
+let tensor = try ONNXHelper.createTensorData(from: source, config: config)
 
 if !tensor.isValid {
     print("Expected \(tensor.expectedDataSize) bytes, got \(tensor.data.count)")
@@ -503,8 +503,8 @@ if !tensor.isValid {
 When using letterbox resize, save the transform info for accurate coordinate scaling:
 
 ```swift
-// Get letterbox info during preprocessing
-let result = try await PixelExtractor.getPixelData(
+// Get letterbox info during preprocessing (synchronous)
+let result = try PixelExtractor.getPixelData(
     source: .uiImage(image),
     options: ModelPresets.onnx_yolov8
 )
@@ -523,7 +523,7 @@ let scaled = ONNXHelper.scaleDetections(
 For high-throughput scenarios, use batch processing:
 
 ```swift
-let batchTensor = try await ONNXHelper.createBatchTensorData(
+let batchTensor = try ONNXHelper.createBatchTensorData(
     from: imageSources,
     config: .yolov8
 )

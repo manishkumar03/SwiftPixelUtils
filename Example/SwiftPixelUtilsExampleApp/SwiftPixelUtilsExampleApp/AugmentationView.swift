@@ -91,9 +91,10 @@ struct AugmentationView: View {
     
     func applyAugmentation(_ options: AugmentationOptions) async {
         do {
-            let source = ImageSource.url(URL(string: sampleImageURL)!)
+            let imageData = try await downloadImageData(from: sampleImageURL)
+            let source = ImageSource.data(imageData)
             let start = CFAbsoluteTimeGetCurrent()
-            let augmented = try await ImageAugmentor.applyAugmentations(to: source, options: options)
+            let augmented = try ImageAugmentor.applyAugmentations(to: source, options: options)
             let time = (CFAbsoluteTimeGetCurrent() - start) * 1000
             
             let size = augmented.size
@@ -112,9 +113,10 @@ struct AugmentationView: View {
     
     func applyColorJitter() async {
         do {
-            let source = ImageSource.url(URL(string: sampleImageURL)!)
+            let imageData = try await downloadImageData(from: sampleImageURL)
+            let source = ImageSource.data(imageData)
             let start = CFAbsoluteTimeGetCurrent()
-            let jittered = try await ImageAugmentor.colorJitter(
+            let jittered = try ImageAugmentor.colorJitter(
                 source: source,
                 options: ColorJitterOptions(
                     brightness: 0.2,

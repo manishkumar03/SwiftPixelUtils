@@ -36,11 +36,12 @@ struct ImageValidationView: View {
     
     func validateSizeConstraints() async {
         do {
-            let source = ImageSource.url(URL(string: sampleImageURL)!)
+            let imageData = try await downloadImageData(from: sampleImageURL)
+            let source = ImageSource.data(imageData)
             let start = CFAbsoluteTimeGetCurrent()
             
             // Get metadata first to display dimensions
-            let metadata = try await ImageAnalyzer.getMetadata(source: source)
+            let metadata = try ImageAnalyzer.getMetadata(source: source)
             
             let options = ValidationOptions(
                 minWidth: 100,
@@ -48,7 +49,7 @@ struct ImageValidationView: View {
                 maxWidth: 4000,
                 maxHeight: 4000
             )
-            let validation = try await ImageAnalyzer.validate(source: source, options: options)
+            let validation = try ImageAnalyzer.validate(source: source, options: options)
             let time = (CFAbsoluteTimeGetCurrent() - start) * 1000
             
             result = """
@@ -68,15 +69,16 @@ struct ImageValidationView: View {
     
     func validateFormat() async {
         do {
-            let source = ImageSource.url(URL(string: sampleImageURL)!)
+            let imageData = try await downloadImageData(from: sampleImageURL)
+            let source = ImageSource.data(imageData)
             let start = CFAbsoluteTimeGetCurrent()
             
             // Get metadata first
-            let metadata = try await ImageAnalyzer.getMetadata(source: source)
+            let metadata = try ImageAnalyzer.getMetadata(source: source)
             
             // Use default validation options (just checking image can be loaded)
             let options = ValidationOptions()
-            let validation = try await ImageAnalyzer.validate(source: source, options: options)
+            let validation = try ImageAnalyzer.validate(source: source, options: options)
             let time = (CFAbsoluteTimeGetCurrent() - start) * 1000
             
             result = """

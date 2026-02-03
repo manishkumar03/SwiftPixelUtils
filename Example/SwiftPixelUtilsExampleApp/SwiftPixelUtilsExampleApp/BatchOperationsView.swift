@@ -43,9 +43,11 @@ struct BatchOperationsView: View {
     
     func testBatchPixelExtraction() async {
         do {
+            // Download images first
+            let imageData = try await downloadImageData(from: sampleImageURL)
             let sources = [
-                ImageSource.url(URL(string: sampleImageURL)!),
-                ImageSource.url(URL(string: sampleImageURL)!)
+                ImageSource.data(imageData),
+                ImageSource.data(imageData)
             ]
             
             let start = CFAbsoluteTimeGetCurrent()
@@ -55,7 +57,7 @@ struct BatchOperationsView: View {
                 dataLayout: .chw
             )
             
-            let results = try await PixelExtractor.batchGetPixelData(sources: sources, options: options)
+            let results = try PixelExtractor.batchGetPixelData(sources: sources, options: options)
             let time = (CFAbsoluteTimeGetCurrent() - start) * 1000
             
             result = """
@@ -74,9 +76,11 @@ struct BatchOperationsView: View {
     
     func testBatchAssembly() async {
         do {
+            // Download images first
+            let imageData = try await downloadImageData(from: sampleImageURL)
             let sources = [
-                ImageSource.url(URL(string: sampleImageURL)!),
-                ImageSource.url(URL(string: sampleImageURL)!)
+                ImageSource.data(imageData),
+                ImageSource.data(imageData)
             ]
             
             let options = PixelDataOptions(
@@ -86,7 +90,7 @@ struct BatchOperationsView: View {
             )
             
             let start = CFAbsoluteTimeGetCurrent()
-            let pixelResults = try await PixelExtractor.batchGetPixelData(sources: sources, options: options)
+            let pixelResults = try PixelExtractor.batchGetPixelData(sources: sources, options: options)
             let batch = try BatchAssembly.assemble(pixelResults)
             let time = (CFAbsoluteTimeGetCurrent() - start) * 1000
             
@@ -105,9 +109,11 @@ struct BatchOperationsView: View {
     
     func testTensorBatchAssembly() async {
         do {
+            // Download images first
+            let imageData = try await downloadImageData(from: sampleImageURL)
             let sources = [
-                ImageSource.url(URL(string: sampleImageURL)!),
-                ImageSource.url(URL(string: sampleImageURL)!)
+                ImageSource.data(imageData),
+                ImageSource.data(imageData)
             ]
             
             let options = PixelDataOptions(
@@ -117,7 +123,7 @@ struct BatchOperationsView: View {
             )
             
             let start = CFAbsoluteTimeGetCurrent()
-            let pixelResults = try await PixelExtractor.batchGetPixelData(sources: sources, options: options)
+            let pixelResults = try PixelExtractor.batchGetPixelData(sources: sources, options: options)
             let batch = try TensorOperations.assembleBatch(results: pixelResults, layout: .nchw)
             let time = (CFAbsoluteTimeGetCurrent() - start) * 1000
             

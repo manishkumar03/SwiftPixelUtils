@@ -57,11 +57,12 @@ struct MultiCropView: View {
     
     func testFiveCrop() async {
         do {
-            let source = ImageSource.url(URL(string: sampleImageURL)!)
+            let imageData = try await downloadImageData(from: sampleImageURL)
+            let source = ImageSource.data(imageData)
             let start = CFAbsoluteTimeGetCurrent()
             
             let options = CropOptions(width: 224, height: 224)
-            let crops = try await MultiCropOperations.fiveCrop(from: source, options: options)
+            let crops = try MultiCropOperations.fiveCrop(from: source, options: options)
             
             let time = (CFAbsoluteTimeGetCurrent() - start) * 1000
             
@@ -106,11 +107,12 @@ struct MultiCropView: View {
     
     func testTenCrop() async {
         do {
-            let source = ImageSource.url(URL(string: sampleImageURL)!)
+            let imageData = try await downloadImageData(from: sampleImageURL)
+            let source = ImageSource.data(imageData)
             let start = CFAbsoluteTimeGetCurrent()
             
             let options = CropOptions(width: 224, height: 224)
-            let crops = try await MultiCropOperations.tenCrop(from: source, options: options)
+            let crops = try MultiCropOperations.tenCrop(from: source, options: options)
             
             let time = (CFAbsoluteTimeGetCurrent() - start) * 1000
             
@@ -151,11 +153,12 @@ struct MultiCropView: View {
     
     func testGridExtraction() async {
         do {
-            let source = ImageSource.url(URL(string: sampleImageURL)!)
+            let imageData = try await downloadImageData(from: sampleImageURL)
+            let source = ImageSource.data(imageData)
             let start = CFAbsoluteTimeGetCurrent()
             
             let options = GridOptions(columns: 3, rows: 3)
-            let grid = try await MultiCropOperations.extractGrid(from: source, options: options)
+            let grid = try MultiCropOperations.extractGrid(from: source, options: options)
             
             let time = (CFAbsoluteTimeGetCurrent() - start) * 1000
             
@@ -195,11 +198,12 @@ struct MultiCropView: View {
     
     func testRandomCrop() async {
         do {
-            let source = ImageSource.url(URL(string: sampleImageURL)!)
+            let imageData = try await downloadImageData(from: sampleImageURL)
+            let source = ImageSource.data(imageData)
             let start = CFAbsoluteTimeGetCurrent()
             
             let options = RandomCropOptions(width: 100, height: 100, count: 5, seed: 42)
-            let crops = try await MultiCropOperations.randomCrop(from: source, options: options)
+            let crops = try MultiCropOperations.randomCrop(from: source, options: options)
             
             let time = (CFAbsoluteTimeGetCurrent() - start) * 1000
             

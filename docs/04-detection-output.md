@@ -907,7 +907,7 @@ Advantages:
 SwiftPixelUtils provides presets for all variants:
 ```swift
 // All YOLO variants use the same preprocessing
-let result = try await PixelExtractor.getPixelData(
+let result = try PixelExtractor.getPixelData(
     source: .cgImage(image),
     options: ModelPresets.yolov10  // or yolov9, yolov8, yolo
 )
@@ -924,7 +924,7 @@ RT-DETR achieves real-time transformer-based detection without NMS:
 | RT-DETR-X | 54.8 | 67M | 13.5 |
 
 ```swift
-let result = try await PixelExtractor.getPixelData(
+let result = try PixelExtractor.getPixelData(
     source: .cgImage(image),
     options: ModelPresets.rtdetr  // or rtdetr_l, rtdetr_x
 )
@@ -962,7 +962,7 @@ let result = try await PixelExtractor.getPixelData(
 - Slower but elegant
 
 ```swift
-let result = try await PixelExtractor.getPixelData(
+let result = try PixelExtractor.getPixelData(
     source: .cgImage(image),
     options: ModelPresets.detr
 )
@@ -1171,9 +1171,9 @@ class YOLOv8Detector {
         try interpreter.allocateTensors()
     }
     
-    func detect(image: UIImage) async throws -> DetectionResult {
-        // 1. Preprocess
-        let input = try await PixelExtractor.getModelInput(
+    func detect(image: UIImage) throws -> DetectionResult {
+        // 1. Preprocess (synchronous)
+        let input = try PixelExtractor.getModelInput(
             source: .uiImage(image),
             framework: .tfliteFloat,
             width: inputWidth,
@@ -1208,7 +1208,7 @@ class YOLOv8Detector {
 
 // Usage
 let detector = try YOLOv8Detector(modelPath: "yolov8n.tflite")
-let result = try await detector.detect(image: myImage)
+let result = try detector.detect(image: myImage)
 
 for detection in result.detections {
     print("\(detection.label): \(detection.confidence * 100)%")
@@ -1298,7 +1298,7 @@ When using letterbox padding, coordinates need adjustment. SwiftPixelUtils now a
 // └─────────────────────┘
 
 // Automatic letterbox info with getPixelData:
-let result = try await PixelExtractor.getPixelData(
+let result = try PixelExtractor.getPixelData(
     source: .uiImage(image),
     options: PixelDataOptions(
         resize: ResizeOptions(width: 640, height: 640, strategy: .letterbox),

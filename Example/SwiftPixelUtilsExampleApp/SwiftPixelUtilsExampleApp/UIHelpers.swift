@@ -1,6 +1,50 @@
 import SwiftUI
+import SwiftPixelUtils
 
-// MARK: - Image Loading Helper
+// MARK: - Image Download Helper
+
+/// Downloads image data from a remote URL.
+/// Use this to download images before passing to SwiftPixelUtils functions.
+func downloadImageData(from urlString: String) async throws -> Data {
+    guard let url = URL(string: urlString) else {
+        throw URLError(.badURL)
+    }
+    let (data, response) = try await URLSession.shared.data(from: url)
+    guard let httpResponse = response as? HTTPURLResponse,
+          (200...299).contains(httpResponse.statusCode) else {
+        throw URLError(.badServerResponse)
+    }
+    return data
+}
+
+/// Downloads image data from a remote URL and returns it as an ImageSource.
+/// Use this helper to convert remote URLs to ImageSource.data() for SwiftPixelUtils functions.
+func downloadImageSource(from urlString: String) async throws -> ImageSource {
+    let data = try await downloadImageData(from: urlString)
+    return .data(data)
+}
+
+/// Downloads multiple images from remote URLs and returns them as ImageSources.
+func downloadImageSources(from urlStrings: [String]) async throws -> [ImageSource] {
+    try await withThrowingTaskGroup(of: (Int, ImageSource).self) { group in
+        for (index, urlString) in urlStrings.enumerated() {
+            group.addTask {
+                let source = try await downloadImageSource(from: urlString)
+                return (index, source)
+            }
+        }
+        
+        var results = [(Int, ImageSource)]()
+        for try await result in group {
+            results.append(result)
+        }
+        
+        // Sort by original index to maintain order
+        return results.sorted { $0.0 < $1.0 }.map { $0.1 }
+    }
+}
+
+// MARK: - Bundle Image Loading Helper
 
 /// Loads an image from the app bundle, checking both Resources directory and root bundle
 func loadBundleImage(named name: String) -> UIImage? {

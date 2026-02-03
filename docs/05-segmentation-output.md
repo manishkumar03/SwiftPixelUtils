@@ -691,7 +691,7 @@ FCN-8s:  pool5 + pool4 + pool3 (best)
 
 SwiftPixelUtils preset:
 ```swift
-let result = try await PixelExtractor.getPixelData(
+let result = try PixelExtractor.getPixelData(
     source: .cgImage(image),
     options: ModelPresets.fcn
 )
@@ -730,19 +730,19 @@ Encoder           Decoder
 SwiftPixelUtils presets:
 ```swift
 // Standard 512×512 UNet
-let result = try await PixelExtractor.getPixelData(
+let result = try PixelExtractor.getPixelData(
     source: .cgImage(image),
     options: ModelPresets.unet
 )
 
 // Fast 256×256 variant
-let fast = try await PixelExtractor.getPixelData(
+let fast = try PixelExtractor.getPixelData(
     source: .cgImage(image),
     options: ModelPresets.unet_256
 )
 
 // High-res 1024×1024 variant
-let highRes = try await PixelExtractor.getPixelData(
+let highRes = try PixelExtractor.getPixelData(
     source: .cgImage(image),
     options: ModelPresets.unet_1024
 )
@@ -761,13 +761,13 @@ See [DeepLab Architecture Family](#deeplab-architecture-family) above.
 SwiftPixelUtils presets:
 ```swift
 // Standard 513×513 DeepLab
-let result = try await PixelExtractor.getPixelData(
+let result = try PixelExtractor.getPixelData(
     source: .cgImage(image),
     options: ModelPresets.deeplab  // or deeplabv3, deeplabv3_plus
 )
 
 // Higher resolution variants
-let highRes = try await PixelExtractor.getPixelData(
+let highRes = try PixelExtractor.getPixelData(
     source: .cgImage(image),
     options: ModelPresets.deeplab_769  // or deeplab_1025
 )
@@ -805,7 +805,7 @@ let highRes = try await PixelExtractor.getPixelData(
 
 SwiftPixelUtils preset:
 ```swift
-let result = try await PixelExtractor.getPixelData(
+let result = try PixelExtractor.getPixelData(
     source: .cgImage(image),
     options: ModelPresets.pspnet
 )
@@ -850,7 +850,7 @@ let result = try await PixelExtractor.getPixelData(
 
 SwiftPixelUtils presets:
 ```swift
-let result = try await PixelExtractor.getPixelData(
+let result = try PixelExtractor.getPixelData(
     source: .cgImage(image),
     options: ModelPresets.segformer  // or segformer_b0, segformer_b5
 )
@@ -874,7 +874,7 @@ Mask2Former unifies semantic, instance, and panoptic segmentation with a single 
 
 SwiftPixelUtils presets:
 ```swift
-let result = try await PixelExtractor.getPixelData(
+let result = try PixelExtractor.getPixelData(
     source: .cgImage(image),
     options: ModelPresets.mask2former  // or mask2former_swin_t, mask2former_swin_l
 )
@@ -903,13 +903,13 @@ SAM2 improvements over SAM:
 SwiftPixelUtils presets:
 ```swift
 // SAM (original)
-let sam = try await PixelExtractor.getPixelData(
+let sam = try PixelExtractor.getPixelData(
     source: .cgImage(image),
     options: ModelPresets.sam
 )
 
 // SAM2 variants
-let sam2 = try await PixelExtractor.getPixelData(
+let sam2 = try PixelExtractor.getPixelData(
     source: .cgImage(image),
     options: ModelPresets.sam2  // or sam2_t, sam2_s, sam2_b_plus, sam2_l
 )
@@ -1214,9 +1214,9 @@ class SemanticSegmentor {
         try interpreter.allocateTensors()
     }
     
-    func segment(image: UIImage) async throws -> SegmentationResult {
-        // 1. Preprocess - DeepLabV3 expects specific normalization
-        let input = try await PixelExtractor.getModelInput(
+    func segment(image: UIImage) throws -> SegmentationResult {
+        // 1. Preprocess - DeepLabV3 expects specific normalization (synchronous)
+        let input = try PixelExtractor.getModelInput(
             source: .uiImage(image),
             framework: .tfliteFloat,
             width: inputWidth,
@@ -1246,7 +1246,7 @@ class SemanticSegmentor {
 
 // Usage
 let segmentor = try SemanticSegmentor(modelPath: "deeplabv3.tflite")
-let result = try await segmentor.segment(image: myImage)
+let result = try segmentor.segment(image: myImage)
 
 print("Detected classes:")
 for stat in result.classStatistics where stat.pixelCount > 0 {
@@ -1261,8 +1261,8 @@ class PortraitSegmentor {
     private let segmentor: SemanticSegmentor
     private let personClassIndex = 15  // Pascal VOC person class
     
-    func extractPerson(from image: UIImage) async throws -> UIImage {
-        let result = try await segmentor.segment(image: image)
+    func extractPerson(from image: UIImage) throws -> UIImage {
+        let result = try segmentor.segment(image: image)
         
         // Create binary mask for person only
         let personMask = result.classMask.map { $0 == personClassIndex ? UInt8(255) : UInt8(0) }
@@ -1271,8 +1271,8 @@ class PortraitSegmentor {
         return applyMask(image: image, mask: personMask)
     }
     
-    func blurBackground(image: UIImage) async throws -> UIImage {
-        let result = try await segmentor.segment(image: image)
+    func blurBackground(image: UIImage) throws -> UIImage {
+        let result = try segmentor.segment(image: image)
         
         // Create person mask
         let personMask = result.classMask.map { Float($0 == personClassIndex ? 1.0 : 0.0) }
@@ -1293,8 +1293,8 @@ class PortraitSegmentor {
 ### Example 3: Scene Analysis
 
 ```swift
-func analyzeScene(image: UIImage) async throws -> SceneAnalysis {
-    let result = try await segmentor.segment(image: image)
+func analyzeScene(image: UIImage) throws -> SceneAnalysis {
+    let result = try segmentor.segment(image: image)
     
     // Determine dominant scene type
     let outdoor = ["sky", "tree", "grass", "road", "building"]
@@ -1337,7 +1337,7 @@ func analyzeScene(image: UIImage) async throws -> SceneAnalysis {
 Run model at multiple scales and merge:
 
 ```swift
-func multiScaleSegment(image: UIImage) async throws -> SegmentationResult {
+func multiScaleSegment(image: UIImage) throws -> SegmentationResult {
     let scales: [Float] = [0.5, 0.75, 1.0, 1.25, 1.5]
     var allProbs: [[Float]] = []
     
@@ -1348,7 +1348,7 @@ func multiScaleSegment(image: UIImage) async throws -> SegmentationResult {
         )
         let scaled = image.scaled(to: scaledSize)
         
-        let result = try await segmentWithProbs(scaled)
+        let result = try segmentWithProbs(scaled)
         
         // Resize probs back to original size
         let resized = resizeProbabilities(result.probabilities, 
@@ -1376,7 +1376,7 @@ func segmentLargeImage(
     image: UIImage,
     windowSize: Int = 513,
     overlap: Int = 128
-) async throws -> SegmentationResult {
+) throws -> SegmentationResult {
     let stride = windowSize - overlap
     let width = Int(image.size.width)
     let height = Int(image.size.height)
@@ -1395,7 +1395,7 @@ func segmentLargeImage(
                                        size: windowSize)
             
             // Segment window
-            let result = try await segment(window)
+            let result = try segment(window)
             
             // Accumulate results
             accumulateResults(result, into: &sumProbs, 
@@ -1425,16 +1425,16 @@ struct InstanceSegmentation {
 }
 
 // Using Mask R-CNN or similar
-func instanceSegment(image: UIImage) async throws -> [InstanceSegmentation] {
+func instanceSegment(image: UIImage) throws -> [InstanceSegmentation] {
     // 1. Detect objects
-    let detections = try await detect(image)
+    let detections = try detect(image)
     
     // 2. For each detection, predict mask
     var instances: [InstanceSegmentation] = []
     
     for (i, detection) in detections.enumerated() {
         let crop = cropRegion(image, box: detection.boundingBox)
-        let mask = try await segmentInstance(crop)
+        let mask = try segmentInstance(crop)
         
         instances.append(InstanceSegmentation(
             classId: detection.classIndex,

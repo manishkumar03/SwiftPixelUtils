@@ -32,6 +32,8 @@ dependencies: [
 
 ### Basic Usage
 
+> **Note:** SwiftPixelUtils functions are **synchronous** (`throws` not `async throws`). Remote URLs are not supported - download images first.
+
 ```swift
 import SwiftPixelUtils
 
@@ -132,6 +134,8 @@ Guides: 01 (verification) → 07 (debugging section)
 - **Classification**: Top-K predictions with labels
 - **Visualization**: Draw boxes, masks, and heatmaps
 - **Labels**: Built-in ImageNet, COCO, VOC, Cityscapes labels
+- **Synchronous API**: All functions use `throws` (not `async throws`)
+- **Local Files Only**: Remote URLs not supported - download first with URLSession
 
 ## 📱 Platform Support
 

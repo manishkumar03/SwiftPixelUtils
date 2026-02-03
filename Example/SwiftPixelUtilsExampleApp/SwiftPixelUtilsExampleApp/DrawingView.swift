@@ -57,7 +57,8 @@ struct DrawingView: View {
     
     func drawBoxes() async {
         do {
-            let source = ImageSource.url(URL(string: sampleImageURL)!)
+            let imageData = try await downloadImageData(from: sampleImageURL)
+            let source = ImageSource.data(imageData)
             let start = CFAbsoluteTimeGetCurrent()
             
             let boxes = [
@@ -74,7 +75,7 @@ struct DrawingView: View {
             ]
             
             let options = BoxDrawingOptions(lineWidth: 3, fontSize: 14, drawLabels: true, drawScores: true)
-            let drawn = try await Drawing.drawBoxes(on: source, boxes: boxes, options: options)
+            let drawn = try Drawing.drawBoxes(on: source, boxes: boxes, options: options)
             
             let time = (CFAbsoluteTimeGetCurrent() - start) * 1000
             
@@ -98,7 +99,8 @@ struct DrawingView: View {
     
     func drawKeypoints() async {
         do {
-            let source = ImageSource.url(URL(string: sampleImageURL)!)
+            let imageData = try await downloadImageData(from: sampleImageURL)
+            let source = ImageSource.data(imageData)
             let start = CFAbsoluteTimeGetCurrent()
             
             let keypoints = [
@@ -108,7 +110,7 @@ struct DrawingView: View {
             ]
             
             let options = KeypointDrawingOptions(pointRadius: 5)
-            let drawn = try await Drawing.drawKeypoints(on: source, keypoints: keypoints, options: options)
+            let drawn = try Drawing.drawKeypoints(on: source, keypoints: keypoints, options: options)
             
             let time = (CFAbsoluteTimeGetCurrent() - start) * 1000
             
@@ -132,7 +134,8 @@ struct DrawingView: View {
     
     func overlayHeatmap() async {
         do {
-            let source = ImageSource.url(URL(string: sampleImageURL)!)
+            let imageData = try await downloadImageData(from: sampleImageURL)
+            let source = ImageSource.data(imageData)
             let start = CFAbsoluteTimeGetCurrent()
             
             // Create a simple gradient heatmap (10x10)
@@ -150,7 +153,7 @@ struct DrawingView: View {
                 heatmapWidth: 10,
                 heatmapHeight: 10
             )
-            let overlaid = try await Drawing.overlayHeatmap(on: source, heatmap: heatmap, options: options)
+            let overlaid = try Drawing.overlayHeatmap(on: source, heatmap: heatmap, options: options)
             
             let time = (CFAbsoluteTimeGetCurrent() - start) * 1000
             
@@ -176,7 +179,8 @@ struct DrawingView: View {
     
     func overlayMask() async {
         do {
-            let source = ImageSource.url(URL(string: sampleImageURL)!)
+            let imageData = try await downloadImageData(from: sampleImageURL)
+            let source = ImageSource.data(imageData)
             let start = CFAbsoluteTimeGetCurrent()
             
             // Create a simple segmentation mask (8x8)

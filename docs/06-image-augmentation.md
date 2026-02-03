@@ -1196,7 +1196,7 @@ let valTransform = AugmentationPipeline([
 ])
 
 // Test-Time Augmentation (TTA)
-func predictWithTTA(image: UIImage, model: Classifier) async throws -> [Float] {
+func predictWithTTA(image: UIImage, model: Classifier) throws -> [Float] {
     let augmentations = [
         identity,
         .horizontalFlip(),
@@ -1208,7 +1208,7 @@ func predictWithTTA(image: UIImage, model: Classifier) async throws -> [Float] {
     
     for aug in augmentations {
         let augmented = try aug.apply(to: image)
-        let pred = try await model.predict(augmented)
+        let pred = try model.predict(augmented)
         predictions.append(pred)
     }
     

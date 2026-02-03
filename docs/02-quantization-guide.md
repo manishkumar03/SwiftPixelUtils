@@ -585,7 +585,7 @@ SwiftPixelUtils can output pixel data directly as Float16 for efficient Core ML/
 
 ```swift
 // Get Float16 output for Apple Silicon efficiency
-let result = try await PixelExtractor.getPixelData(
+let result = try PixelExtractor.getPixelData(
     source: .uiImage(image),
     options: PixelDataOptions(
         resize: ResizeOptions(width: 224, height: 224, strategy: .cover),
@@ -793,7 +793,7 @@ print("Input dtype: \(inputTensor.dataType)")  // uint8 or int8
 **For TFLite quantized model expecting [0, 255] input:**
 ```swift
 // Model expects raw pixel values as uint8
-let input = try await PixelExtractor.getModelInput(
+let input = try PixelExtractor.getModelInput(
     source: .uiImage(image),
     framework: .tfliteQuantized,  // Returns [0,255] UInt8
     width: 224,
@@ -814,7 +814,7 @@ let scale = inputTensor.quantizationParameters!.scale
 let zeroPoint = inputTensor.quantizationParameters!.zeroPoint
 
 // Get normalized float data
-let floatData = try await PixelExtractor.getPixelData(
+let floatData = try PixelExtractor.getPixelData(
     source: .uiImage(image),
     options: PixelDataOptions(
         targetSize: CGSize(width: 224, height: 224),
@@ -1007,18 +1007,18 @@ func measureQuantizationImpact(
     floatModel: Interpreter,
     quantizedModel: Interpreter,
     testImages: [UIImage]
-) async throws -> QuantizationMetrics {
+) throws -> QuantizationMetrics {
     var floatPredictions: [[Float]] = []
     var quantizedPredictions: [[Float]] = []
     
     for image in testImages {
         // Run float model
-        let floatInput = try await prepareFloatInput(image)
+        let floatInput = try prepareFloatInput(image)
         let floatOutput = try runInference(floatModel, input: floatInput)
         floatPredictions.append(floatOutput)
         
         // Run quantized model
-        let quantInput = try await prepareQuantizedInput(image)
+        let quantInput = try prepareQuantizedInput(image)
         let quantOutput = try runQuantizedInference(quantizedModel, input: quantInput)
         quantizedPredictions.append(quantOutput)
     }
@@ -1379,7 +1379,7 @@ let outputWeights = try Quantizer.quantize(data: weights, options: QuantizationO
 
 ```swift
 // One-line quantized model input
-let input = try await PixelExtractor.getModelInput(
+let input = try PixelExtractor.getModelInput(
     source: .uiImage(image),
     framework: .tfliteQuantized,  // Automatic uint8 output
     width: 224,
@@ -1402,7 +1402,7 @@ let customConfig = QuantizationConfig(
     outputZeroPoint: 128
 )
 
-let input = try await PixelExtractor.getModelInput(
+let input = try PixelExtractor.getModelInput(
     source: .uiImage(image),
     framework: .custom(quantization: customConfig),
     width: 224,
@@ -1417,7 +1417,7 @@ let input = try await PixelExtractor.getModelInput(
 ### Example 1: MobileNet Quantized Classification
 
 ```swift
-func classifyWithQuantizedMobileNet(_ image: UIImage) async throws -> ClassificationResult {
+func classifyWithQuantizedMobileNet(_ image: UIImage) throws -> ClassificationResult {
     // 1. Load quantized model
     let interpreter = try Interpreter(modelPath: "mobilenet_v2_quantized.tflite")
     try interpreter.allocateTensors()
@@ -1428,7 +1428,7 @@ func classifyWithQuantizedMobileNet(_ image: UIImage) async throws -> Classifica
     print("Input shape: \(inputTensor.shape)")    // [1, 224, 224, 3]
     
     // 3. Preprocess to uint8
-    let input = try await PixelExtractor.getModelInput(
+    let input = try PixelExtractor.getModelInput(
         source: .uiImage(image),
         framework: .tfliteQuantized,
         width: 224,
@@ -1464,7 +1464,7 @@ func classifyWithQuantizedMobileNet(_ image: UIImage) async throws -> Classifica
 ### Example 2: YOLO Quantized Detection
 
 ```swift
-func detectWithQuantizedYOLO(_ image: UIImage) async throws -> DetectionResult {
+func detectWithQuantizedYOLO(_ image: UIImage) throws -> DetectionResult {
     let interpreter = try Interpreter(modelPath: "yolov5s_quantized.tflite")
     try interpreter.allocateTensors()
     
@@ -1481,7 +1481,7 @@ func detectWithQuantizedYOLO(_ image: UIImage) async throws -> DetectionResult {
     let inputZeroPoint = inputTensor.quantizationParameters?.zeroPoint ?? 0
     
     // Prepare input (normalize to [0,1] then quantize)
-    let floatData = try await PixelExtractor.getPixelData(
+    let floatData = try PixelExtractor.getPixelData(
         source: .cgImage(letterboxed.image),
         options: PixelDataOptions(
             targetSize: CGSize(width: 640, height: 640),

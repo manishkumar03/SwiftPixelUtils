@@ -26,19 +26,21 @@ import SwiftPixelUtils
 
 ### 2. Extract Pixel Data from an Image
 
+> **Note:** All SwiftPixelUtils functions are **synchronous**. Remote URLs are not supported - download images first, then use `.data()` or `.file()` for local files.
+
 ```swift
-// From URL
-let url = URL(string: "https://example.com/image.jpg")!
-let result = try await PixelExtractor.getPixelData(
-    source: .url(url),
+// From local file
+let fileURL = Bundle.main.url(forResource: "image", withExtension: "jpg")!
+let result = try PixelExtractor.getPixelData(
+    source: .file(fileURL),
     options: PixelDataOptions()
 )
 
-print("Width: \\(result.width)")
-print("Height: \\(result.height)")
-print("Channels: \\(result.channels)")
-print("Shape: \\(result.shape)")
-print("Processing time: \\(result.processingTimeMs)ms")
+print("Width: \(result.width)")
+print("Height: \(result.height)")
+print("Channels: \(result.channels)")
+print("Shape: \(result.shape)")
+print("Processing time: \(result.processingTimeMs)ms")
 
 // Access pixel data
 let pixels = result.data // [Float] array
@@ -48,19 +50,19 @@ let pixels = result.data // [Float] array
 
 ```swift
 // YOLO preprocessing (640x640, letterbox, NCHW layout)
-let yoloResult = try await PixelExtractor.getPixelData(
+let yoloResult = try PixelExtractor.getPixelData(
     source: .file(fileURL),
     options: ModelPresets.yolov8
 )
 
 // MobileNet preprocessing (224x224, cover, ImageNet normalization, NHWC)
-let mobileNetResult = try await PixelExtractor.getPixelData(
+let mobileNetResult = try PixelExtractor.getPixelData(
     source: .file(fileURL),
     options: ModelPresets.mobilenet
 )
 
 // ResNet preprocessing (224x224, cover, ImageNet normalization, NCHW)
-let resnetResult = try await PixelExtractor.getPixelData(
+let resnetResult = try PixelExtractor.getPixelData(
     source: .file(fileURL),
     options: ModelPresets.resnet50
 )
@@ -82,7 +84,7 @@ let options = PixelDataOptions(
     outputFormat: .float32Array
 )
 
-let result = try await PixelExtractor.getPixelData(
+let result = try PixelExtractor.getPixelData(
     source: .file(fileURL),
     options: options
 )
@@ -91,20 +93,35 @@ let result = try await PixelExtractor.getPixelData(
 ### 5. Batch Processing
 
 ```swift
+// For local files
 let sources: [ImageSource] = [
-    .url(URL(string: "https://example.com/1.jpg")!),
-    .url(URL(string: "https://example.com/2.jpg")!),
-    .url(URL(string: "https://example.com/3.jpg")!)
+    .file(URL(fileURLWithPath: "/path/to/1.jpg")),
+    .file(URL(fileURLWithPath: "/path/to/2.jpg")),
+    .file(URL(fileURLWithPath: "/path/to/3.jpg"))
 ]
 
-let results = try await PixelExtractor.batchGetPixelData(
+let results = try PixelExtractor.batchGetPixelData(
     sources: sources,
     options: ModelPresets.mobilenet,
     concurrency: 4 // Process up to 4 images simultaneously
 )
 
 for (index, result) in results.enumerated() {
-    print("Image \\(index + 1): \\(result.width)x\\(result.height)\")
+    print("Image \(index + 1): \(result.width)x\(result.height)")
+}
+
+// For remote images, download first then process
+func downloadAndProcess(urls: [String]) async throws -> [PixelDataResult] {
+    var sources: [ImageSource] = []
+    for url in urls {
+        let (data, _) = try await URLSession.shared.data(from: URL(string: url)!)
+        sources.append(.data(data))
+    }
+    return try PixelExtractor.batchGetPixelData(
+        sources: sources,
+        options: ModelPresets.mobilenet,
+        concurrency: 4
+    )
 }
 ```
 
@@ -183,10 +200,10 @@ for (label, confidence, index) in topLabels {
 ```swift
 import SwiftPixelUtils
 
-func detectObjects(in imageURL: URL) async throws {
-    // 1. Preprocess image for YOLO
-    let preprocessed = try await PixelExtractor.getPixelData(
-        source: .url(imageURL),
+func detectObjects(in imageURL: URL) throws {
+    // 1. Preprocess image for YOLO (local file only)
+    let preprocessed = try PixelExtractor.getPixelData(
+        source: .file(imageURL),
         options: ModelPresets.yolov8
     )
     
@@ -218,14 +235,13 @@ func detectObjects(in imageURL: URL) async throws {
 
 ## Image Source Types
 
-```swift
-// From URL
-.url(URL(string: "https://example.com/image.jpg")!)
+> **Note:** Remote URLs (http, https) are **not supported**. Download images first and use `.data(Data)`.
 
-// From file path
+```swift
+// From file path (local files only)
 .file(URL(fileURLWithPath: "/path/to/image.jpg"))
 
-// From Data
+// From Data (use for downloaded remote images)
 .data(imageData)
 
 // From base64 string
@@ -280,7 +296,7 @@ func detectObjects(in imageURL: URL) async throws {
 
 ```swift
 do {
-    let result = try await PixelExtractor.getPixelData(
+    let result = try PixelExtractor.getPixelData(
         source: .file(fileURL),
         options: ModelPresets.yolov8
     )

@@ -70,8 +70,9 @@ struct ImageAnalysisView: View {
     
     func getStatistics() async {
         do {
-            let source = ImageSource.url(URL(string: sampleImageURL)!)
-            let stats = try await ImageAnalyzer.getStatistics(source: source)
+            let imageData = try await downloadImageData(from: sampleImageURL)
+            let source = ImageSource.data(imageData)
+            let stats = try ImageAnalyzer.getStatistics(source: source)
             
             statisticsResult = """
             ✅ Statistics:
@@ -88,8 +89,9 @@ struct ImageAnalysisView: View {
     
     func detectBlur() async {
         do {
-            let source = ImageSource.url(URL(string: sampleImageURL)!)
-            let result = try await ImageAnalyzer.detectBlur(source: source)
+            let imageData = try await downloadImageData(from: sampleImageURL)
+            let source = ImageSource.data(imageData)
+            let result = try ImageAnalyzer.detectBlur(source: source)
             
             blurResult = """
             ✅ Blur Detection:
@@ -105,8 +107,9 @@ struct ImageAnalysisView: View {
     
     func getMetadata() async {
         do {
-            let source = ImageSource.url(URL(string: sampleImageURL)!)
-            let metadata = try await ImageAnalyzer.getMetadata(source: source)
+            let imageData = try await downloadImageData(from: sampleImageURL)
+            let source = ImageSource.data(imageData)
+            let metadata = try ImageAnalyzer.getMetadata(source: source)
             
             metadataResult = """
             ✅ Metadata:

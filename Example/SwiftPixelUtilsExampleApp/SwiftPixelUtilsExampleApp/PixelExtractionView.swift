@@ -155,8 +155,10 @@ struct PixelExtractionView: View {
         
         do {
             let start = CFAbsoluteTimeGetCurrent()
-            let pixelResult = try await PixelExtractor.getPixelData(
-                source: .url(URL(string: sampleImageURL)!),
+            // Download image first, then process
+            let imageData = try await downloadImageData(from: sampleImageURL)
+            let pixelResult = try PixelExtractor.getPixelData(
+                source: .data(imageData),
                 options: options
             )
             let time = (CFAbsoluteTimeGetCurrent() - start) * 1000
@@ -192,8 +194,10 @@ struct PresetButton: View {
             Task {
                 do {
                     let start = CFAbsoluteTimeGetCurrent()
-                    let result = try await PixelExtractor.getPixelData(
-                        source: .url(URL(string: sampleImageURL)!),
+                    // Download image first, then process
+                    let imageData = try await downloadImageData(from: sampleImageURL)
+                    let result = try PixelExtractor.getPixelData(
+                        source: .data(imageData),
                         options: preset
                     )
                     let time = (CFAbsoluteTimeGetCurrent() - start) * 1000

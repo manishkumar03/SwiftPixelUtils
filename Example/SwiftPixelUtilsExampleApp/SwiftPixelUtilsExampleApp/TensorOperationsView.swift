@@ -177,9 +177,10 @@ struct TensorOperationsView: View {
     
     func extractPatch() async {
         do {
-            let source = ImageSource.url(URL(string: "https://upload.wikimedia.org/wikipedia/commons/thumb/3/3a/Cat03.jpg/1200px-Cat03.jpg")!)
+            let imageData = try await downloadImageData(from: "https://upload.wikimedia.org/wikipedia/commons/thumb/3/3a/Cat03.jpg/1200px-Cat03.jpg")
+            let source = ImageSource.data(imageData)
             
-            let pixelResult = try await PixelExtractor.getPixelData(
+            let pixelResult = try PixelExtractor.getPixelData(
                 source: source,
                 options: PixelDataOptions(
                     colorFormat: .rgb,

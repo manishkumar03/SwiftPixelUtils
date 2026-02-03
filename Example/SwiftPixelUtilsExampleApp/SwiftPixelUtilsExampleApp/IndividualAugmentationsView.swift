@@ -152,10 +152,11 @@ struct IndividualAugmentationsView: View {
     
     func testRotate(degrees: Double) async {
         do {
-            let source = ImageSource.url(URL(string: sampleImageURL)!)
+            let imageData = try await downloadImageData(from: sampleImageURL)
+            let source = ImageSource.data(imageData)
             let start = CFAbsoluteTimeGetCurrent()
             
-            let rotated = try await ImageAugmentor.rotate(source: source, degrees: Float(degrees))
+            let rotated = try ImageAugmentor.rotate(source: source, degrees: Float(degrees))
             
             let time = (CFAbsoluteTimeGetCurrent() - start) * 1000
             let size = rotated.size
@@ -176,10 +177,11 @@ struct IndividualAugmentationsView: View {
     
     func testFlipHorizontal() async {
         do {
-            let source = ImageSource.url(URL(string: sampleImageURL)!)
+            let imageData = try await downloadImageData(from: sampleImageURL)
+            let source = ImageSource.data(imageData)
             let start = CFAbsoluteTimeGetCurrent()
             
-            let flipped = try await ImageAugmentor.flipHorizontal(source: source)
+            let flipped = try ImageAugmentor.flipHorizontal(source: source)
             
             let time = (CFAbsoluteTimeGetCurrent() - start) * 1000
             let size = flipped.size
@@ -199,10 +201,11 @@ struct IndividualAugmentationsView: View {
     
     func testFlipVertical() async {
         do {
-            let source = ImageSource.url(URL(string: sampleImageURL)!)
+            let imageData = try await downloadImageData(from: sampleImageURL)
+            let source = ImageSource.data(imageData)
             let start = CFAbsoluteTimeGetCurrent()
             
-            let flipped = try await ImageAugmentor.flipVertical(source: source)
+            let flipped = try ImageAugmentor.flipVertical(source: source)
             
             let time = (CFAbsoluteTimeGetCurrent() - start) * 1000
             let size = flipped.size
@@ -222,10 +225,11 @@ struct IndividualAugmentationsView: View {
     
     func testBrightness(factor: Double) async {
         do {
-            let source = ImageSource.url(URL(string: sampleImageURL)!)
+            let imageData = try await downloadImageData(from: sampleImageURL)
+            let source = ImageSource.data(imageData)
             let start = CFAbsoluteTimeGetCurrent()
             
-            let adjusted = try await ImageAugmentor.adjustBrightness(source: source, value: Float(factor))
+            let adjusted = try ImageAugmentor.adjustBrightness(source: source, value: Float(factor))
             
             let time = (CFAbsoluteTimeGetCurrent() - start) * 1000
             let size = adjusted.size
@@ -246,10 +250,11 @@ struct IndividualAugmentationsView: View {
     
     func testContrast(factor: Double) async {
         do {
-            let source = ImageSource.url(URL(string: sampleImageURL)!)
+            let imageData = try await downloadImageData(from: sampleImageURL)
+            let source = ImageSource.data(imageData)
             let start = CFAbsoluteTimeGetCurrent()
             
-            let adjusted = try await ImageAugmentor.adjustContrast(source: source, value: Float(factor))
+            let adjusted = try ImageAugmentor.adjustContrast(source: source, value: Float(factor))
             
             let time = (CFAbsoluteTimeGetCurrent() - start) * 1000
             let size = adjusted.size
@@ -270,10 +275,11 @@ struct IndividualAugmentationsView: View {
     
     func testSaturation(factor: Double) async {
         do {
-            let source = ImageSource.url(URL(string: sampleImageURL)!)
+            let imageData = try await downloadImageData(from: sampleImageURL)
+            let source = ImageSource.data(imageData)
             let start = CFAbsoluteTimeGetCurrent()
             
-            let adjusted = try await ImageAugmentor.adjustSaturation(source: source, value: Float(factor))
+            let adjusted = try ImageAugmentor.adjustSaturation(source: source, value: Float(factor))
             
             let time = (CFAbsoluteTimeGetCurrent() - start) * 1000
             let size = adjusted.size
@@ -294,11 +300,12 @@ struct IndividualAugmentationsView: View {
     
     func testBlur(type: BlurType, radius: Double) async {
         do {
-            let source = ImageSource.url(URL(string: sampleImageURL)!)
+            let imageData = try await downloadImageData(from: sampleImageURL)
+            let source = ImageSource.data(imageData)
             let start = CFAbsoluteTimeGetCurrent()
             
             // Note: blur() only takes radius. For type-specific blur, use augment() with BlurOptions
-            let blurred = try await ImageAugmentor.blur(
+            let blurred = try ImageAugmentor.blur(
                 source: source,
                 radius: Float(radius)
             )

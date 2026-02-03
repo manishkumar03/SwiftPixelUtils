@@ -441,9 +441,9 @@ class DepthEstimator {
             throw PixelUtilsError.processingFailed("Model not loaded")
         }
         
-        // Preprocess image (letterbox to model input size)
+        // Preprocess image (letterbox to model input size) - synchronous
         let inputSize = (width: 256, height: 256)
-        let preprocessed = try await Letterbox.apply(
+        let preprocessed = try Letterbox.apply(
             to: .cgImage(image),
             targetWidth: inputSize.width,
             targetHeight: inputSize.height

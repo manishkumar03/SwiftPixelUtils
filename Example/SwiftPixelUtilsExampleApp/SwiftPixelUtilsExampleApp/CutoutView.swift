@@ -46,7 +46,8 @@ struct CutoutView: View {
     
     func testSingleCutout() async {
         do {
-            let source = ImageSource.url(URL(string: sampleImageURL)!)
+            let imageData = try await downloadImageData(from: sampleImageURL)
+            let source = ImageSource.data(imageData)
             let start = CFAbsoluteTimeGetCurrent()
             
             let options = CutoutOptions(
@@ -56,7 +57,7 @@ struct CutoutView: View {
                 fillMode: .constant,
                 fillValue: [0, 0, 0]  // Black fill
             )
-            let cutout = try await ImageAugmentor.cutout(source: source, options: options)
+            let cutout = try ImageAugmentor.cutout(source: source, options: options)
             let time = (CFAbsoluteTimeGetCurrent() - start) * 1000
             
             result = """
@@ -77,7 +78,8 @@ struct CutoutView: View {
     
     func testMultipleCutouts() async {
         do {
-            let source = ImageSource.url(URL(string: sampleImageURL)!)
+            let imageData = try await downloadImageData(from: sampleImageURL)
+            let source = ImageSource.data(imageData)
             let start = CFAbsoluteTimeGetCurrent()
             
             let options = CutoutOptions(
@@ -87,7 +89,7 @@ struct CutoutView: View {
                 fillMode: .constant,
                 fillValue: [128, 128, 128]  // Gray fill
             )
-            let cutout = try await ImageAugmentor.cutout(source: source, options: options)
+            let cutout = try ImageAugmentor.cutout(source: source, options: options)
             let time = (CFAbsoluteTimeGetCurrent() - start) * 1000
             
             result = """
@@ -108,7 +110,8 @@ struct CutoutView: View {
     
     func testRandomCutouts() async {
         do {
-            let source = ImageSource.url(URL(string: sampleImageURL)!)
+            let imageData = try await downloadImageData(from: sampleImageURL)
+            let source = ImageSource.data(imageData)
             let start = CFAbsoluteTimeGetCurrent()
             
             let options = CutoutOptions(
@@ -118,7 +121,7 @@ struct CutoutView: View {
                 fillMode: .random,
                 seed: 42
             )
-            let cutout = try await ImageAugmentor.cutout(source: source, options: options)
+            let cutout = try ImageAugmentor.cutout(source: source, options: options)
             let time = (CFAbsoluteTimeGetCurrent() - start) * 1000
             
             result = """

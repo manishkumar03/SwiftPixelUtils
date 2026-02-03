@@ -75,7 +75,8 @@ struct LetterboxView: View {
     
     func applyLetterbox(width: Int, height: Int) async {
         do {
-            let source = ImageSource.url(URL(string: sampleImageURL)!)
+            let imageData = try await downloadImageData(from: sampleImageURL)
+            let source = ImageSource.data(imageData)
             let start = CFAbsoluteTimeGetCurrent()
             
             let options = LetterboxOptions(
@@ -83,7 +84,7 @@ struct LetterboxView: View {
                 targetHeight: height,
                 fillColor: (114, 114, 114)  // YOLO gray
             )
-            let letterboxed = try await Letterbox.apply(to: source, options: options)
+            let letterboxed = try Letterbox.apply(to: source, options: options)
             
             let time = (CFAbsoluteTimeGetCurrent() - start) * 1000
             
@@ -204,7 +205,8 @@ struct LetterboxView: View {
     
     func testApplyAndExtract() async {
         do {
-            let source = ImageSource.url(URL(string: sampleImageURL)!)
+            let imageData = try await downloadImageData(from: sampleImageURL)
+            let source = ImageSource.data(imageData)
             let start = CFAbsoluteTimeGetCurrent()
             
             let letterboxOptions = LetterboxOptions(
@@ -218,7 +220,7 @@ struct LetterboxView: View {
                 dataLayout: .chw
             )
             
-            let result = try await Letterbox.applyAndExtract(
+            let result = try Letterbox.applyAndExtract(
                 from: source,
                 letterboxOptions: letterboxOptions,
                 pixelOptions: pixelOptions

@@ -176,10 +176,12 @@ Wrong aspect ratio:      Model accuracy: 67.8%
 
 ### SwiftPixelUtils Simplifies This
 
+> **Note:** SwiftPixelUtils functions are **synchronous** (`throws` not `async throws`). Remote URLs are not supported - download images first with `URLSession`.
+
 ```swift
 // One-line preprocessing - handles all steps automatically
-let input = try await PixelExtractor.getModelInput(
-    source: .url(imageURL),
+let input = try PixelExtractor.getModelInput(
+    source: .uiImage(image),  // or .file(localURL) or .data(downloadedData)
     framework: .tfliteFloat,
     width: 224,
     height: 224
@@ -298,13 +300,13 @@ RGBA pixel: [R, G, B, A]
 
 ```swift
 // Remove alpha channel
-let rgb = try await PixelExtractor.getPixelData(
+let rgb = try PixelExtractor.getPixelData(
     source: .uiImage(imageWithAlpha),
     options: PixelDataOptions(colorFormat: .rgb)  // Alpha removed
 )
 
 // Composite over white background
-let rgb = try await PixelExtractor.getPixelData(
+let rgb = try PixelExtractor.getPixelData(
     source: .uiImage(imageWithAlpha),
     options: PixelDataOptions(
         colorFormat: .rgb,
@@ -365,7 +367,7 @@ BGR: [0, 165, 255]   ← Same orange, different representation
 
 ```swift
 // Convert to BGR for OpenCV-trained models
-let bgr = try await PixelExtractor.getPixelData(
+let bgr = try PixelExtractor.getPixelData(
     source: .uiImage(image),
     options: PixelDataOptions(colorFormat: .bgr)
 )
@@ -393,7 +395,7 @@ Y = 0.2126×R + 0.7152×G + 0.0722×B  (ITU-R BT.709, modern displays)
 - Efficiency (1/3 the data)
 
 ```swift
-let gray = try await PixelExtractor.getPixelData(
+let gray = try PixelExtractor.getPixelData(
     source: .uiImage(image),
     options: PixelDataOptions(colorFormat: .grayscale)
 )
@@ -569,7 +571,7 @@ Original (4:3 = 800×600)         Stretched (1:1 = 640×640)
 - Quick prototyping
 
 ```swift
-let stretched = try await PixelExtractor.getModelInput(
+let stretched = try PixelExtractor.getModelInput(
     source: .uiImage(image),
     framework: .tfliteFloat,
     width: 224,
@@ -605,7 +607,7 @@ Original (16:9)                  Contained (1:1)
 - When unsure which method to use
 
 ```swift
-let contained = try await PixelExtractor.getModelInput(
+let contained = try PixelExtractor.getModelInput(
     source: .uiImage(image),
     framework: .tfliteFloat,
     width: 224,
@@ -645,7 +647,7 @@ Original (4:3)                    Covered (1:1)
 - When edges are unlikely to contain important content
 
 ```swift
-let covered = try await PixelExtractor.getModelInput(
+let covered = try PixelExtractor.getModelInput(
     source: .uiImage(image),
     framework: .tfliteFloat,
     width: 224,
@@ -702,7 +704,7 @@ let originalCoords = Letterbox.reverseTransform(
 When using `getPixelData` with letterbox resize, transform metadata is automatically captured:
 
 ```swift
-let result = try await PixelExtractor.getPixelData(
+let result = try PixelExtractor.getPixelData(
     source: .uiImage(image),
     options: PixelDataOptions(
         resize: ResizeOptions(width: 640, height: 640, strategy: .letterbox),
@@ -823,7 +825,7 @@ $$x_{norm} = \frac{x - x_{min}}{x_{max} - x_{min}} = \frac{x}{255}$$
 - Simple custom models
 
 ```swift
-let input = try await PixelExtractor.getModelInput(
+let input = try PixelExtractor.getModelInput(
     source: .uiImage(image),
     framework: .tfliteFloat,  // Uses [0,1] normalization
     width: 224,
@@ -856,7 +858,7 @@ $$x_{norm} = \frac{2x}{255} - 1 = \frac{x - 127.5}{127.5}$$
 - Many PyTorch models
 
 ```swift
-let input = try await PixelExtractor.getModelInput(
+let input = try PixelExtractor.getModelInput(
     source: .uiImage(image),
     framework: .custom(normalization: .symmetricMinusOneToOne),
     width: 224,
@@ -892,7 +894,7 @@ $$x_{norm}^{(c)} = \frac{x^{(c)}/255 - \mu^{(c)}}{\sigma^{(c)}}$$
 - Models trained with transfer learning from ImageNet
 
 ```swift
-let input = try await PixelExtractor.getModelInput(
+let input = try PixelExtractor.getModelInput(
     source: .uiImage(image),
     framework: .pytorchMobile,  // Automatically uses ImageNet normalization
     width: 224,
@@ -918,7 +920,7 @@ let customNorm = Normalization.custom(
     std: [0.5, 0.5, 0.5]  // Results in [-1, 1] range
 )
 
-let input = try await PixelExtractor.getModelInput(
+let input = try PixelExtractor.getModelInput(
     source: .uiImage(image),
     framework: .custom(normalization: customNorm),
     width: 224,
@@ -1067,7 +1069,7 @@ Processing multiple images together can improve throughput:
 ```swift
 let images: [UIImage] = [image1, image2, image3, image4]
 
-let batchResult = try await PixelExtractor.getBatchPixelData(
+let batchResult = try PixelExtractor.getBatchPixelData(
     sources: images.map { .uiImage($0) },
     options: PixelDataOptions(
         targetSize: CGSize(width: 224, height: 224),
@@ -1093,12 +1095,12 @@ For large batches, use streaming or chunked processing:
 
 ```swift
 // Process in chunks to manage memory
-func processLargeBatch(images: [UIImage], chunkSize: Int = 16) async throws -> [[Float]] {
+func processLargeBatch(images: [UIImage], chunkSize: Int = 16) throws -> [[Float]] {
     var results: [[Float]] = []
     
     for chunk in images.chunked(into: chunkSize) {
         autoreleasepool {
-            let batchResult = try await PixelExtractor.getBatchPixelData(
+            let batchResult = try PixelExtractor.getBatchPixelData(
                 sources: chunk.map { .uiImage($0) },
                 options: options
             )
@@ -1115,7 +1117,7 @@ func processLargeBatch(images: [UIImage], chunkSize: Int = 16) async throws -> [
 Control parallel processing to balance speed and memory:
 
 ```swift
-let results = try await PixelExtractor.getBatchPixelData(
+let results = try PixelExtractor.getBatchPixelData(
     sources: hundredsOfImages,
     options: options,
     maxConcurrency: 4  // Process up to 4 images simultaneously
@@ -1130,7 +1132,7 @@ let results = try await PixelExtractor.getBatchPixelData(
 
 ```swift
 // TFLite Float32 model
-let input = try await PixelExtractor.getModelInput(
+let input = try PixelExtractor.getModelInput(
     source: .uiImage(image),
     framework: .tfliteFloat,  // RGB, [0,1], NHWC, Float32
     width: 224,
@@ -1143,7 +1145,7 @@ try interpreter.copy(Data(bytes: input.data, count: input.data.count * 4), toInp
 
 **TFLite Quantized (UInt8):**
 ```swift
-let input = try await PixelExtractor.getModelInput(
+let input = try PixelExtractor.getModelInput(
     source: .uiImage(image),
     framework: .tfliteQuantized,  // RGB, [0,255], NHWC, UInt8
     width: 224,
@@ -1158,7 +1160,7 @@ try interpreter.copy(Data(input.dataUInt8), toInputAt: 0)
 
 ```swift
 // CoreML typically expects MLMultiArray or CVPixelBuffer
-let pixelBuffer = try await PixelExtractor.getCVPixelBuffer(
+let pixelBuffer = try PixelExtractor.getCVPixelBuffer(
     source: .uiImage(image),
     targetSize: CGSize(width: 224, height: 224)
 )
@@ -1171,7 +1173,7 @@ let prediction = try model.prediction(image: pixelBuffer)
 
 ```swift
 // PyTorch expects ImageNet normalization, NCHW, Float32
-let input = try await PixelExtractor.getModelInput(
+let input = try PixelExtractor.getModelInput(
     source: .uiImage(image),
     framework: .pytorchMobile,  // RGB, ImageNet norm, NCHW, Float32
     width: 224,
@@ -1185,7 +1187,7 @@ let input = try await PixelExtractor.getModelInput(
 
 ```swift
 // ONNX typically uses NCHW
-let input = try await PixelExtractor.getModelInput(
+let input = try PixelExtractor.getModelInput(
     source: .uiImage(image),
     framework: .onnx,  // RGB, [0,1], NCHW, Float32
     width: 224,
@@ -1201,7 +1203,7 @@ let input = try await PixelExtractor.getModelInput(
 
 ```swift
 // From UIImage
-let input = try await PixelExtractor.getModelInput(
+let input = try PixelExtractor.getModelInput(
     source: .uiImage(myUIImage),
     framework: .tfliteFloat,
     width: 224,
@@ -1215,7 +1217,7 @@ UIImage may have EXIF orientation metadata that causes silent rotations when acc
 
 ```swift
 // Option 1: Enable automatic orientation normalization (recommended)
-let result = try await PixelExtractor.getPixelData(
+let result = try PixelExtractor.getPixelData(
     source: .uiImage(myUIImage),
     options: PixelDataOptions(
         colorFormat: .rgb,
@@ -1240,7 +1242,7 @@ func normalizeOrientation(_ image: UIImage) -> UIImage {
 
 ```swift
 #if os(macOS)
-let input = try await PixelExtractor.getModelInput(
+let input = try PixelExtractor.getModelInput(
     source: .nsImage(myNSImage),
     framework: .tfliteFloat,
     width: 224,
@@ -1253,7 +1255,7 @@ let input = try await PixelExtractor.getModelInput(
 
 ```swift
 // CGImage is the lowest-level, most reliable source
-let input = try await PixelExtractor.getModelInput(
+let input = try PixelExtractor.getModelInput(
     source: .cgImage(myCGImage),
     framework: .tfliteFloat,
     width: 224,
@@ -1270,7 +1272,7 @@ func captureOutput(_ output: AVCaptureOutput,
                    from connection: AVCaptureConnection) {
     guard let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else { return }
     
-    let input = try await PixelExtractor.getModelInput(
+    let input = try PixelExtractor.getModelInput(
         source: .cvPixelBuffer(pixelBuffer),
         framework: .tfliteFloat,
         width: 640,
@@ -1299,7 +1301,7 @@ kCVPixelFormatType_16BE565
 let ciImage = CIImage(image: myUIImage)!
     .applyingFilter("CIColorControls", parameters: ["inputBrightness": 0.1])
 
-let input = try await PixelExtractor.getModelInput(
+let input = try PixelExtractor.getModelInput(
     source: .ciImage(ciImage),
     framework: .tfliteFloat,
     width: 224,

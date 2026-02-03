@@ -1,5 +1,10 @@
 # SwiftPixelUtils
 
+![Swift](https://img.shields.io/badge/Swift-5.9-orange)
+![Platforms](https://img.shields.io/badge/platforms-iOS%2015%2B%20%7C%20macOS%2012%2B-blue)
+![SPM](https://img.shields.io/badge/SPM-compatible-brightgreen)
+![License](https://img.shields.io/github/license/manishkumar03/SwiftPixelUtils)
+
 <p align="center">
   <strong>High-performance Swift library for image preprocessing optimized for ML/AI inference pipelines on iOS/macOS</strong>
 </p>
@@ -120,14 +125,16 @@ Or add it via Xcode:
 
 ## 🚀 Quick Start
 
+> **⚠️ Important:** SwiftPixelUtils functions are **synchronous** and use `throws` (not `async throws`). Remote URLs (http, https) are **not supported** - download images first and use `.data(Data)` instead.
+
 ### Raw Pixel Data Extraction
 
 ```swift
 import SwiftPixelUtils
 
-// Load and process image
-let result = try await PixelExtractor.getPixelData(
-    source: .url(URL(string: "https://example.com/image.jpg")!),
+// From local file
+let result = try PixelExtractor.getPixelData(
+    source: .file(URL(fileURLWithPath: "/path/to/image.jpg")),
     options: PixelDataOptions()
 )
 
@@ -135,6 +142,13 @@ print(result.data) // Float array of pixel values
 print(result.width) // Image width
 print(result.height) // Image height
 print(result.shape) // [height, width, channels]
+
+// From downloaded data (for remote images)
+let (data, _) = try await URLSession.shared.data(from: URL(string: "https://example.com/image.jpg")!)
+let result2 = try PixelExtractor.getPixelData(
+    source: .data(data),
+    options: PixelDataOptions()
+)
 ```
 
 ### Using Model Presets
@@ -143,14 +157,14 @@ print(result.shape) // [height, width, channels]
 import SwiftPixelUtils
 
 // Use pre-configured YOLO settings
-let result = try await PixelExtractor.getPixelData(
+let result = try PixelExtractor.getPixelData(
     source: .file(URL(fileURLWithPath: "/path/to/image.jpg")),
     options: ModelPresets.yolov8
 )
 // Automatically configured: 640x640, letterbox resize, RGB, scale normalization, NCHW layout
 
 // Or MobileNet
-let mobileNetResult = try await PixelExtractor.getPixelData(
+let mobileNetResult = try PixelExtractor.getPixelData(
     source: .file(URL(fileURLWithPath: "/path/to/image.jpg")),
     options: ModelPresets.mobilenet
 )
@@ -214,7 +228,7 @@ All presets with **NCHW layout** work directly with ExecuTorch models exported f
 
 ```swift
 // Preprocess for ExecuTorch quantized model
-let pixels = try await PixelExtractor.getPixelData(
+let pixels = try PixelExtractor.getPixelData(
     source: .file(imageURL),
     options: PixelDataOptions(
         resize: .fit(width: 224, height: 224),
@@ -244,7 +258,7 @@ SwiftPixelUtils provides comprehensive helpers for ONNX Runtime integration.
 
 ```swift
 // Create tensor data using model config
-let tensorInput = try await ONNXHelper.createTensorData(
+let tensorInput = try ONNXHelper.createTensorData(
     from: .uiImage(image),
     config: .yolov8  // Pre-configured for YOLOv8 ONNX model
 )
@@ -292,7 +306,7 @@ Instead of manually configuring color format, normalization, layout, and output 
 
 ```swift
 // TensorFlow Lite quantized model - one line!
-let input = try await PixelExtractor.getModelInput(
+let input = try PixelExtractor.getModelInput(
     source: .uiImage(image),
     framework: .tfliteQuantized,
     width: 224,
@@ -301,7 +315,7 @@ let input = try await PixelExtractor.getModelInput(
 // input.data is raw Data containing UInt8 values in NHWC layout
 
 // PyTorch model
-let input = try await PixelExtractor.getModelInput(
+let input = try PixelExtractor.getModelInput(
     source: .uiImage(image),
     framework: .pytorch,
     width: 224,
@@ -438,9 +452,9 @@ Here's a complete example using both simplified APIs for image classification:
 import SwiftPixelUtils
 import TensorFlowLite
 
-func classifyImage(_ image: UIImage) async throws -> [ClassificationPrediction] {
+func classifyImage(_ image: UIImage) throws -> [ClassificationPrediction] {
     // 1. Preprocess - one line
-    let input = try await PixelExtractor.getModelInput(
+    let input = try PixelExtractor.getModelInput(
         source: .uiImage(image),
         framework: .tfliteQuantized,
         width: 224,
@@ -476,12 +490,12 @@ Here's a complete example for YOLOv5 object detection with visualization:
 import SwiftPixelUtils
 import TensorFlowLite
 
-func detectObjects(_ image: UIImage) async throws -> UIImage? {
+func detectObjects(_ image: UIImage) throws -> UIImage? {
     let modelWidth = 320
     let modelHeight = 320
     
     // 1. Preprocess - use .stretch for YOLO (direct coordinate mapping)
-    let input = try await PixelExtractor.getModelInput(
+    let input = try PixelExtractor.getModelInput(
         source: .uiImage(image),
         framework: .tfliteFloat,
         width: modelWidth,
@@ -595,11 +609,11 @@ Here's a complete example for DeepLabV3 semantic segmentation:
 import SwiftPixelUtils
 import TensorFlowLite
 
-func segmentImage(_ image: UIImage) async throws -> UIImage? {
+func segmentImage(_ image: UIImage) throws -> UIImage? {
     let modelSize = 257
     
     // 1. Preprocess
-    let input = try await PixelExtractor.getModelInput(
+    let input = try PixelExtractor.getModelInput(
         source: .uiImage(image),
         framework: .tfliteFloat,
         width: modelSize,
@@ -645,7 +659,7 @@ func segmentImage(_ image: UIImage) async throws -> UIImage? {
 Extract pixel data from a single image.
 
 ```swift
-let result = try await PixelExtractor.getPixelData(
+let result = try PixelExtractor.getPixelData(
     source: .file(fileURL),
     options: PixelDataOptions(
         resize: ResizeOptions(width: 224, height: 224, strategy: .cover),
@@ -667,7 +681,7 @@ result.letterboxInfo  // LetterboxInfo? - transform metadata (when using .letter
 
 ```swift
 // Float16 output for Core ML / Metal efficiency
-let result = try await PixelExtractor.getPixelData(
+let result = try PixelExtractor.getPixelData(
     source: .uiImage(image),
     options: PixelDataOptions(
         resize: ResizeOptions(width: 224, height: 224, strategy: .cover),
@@ -682,7 +696,7 @@ let result = try await PixelExtractor.getPixelData(
 
 ```swift
 // Letterbox resize automatically captures transform info
-let result = try await PixelExtractor.getPixelData(
+let result = try PixelExtractor.getPixelData(
     source: .uiImage(image),
     options: PixelDataOptions(
         resize: ResizeOptions(width: 640, height: 640, strategy: .letterbox),
@@ -709,12 +723,26 @@ if let info = result.letterboxInfo {
 Process multiple images with concurrency control.
 
 ```swift
-let results = try await PixelExtractor.batchGetPixelData(
+// For local files
+let results = try PixelExtractor.batchGetPixelData(
     sources: [
-        .url(URL(string: "https://example.com/1.jpg")!),
-        .url(URL(string: "https://example.com/2.jpg")!),
-        .url(URL(string: "https://example.com/3.jpg")!)
+        .file(URL(fileURLWithPath: "/path/to/1.jpg")),
+        .file(URL(fileURLWithPath: "/path/to/2.jpg")),
+        .file(URL(fileURLWithPath: "/path/to/3.jpg"))
     ],
+    options: ModelPresets.mobilenet,
+    concurrency: 4
+)
+
+// For remote images, download first then process
+let urls = ["https://example.com/1.jpg", "https://example.com/2.jpg", "https://example.com/3.jpg"]
+var sources: [ImageSource] = []
+for url in urls {
+    let (data, _) = try await URLSession.shared.data(from: URL(string: url)!)
+    sources.append(.data(data))
+}
+let results2 = try PixelExtractor.batchGetPixelData(
+    sources: sources,
     options: ModelPresets.mobilenet,
     concurrency: 4
 )
@@ -727,7 +755,7 @@ let results = try await PixelExtractor.batchGetPixelData(
 Calculate image statistics for analysis and preprocessing decisions.
 
 ```swift
-let stats = try await ImageAnalyzer.getStatistics(source: .file(fileURL))
+let stats = try ImageAnalyzer.getStatistics(source: .file(fileURL))
 print(stats.mean) // [r, g, b] mean values (0-1)
 print(stats.std) // [r, g, b] standard deviations
 print(stats.min) // [r, g, b] minimum values
@@ -740,7 +768,7 @@ print(stats.histogram) // RGB histograms
 Get image metadata without loading full pixel data.
 
 ```swift
-let metadata = try await ImageAnalyzer.getMetadata(source: .file(fileURL))
+let metadata = try ImageAnalyzer.getMetadata(source: .file(fileURL))
 print(metadata.width)
 print(metadata.height)
 print(metadata.channels)
@@ -753,7 +781,7 @@ print(metadata.hasAlpha)
 Validate an image against specified criteria.
 
 ```swift
-let validation = try await ImageAnalyzer.validate(
+let validation = try ImageAnalyzer.validate(
     source: .file(fileURL),
     options: ValidationOptions(
         minWidth: 224,
@@ -774,7 +802,7 @@ print(validation.issues)    // Array of validation issues
 Detect if an image is blurry using Laplacian variance analysis.
 
 ```swift
-let result = try await ImageAnalyzer.detectBlur(
+let result = try ImageAnalyzer.detectBlur(
     source: .file(fileURL),
     threshold: 100,
     downsampleSize: 500
@@ -791,7 +819,7 @@ print(result.score) // Laplacian variance score
 Apply image augmentations for data augmentation pipelines.
 
 ```swift
-let augmented = try await ImageAugmentor.applyAugmentations(
+let augmented = try ImageAugmentor.applyAugmentations(
     to: .file(fileURL),
     options: AugmentationOptions(
         rotation: 15, // Degrees
@@ -810,7 +838,7 @@ let augmented = try await ImageAugmentor.applyAugmentations(
 Apply color jitter augmentation with granular control.
 
 ```swift
-let result = try await ImageAugmentor.colorJitter(
+let result = try ImageAugmentor.colorJitter(
     source: .file(fileURL),
     options: ColorJitterOptions(
         brightness: 0.2,     // Random in [-0.2, +0.2]
@@ -827,7 +855,7 @@ let result = try await ImageAugmentor.colorJitter(
 Apply cutout (random erasing) augmentation.
 
 ```swift
-let result = try await ImageAugmentor.cutout(
+let result = try ImageAugmentor.cutout(
     source: .file(fileURL),
     options: CutoutOptions(
         numCutouts: 1,
@@ -1067,7 +1095,7 @@ let options = LetterboxOptions(
     center: true
 )
 
-let result = try await Letterbox.apply(
+let result = try Letterbox.apply(
     to: .file(fileURL),
     options: options
 )
@@ -1158,11 +1186,12 @@ let topLabels = LabelDatabase.getTopLabels(
 
 ### Image Source Types
 
+> **Note:** Remote URLs (http, https, ftp) are **not supported**. Download images first and use `.data(Data)` instead.
+
 ```swift
 public enum ImageSource {
-    case url(URL)                    // URL-based image source
-    case file(URL)                   // Local file path
-    case data(Data)                  // Raw image data
+    case file(URL)                   // Local file path only
+    case data(Data)                  // Raw image data (use for downloaded images)
     case base64(String)              // Base64 encoded image
     case cgImage(CGImage)            // CGImage instance
     case uiImage(UIImage)            // UIImage (iOS)

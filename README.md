@@ -1,9 +1,11 @@
 # SwiftPixelUtils
 
-![Swift](https://img.shields.io/badge/Swift-5.9-orange)
-![Platforms](https://img.shields.io/badge/platforms-iOS%2015%2B%20%7C%20macOS%2012%2B-blue)
-![SPM](https://img.shields.io/badge/SPM-compatible-brightgreen)
-![License](https://img.shields.io/github/license/manishkumar03/SwiftPixelUtils)
+<p align="center">
+  <img src="https://img.shields.io/badge/Swift-5.9-orange" alt="Swift">
+  <img src="https://img.shields.io/badge/platforms-iOS%2015%2B%20%7C%20macOS%2012%2B-blue" alt="Platforms">
+  <img src="https://img.shields.io/badge/SPM-compatible-brightgreen" alt="SPM">
+  <img src="https://img.shields.io/github/license/manishkumar03/SwiftPixelUtils" alt="License">
+</p>
 
 <p align="center">
   <strong>High-performance Swift library for image preprocessing optimized for ML/AI inference pipelines on iOS/macOS</strong>

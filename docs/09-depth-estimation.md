@@ -6,13 +6,15 @@ Process depth estimation model outputs from MiDaS, DPT, ZoeDepth, Depth Anything
 
 1. [Overview](#overview)
 2. [Supported Models](#supported-models)
-3. [Model Downloading](#model-downloading)
-4. [Processing Depth Output](#processing-depth-output)
-5. [Visualization](#visualization)
-6. [Depth Queries](#depth-queries)
-7. [Colormaps](#colormaps)
-8. [Float16 Conversion Utilities](#float16-conversion-utilities)
-9. [Complete Example](#complete-example)
+3. [Decision Guide: Choosing a Depth Model](#decision-guide-choosing-a-depth-model)
+4. [Model Downloading](#model-downloading)
+5. [Processing Depth Output](#processing-depth-output)
+6. [Visualization](#visualization)
+7. [Depth Queries](#depth-queries)
+8. [Colormaps](#colormaps)
+9. [Float16 Conversion Utilities](#float16-conversion-utilities)
+10. [Scale Ambiguity and Metrics](#scale-ambiguity-and-metrics)
+11. [Complete Example](#complete-example)
 
 ## Overview
 
@@ -61,6 +63,14 @@ Monocular depth estimation predicts per-pixel depth from a single RGB image. Swi
 | ZoeD-N | NYU Depth v2 | Indoor |
 | ZoeD-K | KITTI | Outdoor/driving |
 | ZoeD-NK | Both | General |
+
+## Decision Guide: Choosing a Depth Model
+
+- **MiDaS/DPT**: best for relative depth and general scenes.
+- **Depth Anything**: strong zero‑shot generalization, good trade‑off.
+- **ZoeDepth**: metric depth when you need real‑world scale.
+
+If you only need **relative ordering**, choose the fastest model. If you need **metric distances**, use ZoeDepth or calibrate scale with known references.
 
 ## Model Downloading
 
@@ -411,6 +421,17 @@ The Float16 conversion handles IEEE 754 special values correctly:
 | +Infinity | 0x7C00 | +∞ |
 | -Infinity | 0xFC00 | -∞ |
 | NaN | 0x7E00 | NaN |
+
+## Scale Ambiguity and Metrics
+
+Monocular depth has **scale ambiguity**: multiple depth scales can explain the same image. Models like MiDaS output **relative inverse depth**, not metric units.
+
+**Common evaluation metrics:**
+- **AbsRel**: $\frac{1}{N}\sum |d_{pred}-d_{gt}|/d_{gt}$
+- **RMSE**: $\sqrt{\frac{1}{N}\sum (d_{pred}-d_{gt})^2}$
+- **$\delta$ accuracy**: percentage of pixels within a threshold (e.g., $\delta < 1.25$)
+
+**Practical tip:** If you need metric depth, use models explicitly trained with scale (e.g., ZoeDepth) or perform scale alignment with known reference distances.
 
 ## Complete Example
 

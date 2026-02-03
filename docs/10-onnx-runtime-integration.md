@@ -15,7 +15,9 @@ SwiftPixelUtils provides comprehensive support for ONNX Runtime integration, mak
 7. [Parsing Classification Output](#parsing-classification-output)
 8. [Parsing Segmentation Output](#parsing-segmentation-output)
 9. [Batch Inference](#batch-inference)
-10. [Complete Example](#complete-example)
+10. [Graph Optimization and Opsets](#graph-optimization-and-opsets)
+11. [Decision Guide: ONNX Deployment Choices](#decision-guide-onnx-deployment-choices)
+12. [Complete Example](#complete-example)
 
 ## Overview
 
@@ -292,6 +294,27 @@ print("Batch shape: \(batchTensor.shape)")  // [N, 3, 640, 640]
 
 // Run batch inference with ONNX Runtime...
 ```
+
+## Graph Optimization and Opsets
+
+ONNX models specify an **opset** version that defines operator semantics. Runtime compatibility depends on matching opset support.
+
+**Key points:**
+- Newer opsets may introduce behavior changes or new operators.
+- Exporting with a lower opset can improve compatibility but may limit performance.
+
+ONNX Runtime performs **graph optimizations** (constant folding, fusion, layout optimizations) to improve speed. These are usually safe, but if you see mismatches:
+
+- Disable specific optimizations in runtime settings
+- Validate outputs against a reference implementation
+
+## Decision Guide: ONNX Deployment Choices
+
+- **onnx (Float32)**: safest, highest accuracy.
+- **onnxFloat16**: better speed/memory with small accuracy trade‑off.
+- **onnxQuantizedUInt8/Int8**: best for mobile CPU and memory limits.
+
+If you are memory‑bound, prefer Float16 or INT8; if you are accuracy‑bound, use Float32 and optimize preprocessing.
 
 ## Complete Example
 

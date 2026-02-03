@@ -61,6 +61,7 @@ A comprehensive reference for object detection concepts, YOLO architecture, outp
   - [Pascal VOC (20 Classes)](#pascal-voc-20-classes)
   - [Open Images](#open-images)
   - [Custom Datasets](#custom-datasets)
+- [Decision Guide: NMS and Thresholds](#decision-guide-nms-and-thresholds)
 - [SwiftPixelUtils Detection API](#swiftpixelutils-detection-api)
   - [Basic Usage](#basic-usage)
   - [Configuration Options](#configuration-options)
@@ -70,6 +71,7 @@ A comprehensive reference for object detection concepts, YOLO architecture, outp
 - [Performance Optimization](#performance-optimization)
 - [Evaluation Metrics](#evaluation-metrics)
 - [Troubleshooting](#troubleshooting)
+- [Evaluation Metrics and IoU Variants](#evaluation-metrics-and-iou-variants)
 - [Mathematical Foundations](#mathematical-foundations)
 
 ---
@@ -1069,6 +1071,15 @@ let result = try DetectionOutput.process(
 
 ---
 
+## Decision Guide: NMS and Thresholds
+
+- **Confidence threshold**: raise to reduce false positives; lower to increase recall.
+- **IoU threshold**: lower for crowded scenes; higher for sparse scenes.
+- **Class‑agnostic NMS**: when classes are mutually exclusive.
+- **Class‑specific NMS**: when overlaps of different classes are valid (person + backpack).
+
+If detections are missing small objects, lower confidence and increase max detections; if results are noisy, increase confidence and reduce IoU.
+
 ## SwiftPixelUtils Detection API
 
 ### Basic Usage
@@ -1459,6 +1470,22 @@ Where $AP_c$ is Average Precision for class $c$.
 - Verify class-specific vs global NMS
 
 ---
+
+## Evaluation Metrics and IoU Variants
+
+**Intersection over Union (IoU)** measures overlap between predicted and ground‑truth boxes:
+$$
+	ext{IoU} = \frac{|B_p \cap B_g|}{|B_p \cup B_g|}
+$$
+
+**IoU variants** improve training stability or ranking:
+- **GIoU**: adds penalty for non‑overlap using enclosing box.
+- **DIoU**: adds center‑distance penalty.
+- **CIoU**: adds aspect‑ratio penalty.
+
+**mAP (mean Average Precision)** is the standard detection metric. It measures precision‑recall across IoU thresholds (e.g., COCO averages over 0.50–0.95).
+
+**Practical tip:** tighter IoU thresholds favor localization accuracy; lower thresholds favor recall.
 
 ## Mathematical Foundations
 

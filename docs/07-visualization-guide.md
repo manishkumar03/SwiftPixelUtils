@@ -35,6 +35,7 @@ A comprehensive reference for visualizing machine learning outputs including bou
   - [Detection Tracking](#detection-tracking)
   - [Temporal Consistency](#temporal-consistency)
   - [Smooth Transitions](#smooth-transitions)
+- [Decision Guide: Visualization Choices](#decision-guide-visualization-choices)
 - [SwiftPixelUtils Visualization API](#swiftpixelutils-visualization-api)
   - [Basic Drawing](#basic-drawing)
   - [Style Configuration](#style-configuration)
@@ -48,6 +49,7 @@ A comprehensive reference for visualizing machine learning outputs including bou
   - [Metal](#metal)
 - [Performance Optimization](#performance-optimization)
 - [Best Practices](#best-practices)
+- [Perceptual Colormaps and Alpha Blending](#perceptual-colormaps-and-alpha-blending)
 
 ---
 
@@ -1169,6 +1171,15 @@ class FadeTransitionRenderer {
 
 ---
 
+## Decision Guide: Visualization Choices
+
+- **Dense outputs (segmentation/heatmaps)**: use perceptual colormaps and low alpha.
+- **Sparse outputs (boxes/keypoints)**: use high‑contrast colors and thicker strokes.
+- **Real‑time**: minimal labels, simple shapes.
+- **Offline/debug**: detailed labels, confidence bars, overlays.
+
+If users misinterpret heatmaps, switch to monotonic luminance colormaps and add a legend.
+
 ## SwiftPixelUtils Visualization API
 
 ### Basic Drawing
@@ -1576,3 +1587,19 @@ let textColor = UITraitCollection.current.userInterfaceStyle == .dark
     ? UIColor.white 
     : UIColor.black
 ```
+
+---
+
+## Perceptual Colormaps and Alpha Blending
+
+**Perceptual colormaps** (e.g., Viridis, Plasma) maintain monotonic luminance, preventing false edges in heatmaps. Avoid rainbow maps when users must compare intensity accurately.
+
+**Alpha blending** combines overlay and base image:
+$$
+I_{out} = \alpha I_{overlay} + (1 - \alpha) I_{base}
+$$
+
+Practical guidance:
+- $\alpha \approx 0.2$–$0.4$ for segmentation overlays
+- $\alpha \approx 0.5$–$0.7$ for attention/heatmaps
+- Keep labels high‑contrast and test on dark/light backgrounds

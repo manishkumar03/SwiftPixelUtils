@@ -52,6 +52,7 @@ A comprehensive reference for semantic segmentation concepts, DeepLabV3 architec
   - [Standard Color Palettes](#standard-color-palettes)
   - [Creating Color Maps](#creating-color-maps)
   - [Overlay Techniques](#overlay-techniques)
+- [Decision Guide: Post-Processing](#decision-guide-post-processing)
 - [SwiftPixelUtils Segmentation API](#swiftpixelutils-segmentation-api)
   - [Basic Usage](#basic-usage)
   - [Configuration Options](#configuration-options)
@@ -65,6 +66,7 @@ A comprehensive reference for semantic segmentation concepts, DeepLabV3 architec
 - [Performance Optimization](#performance-optimization)
 - [Evaluation Metrics](#evaluation-metrics)
 - [Troubleshooting](#troubleshooting)
+- [Losses and Metrics](#losses-and-metrics)
 - [Mathematical Foundations](#mathematical-foundations)
 
 ---
@@ -1110,6 +1112,15 @@ func createOverlay(
 
 ---
 
+## Decision Guide: Post-Processing
+
+- **Argmax**: fast, single‑class per pixel.
+- **Softmax + threshold**: multi‑label or uncertain pixels.
+- **CRF refinement**: improve edges when masks are coarse.
+- **Upsampling**: use bilinear for speed, bicubic for smoother boundaries.
+
+If your output is blocky, increase output resolution or apply edge‑aware refinement; if it is noisy, apply small morphological smoothing.
+
 ## SwiftPixelUtils Segmentation API
 
 ### Basic Usage
@@ -1560,6 +1571,22 @@ $$fwIoU = \frac{1}{\sum_k n_k} \sum_k \frac{n_k \cdot IoU_k}{1}$$
 - Process on GPU (Metal)
 
 ---
+
+## Losses and Metrics
+
+Segmentation quality is judged **per‑pixel** and **per‑class**.
+
+**Common losses:**
+- **Cross‑Entropy**: standard per‑pixel classification loss.
+- **Dice Loss**: emphasizes overlap, useful for class imbalance.
+- **Focal Loss**: focuses on hard pixels.
+
+**Key metrics:**
+- **Pixel Accuracy**: fraction of correctly labeled pixels.
+- **mIoU** (mean Intersection over Union): average IoU across classes.
+- **Dice Coefficient**: $\frac{2|A\cap B|}{|A|+|B|}$, similar to F1.
+
+Class imbalance can make pixel accuracy misleading; prefer mIoU/Dice for robust evaluation.
 
 ## Mathematical Foundations
 

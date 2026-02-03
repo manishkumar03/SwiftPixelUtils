@@ -59,6 +59,7 @@ A comprehensive reference for data augmentation techniques, their theory, implem
   - [Random Application](#random-application)
   - [Sequential Pipelines](#sequential-pipelines)
   - [Composition Strategies](#composition-strategies)
+- [Decision Guide: Which Augmentations to Use](#decision-guide-which-augmentations-to-use)
 - [SwiftPixelUtils Augmentation API](#swiftpixelutils-augmentation-api)
   - [Basic Usage](#basic-usage)
   - [Available Augmentations](#available-augmentations)
@@ -68,6 +69,7 @@ A comprehensive reference for data augmentation techniques, their theory, implem
 - [Best Practices](#best-practices)
 - [Common Mistakes](#common-mistakes)
 - [Performance Considerations](#performance-considerations)
+- [Augmentation Theory Notes](#augmentation-theory-notes)
 - [Mathematical Foundations](#mathematical-foundations)
 
 ---
@@ -1092,6 +1094,15 @@ let someAugs = SomeOf([
 
 ---
 
+## Decision Guide: Which Augmentations to Use
+
+- **Classification**: flips, crops, color jitter, mild blur.
+- **Detection**: scale/translate, mosaic, cutout (preserve box labels).
+- **Segmentation**: elastic transforms, photometric jitter (preserve masks).
+- **Medical/industrial**: conservative changes; avoid heavy color shifts.
+
+If the model overfits, increase augmentation strength; if it underfits or loses small details, reduce geometric distortions.
+
 ## SwiftPixelUtils Augmentation API
 
 ### Basic Usage
@@ -1358,6 +1369,20 @@ let result = autoreleasepool {
 ```
 
 ---
+
+## Augmentation Theory Notes
+
+Augmentation improves **generalization** by teaching invariances (e.g., rotation, brightness) and reducing overfitting to spurious cues.
+
+**Bias‑variance intuition:**
+- Augmentation can reduce variance by expanding the effective dataset.
+- Too‑aggressive transforms can introduce bias if they distort the task‑relevant signal.
+
+**Distribution shift:**
+Apply transforms that reflect real‑world variations at inference time. If the deployment domain is fixed (e.g., medical imaging), use conservative augmentations.
+
+**Interpolation artifacts:**
+Repeated resampling can blur details; prefer composing transforms and resampling once.
 
 ## Mathematical Foundations
 

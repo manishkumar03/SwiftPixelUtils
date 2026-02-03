@@ -18,6 +18,7 @@ Comprehensive guides and references for machine learning on iOS and macOS.
 | [08 - Label Database](08-label-database.md) | Complete class label reference | ImageNet, COCO, VOC, Open Images, LVIS, Kinetics |
 | [09 - Depth Estimation](09-depth-estimation.md) | Monocular depth estimation | MiDaS, DPT, ZoeDepth, Depth Anything, colormaps, Float16 utilities |
 | [10 - ONNX Runtime](10-onnx-runtime-integration.md) | ONNX Runtime integration | Tensor creation, output parsing, YOLOv8, RT-DETR, batch inference |
+| [11 - Image Processing Theory](11-image-processing-theory.md) | Core image processing theory | Sampling, filtering, color, noise, frequency domain |
 
 ## 🚀 Quick Start
 
@@ -26,7 +27,7 @@ Comprehensive guides and references for machine learning on iOS and macOS.
 ```swift
 // Package.swift
 dependencies: [
-    .package(url: "https://github.com/anthropics/SwiftPixelUtils.git", from: "1.0.0")
+    .package(url: "https://github.com/manishkumar03/SwiftPixelUtils.git", from: "1.0.0")
 ]
 ```
 
@@ -38,25 +39,26 @@ dependencies: [
 import SwiftPixelUtils
 
 // Classification preprocessing
-let pixels = try PixelExtractor.extractNormalizedPixels(
-    from: image,
-    targetSize: CGSize(width: 224, height: 224),
-    normalization: .imagenet,
-    layout: .nchw
+let pixelData = try PixelExtractor.getPixelData(
+    source: .uiImage(image),
+    options: ModelPresets.mobilenet
 )
 
 // Detection postprocessing
-let detections = try DetectionDecoder.decode(
-    output: modelOutput,
+let detections = try DetectionOutput.process(
+    outputData: detectionOutputData,
+    format: .yolov8(numClasses: 80),
     confidenceThreshold: 0.5,
     iouThreshold: 0.45,
-    labels: .coco80
+    labels: .coco,
+    imageSize: image.size
 )
 
-// Segmentation postprocessing  
-let mask = try SegmentationDecoder.decode(
-    output: modelOutput,
-    labels: .pascalVOC
+// Segmentation postprocessing
+let mask = try SegmentationOutput.process(
+    outputData: segmentationOutputData,
+    format: .logits(height: 512, width: 512, numClasses: 21),
+    labels: .voc
 )
 ```
 
@@ -139,10 +141,11 @@ Guides: 01 (verification) → 07 (debugging section)
 
 ## 📱 Platform Support
 
-- iOS 13.0+
-- macOS 10.15+
-- visionOS 1.0+
-- Swift 5.7+
+- iOS 15.0+
+- macOS 12.0+
+- tvOS 15.0+
+- watchOS 8.0+
+- Swift 5.9+
 
 ## 📄 License
 

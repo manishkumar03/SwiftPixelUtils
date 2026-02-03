@@ -33,7 +33,7 @@ High-performance Swift library for image preprocessing optimized for ML/AI infer
 - ✂️ **ROI Pipeline**: Crop → resize → normalize in a single call via ROI options
 - 🔢 **ML-Ready Normalization**: ImageNet, TensorFlow, custom presets
 - 📊 **Multiple Data Layouts**: HWC, CHW, NHWC, NCHW (PyTorch/TensorFlow compatible)
-- 🖼️ **Multiple Sources**: URL, file, base64, assets, photo library
+- 🖼️ **Multiple Sources**: local file URLs, data, base64, assets, photo library
 - 📱 **Orientation Handling**: Opt-in UIImage/EXIF orientation normalization to fix silent rotation issues
 
 ### ML Framework Integration
@@ -108,7 +108,7 @@ open SwiftPixelUtilsExampleApp.xcworkspace
 
 To run UI tests, select the `SwiftPixelUtilsExampleAppUITests` target and press `⌘U`.
 
-## �📦 Installation
+## 📦 Installation
 
 ### Swift Package Manager
 
@@ -116,7 +116,7 @@ Add SwiftPixelUtils to your `Package.swift`:
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/yourusername/SwiftPixelUtils.git", from: "1.0.0")
+    .package(url: "https://github.com/manishkumar03/SwiftPixelUtils.git", from: "1.0.0")
 ]
 ```
 

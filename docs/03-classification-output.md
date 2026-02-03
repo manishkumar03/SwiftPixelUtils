@@ -50,6 +50,7 @@ A comprehensive reference for image classification concepts, neural network arch
   - [The Overconfidence Problem](#the-overconfidence-problem)
   - [Temperature Scaling for Calibration](#temperature-scaling-for-calibration)
   - [Expected Calibration Error](#expected-calibration-error)
+- [Decision Guide: Choosing Classification Outputs](#decision-guide-choosing-classification-outputs)
 - [SwiftPixelUtils Classification API](#swiftpixelutils-classification-api)
   - [Basic Usage](#basic-usage)
   - [Output Formats](#output-formats)
@@ -59,6 +60,7 @@ A comprehensive reference for image classification concepts, neural network arch
 - [Performance Optimization](#performance-optimization)
 - [Best Practices](#best-practices)
 - [Troubleshooting](#troubleshooting)
+- [Decision Theory and Calibration](#decision-theory-and-calibration)
 - [Mathematical Foundations](#mathematical-foundations)
 
 ---
@@ -952,6 +954,16 @@ Where $B_m$ are bins of predictions grouped by confidence.
 
 ---
 
+## Decision Guide: Choosing Classification Outputs
+
+- **Top‑1**: single‑label tasks with clear classes.
+- **Top‑K**: fine‑grained categories or recommendation UX.
+- **Softmax**: mutually exclusive classes.
+- **Sigmoid**: multi‑label problems (multiple classes can be true).
+- **Calibrated probabilities**: when you threshold decisions or compare across models.
+
+If user‑facing confidence matters, apply temperature scaling and validate with calibration metrics.
+
 ## SwiftPixelUtils Classification API
 
 ### Basic Usage
@@ -1295,6 +1307,22 @@ let calibrated = softmaxWithTemperature(logits, temperature: 2.0)
 ```
 
 ---
+
+## Decision Theory and Calibration
+
+Classification is a **decision problem**: pick the class that minimizes expected loss. With 0‑1 loss, the optimal choice is the **argmax posterior** (top‑1). With asymmetric costs, you may choose a different threshold or class.
+
+**Top‑1 vs Top‑5:**
+- **Top‑1**: highest probability label.
+- **Top‑5**: correct label appears in the top 5 predictions (useful for fine‑grained classes).
+
+**Calibration** aligns predicted probabilities with real‑world frequencies. Overconfident models appear highly certain but are often wrong.
+
+**Temperature scaling:**
+$$
+\hat{p}_i = \frac{e^{z_i/T}}{\sum_j e^{z_j/T}}
+$$
+where $T>1$ softens probabilities and improves calibration without changing the predicted class.
 
 ## Mathematical Foundations
 

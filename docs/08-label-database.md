@@ -36,7 +36,9 @@ A comprehensive reference of class labels for popular machine learning models in
   - [Loading Labels](#loading-labels)
   - [Label Mapping](#label-mapping)
   - [Custom Label Sets](#custom-label-sets)
+- [Decision Guide: Picking Label Sets](#decision-guide-picking-label-sets)
 - [SwiftPixelUtils Label API](#swiftpixelutils-label-api)
+- [Label Taxonomy and Ontologies](#label-taxonomy-and-ontologies)
 - [Cross-Dataset Mapping](#cross-dataset-mapping)
 
 ---
@@ -1465,6 +1467,16 @@ struct CustomLabelSet {
 
 ---
 
+## Decision Guide: Picking Label Sets
+
+- **ImageNet**: classification backbones and general objects.
+- **COCO**: detection/segmentation with common everyday objects.
+- **VOC**: smaller, classic 20‑class benchmark.
+- **ADE20K/Cityscapes**: scene parsing and urban segmentation.
+- **Kinetics**: action recognition and video tasks.
+
+Match your label set to the training dataset; mismatched labels are the most common cause of “correct class, wrong label” errors.
+
 ## SwiftPixelUtils Label API
 
 ```swift
@@ -1490,6 +1502,16 @@ let detections = detectionResult.withLabels(from: .coco80)
 ```
 
 ---
+
+## Label Taxonomy and Ontologies
+
+Large label sets are often organized into **hierarchies** (e.g., WordNet synsets). Understanding taxonomy helps with:
+
+- **Coarse‑to‑fine evaluation** (e.g., “dog” vs “golden retriever”)
+- **Label harmonization** across datasets
+- **Error analysis** at different semantic levels
+
+**Synsets** group synonyms into a single concept, reducing ambiguity. When mapping between datasets, prefer matching at the synset level rather than string labels.
 
 ## Cross-Dataset Mapping
 

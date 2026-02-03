@@ -27,6 +27,9 @@ A comprehensive reference for image preprocessing concepts, techniques, and impl
     - [HSV/HSL Color Spaces](#hsvhsl-color-spaces)
     - [YUV/YCbCr Color Spaces](#yuvycbcr-color-spaces)
     - [LAB Color Space](#lab-color-space)
+    - [Gamma and Transfer Functions](#gamma-and-transfer-functions)
+    - [Chroma Subsampling Theory](#chroma-subsampling-theory)
+    - [White Balance and Color Temperature](#white-balance-and-color-temperature)
     - [Color Space Conversion Mathematics](#color-space-conversion-mathematics)
       - [RGB to Grayscale](#rgb-to-grayscale)
       - [RGB to HSV](#rgb-to-hsv)
@@ -79,6 +82,7 @@ A comprehensive reference for image preprocessing concepts, techniques, and impl
     - [Checklist for Debugging Bad Results](#checklist-for-debugging-bad-results)
     - [Visual Debugging](#visual-debugging)
     - [Print Tensor Statistics](#print-tensor-statistics)
+    - [Decision Guide: Choosing Preprocessing](#decision-guide-choosing-preprocessing)
   - [SwiftPixelUtils API Reference](#swiftpixelutils-api-reference)
     - [PixelExtractor](#pixelextractor)
     - [ImageSource](#imagesource)
@@ -477,6 +481,70 @@ b* = Blue-Yellow axis (-128 to +127)
 - Color matching
 - Image similarity
 - Color correction
+
+### Gamma and Transfer Functions
+
+Most images you load (JPEG/PNG/HEIC) are stored in **sRGB**, which is *gamma‑encoded* (non‑linear). ML models usually assume **linear** light values when doing physics‑like operations (blurs, blends, convolutions), but are often trained on sRGB pixels as‑is. This mismatch is a common source of confusion.
+
+**Key idea:**
+- **sRGB values** are perceptual: more precision in darks, less in highlights.
+- **Linear values** are proportional to light intensity.
+
+**sRGB → Linear (approx):**
+$$
+L = \begin{cases}
+\frac{C}{12.92}, & C \le 0.04045 \\
+\left(\frac{C + 0.055}{1.055}\right)^{2.4}, & C > 0.04045
+\end{cases}
+$$
+Where $C$ and $L$ are in $[0,1]$.
+
+**Linear → sRGB (approx):**
+$$
+C = \begin{cases}
+12.92L, & L \le 0.0031308 \\
+1.055L^{1/2.4} - 0.055, & L > 0.0031308
+\end{cases}
+$$
+
+**Practical guidance:**
+- If your model was trained on standard image datasets (ImageNet/COCO), keep sRGB values and just normalize.
+- If you perform physical blending or light‑linear operations, convert to linear first, then convert back.
+
+### Chroma Subsampling Theory
+
+Many camera/video formats use **4:2:0** or **4:2:2** chroma subsampling: the luma channel (Y) is full resolution, while chroma (U/V or Cb/Cr) is lower resolution. This is based on human vision being more sensitive to brightness than color.
+
+```
+4:4:4  →  Y full, U full, V full  (no subsampling)
+4:2:2  →  Y full, U/V half horizontal
+4:2:0  →  Y full, U/V half horizontal and half vertical
+```
+
+**Implication for ML:**
+- Converting YUV → RGB requires **upsampling** chroma.
+- Naive nearest‑neighbor upsampling can cause color bleeding or blockiness.
+- For highest quality, use bilinear chroma upsampling before conversion.
+
+### White Balance and Color Temperature
+
+**White balance** corrects color casts caused by different lighting (tungsten, daylight, fluorescent). Cameras often apply automatic white balance (AWB) before you get pixels, but raw or sensor‑near formats may not.
+
+**Color temperature** is measured in Kelvin (K):
+- ~2700K: warm (incandescent/tungsten)
+- ~6500K: neutral daylight
+- ~9000K: cool/blue shade
+
+**Why it matters:**
+- Models trained on daylight images can misclassify under warm indoor lighting.
+- If you control image capture, standardize white balance or normalize with gray‑world/white‑patch methods.
+
+**Simple gray‑world assumption:**
+Scale channels so their averages match:
+$$
+R' = R \cdot \frac{\mu}{\mu_R}, \quad G' = G \cdot \frac{\mu}{\mu_G}, \quad B' = B \cdot \frac{\mu}{\mu_B}
+$$
+where $\mu$ is the mean of all channels combined.
 
 ### Color Space Conversion Mathematics
 
@@ -1412,6 +1480,28 @@ func printTensorStats(_ data: [Float], name: String) {
 ```
 
 ---
+
+## Decision Guide: Choosing Preprocessing
+
+Use this quick guide to pick the right preprocessing strategy for your model and data.
+
+- **Resizing**
+    - **Letterbox**: detection models (YOLO/RT‑DETR) to preserve aspect ratio.
+    - **Cover**: classification where center content matters.
+    - **Contain**: safety‑first when you cannot crop content.
+    - **Stretch**: only if the model was trained with stretched inputs.
+- **Color Format**
+    - **RGB**: most modern models.
+    - **BGR**: OpenCV‑trained pipelines.
+    - **Grayscale**: text/edge tasks or efficiency.
+    - **YUV**: camera/video sources when staying in YUV avoids extra conversions.
+- **Normalization**
+    - **ImageNet**: standard vision backbones.
+    - **Scale [0,1]**: many TFLite/mobile models.
+    - **Custom mean/std**: if training used dataset‑specific stats.
+- **Layout**
+    - **NCHW**: PyTorch/ONNX.
+    - **NHWC**: TensorFlow/TFLite.
 
 ## SwiftPixelUtils API Reference
 

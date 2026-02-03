@@ -214,7 +214,7 @@ public enum CameraFrameUtilities {
         
         switch source.pixelFormat {
         case .yuv420, .nv12, .nv21:
-            // Need separate plane handling
+            // YUV formats use separate planes (planar or semi‑planar). We decode to interleaved RGB for downstream ML.
             rgbData = try convertYUVFrameToRGB(
                 data: frameData,
                 width: source.width,
@@ -223,6 +223,7 @@ public enum CameraFrameUtilities {
             )
             
         case .bgra:
+            // BGRA is common on iOS camera frames; swap channel order to standard RGB.
             rgbData = convertBGRAToRGB(
                 data: [UInt8](frameData),
                 width: source.width,
@@ -230,6 +231,7 @@ public enum CameraFrameUtilities {
             )
             
         case .rgba:
+            // RGBA is already in RGB order; drop alpha to get 3‑channel RGB.
             rgbData = convertRGBAToRGB(
                 data: [UInt8](frameData),
                 width: source.width,
@@ -359,11 +361,12 @@ public enum CameraFrameUtilities {
     ) throws -> [UInt8] {
         let bytes = [UInt8](data)
         let ySize = width * height
+        // 4:2:0 chroma subsampling stores U/V at half resolution in both axes.
         let uvSize = (width / 2) * (height / 2)
         
         switch format {
         case .yuv420:
-            // Planar: Y plane, then U plane, then V plane
+            // Planar 4:2:0: Y plane (full res), then U plane, then V plane.
             let uOffset = ySize
             let vOffset = ySize + uvSize
             
@@ -380,7 +383,7 @@ public enum CameraFrameUtilities {
             return convertYUV420ToRGB(yPlane: yPlane, uPlane: uPlane, vPlane: vPlane, width: width, height: height)
             
         case .nv12, .nv21:
-            // Semi-planar: Y plane, then interleaved UV or VU
+            // Semi‑planar 4:2:0: Y plane (full res), then interleaved UV or VU.
             let uvOffset = ySize
             
             guard bytes.count >= ySize + uvSize else {
@@ -415,11 +418,12 @@ public enum CameraFrameUtilities {
                 let yIdx = y * width + x
                 let uvIdx = (y / 2) * (width / 2) + (x / 2)
                 
+                // Y is luma (0–255). U/V are chroma centered at 128, so subtract 128 to re‑center.
                 let yValue = Float(yPlane[yIdx])
                 let uValue = Float(uPlane[uvIdx]) - 128
                 let vValue = Float(vPlane[uvIdx]) - 128
-                
-                // YUV to RGB conversion (BT.601)
+
+                // YUV → RGB (BT.601 full‑range) matrix.
                 let r = yValue + 1.402 * vValue
                 let g = yValue - 0.344136 * uValue - 0.714136 * vValue
                 let b = yValue + 1.772 * uValue
@@ -448,6 +452,7 @@ public enum CameraFrameUtilities {
                 let yIdx = y * width + x
                 let uvIdx = (y / 2) * width + (x / 2) * 2
                 
+                // Y plane is full resolution; UV plane is interleaved at half resolution.
                 let yValue = Float(yPlane[yIdx])
                 let uValue: Float
                 let vValue: Float
@@ -462,7 +467,7 @@ public enum CameraFrameUtilities {
                     uValue = Float(uvPlane[uvIdx + 1]) - 128
                 }
                 
-                // YUV to RGB conversion (BT.601)
+                // YUV → RGB (BT.601 full‑range) matrix.
                 let r = yValue + 1.402 * vValue
                 let g = yValue - 0.344136 * uValue - 0.714136 * vValue
                 let b = yValue + 1.772 * uValue
@@ -487,10 +492,11 @@ public enum CameraFrameUtilities {
         for i in 0..<(width * height) {
             let bgraIdx = i * 4
             let rgbIdx = i * 3
-            
-            rgb[rgbIdx] = data[bgraIdx + 2]     // R from B position
-            rgb[rgbIdx + 1] = data[bgraIdx + 1] // G
-            rgb[rgbIdx + 2] = data[bgraIdx]     // B from R position
+
+            // BGRA memory order: B, G, R, A → RGB drops alpha and swaps B/R.
+            rgb[rgbIdx] = data[bgraIdx + 2]
+            rgb[rgbIdx + 1] = data[bgraIdx + 1]
+            rgb[rgbIdx + 2] = data[bgraIdx]
         }
         
         return rgb
@@ -506,7 +512,8 @@ public enum CameraFrameUtilities {
         for i in 0..<(width * height) {
             let rgbaIdx = i * 4
             let rgbIdx = i * 3
-            
+
+            // RGBA memory order: R, G, B, A → RGB drops alpha, channels stay in order.
             rgb[rgbIdx] = data[rgbaIdx]
             rgb[rgbIdx + 1] = data[rgbaIdx + 1]
             rgb[rgbIdx + 2] = data[rgbaIdx + 2]
@@ -520,7 +527,7 @@ public enum CameraFrameUtilities {
         width: Int,
         height: Int
     ) throws -> CGImage {
-        // Convert RGB to RGBA for CGImage
+        // CGImage expects 4‑channel data; expand RGB → RGBA with opaque alpha.
         var rgbaData = [UInt8](repeating: 255, count: width * height * 4)
         for i in 0..<(width * height) {
             let rgbIdx = i * 3

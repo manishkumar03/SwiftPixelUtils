@@ -50,6 +50,7 @@ A comprehensive reference for model quantization theory, implementation, and usa
   - [When Quantization Works Well](#when-quantization-works-well)
   - [When to Be Careful](#when-to-be-careful)
   - [Measuring Quantization Impact](#measuring-quantization-impact)
+- [Decision Guide: Which Quantization to Use](#decision-guide-which-quantization-to-use)
 - [SwiftPixelUtils Quantization API](#swiftpixelutils-quantization-api)
   - [Quantizer Class](#quantizer-class)
   - [Per-Channel Quantization](#per-channel-quantization)
@@ -73,6 +74,7 @@ A comprehensive reference for model quantization theory, implementation, and usa
   - [Custom Quantization Configuration](#custom-quantization-configuration)
 - [Practical Examples](#practical-examples)
 - [Troubleshooting](#troubleshooting)
+- [Quantization Noise and Error](#quantization-noise-and-error)
 - [Mathematical Foundations](#mathematical-foundations)
 
 ---
@@ -1033,6 +1035,16 @@ func measureQuantizationImpact(
 
 ---
 
+## Decision Guide: Which Quantization to Use
+
+- **INT8 per‑channel**: best accuracy for CNN weights; default for mobile inference.
+- **INT8 per‑tensor**: simpler, faster calibration; OK for activations or small models.
+- **UINT8**: common for TFLite inputs/outputs with [0,255] images.
+- **FP16**: when you need higher accuracy but smaller memory than FP32.
+- **INT4**: large models (LLMs) where memory is the limiting factor; expect some accuracy loss.
+
+Rule of thumb: if latency or memory is the bottleneck, try INT8 first; if accuracy drops too much, move to FP16.
+
 ## SwiftPixelUtils Quantization API
 
 ### Quantizer Class
@@ -1590,6 +1602,26 @@ func compareActivations(floatModel: Model, quantModel: Model, input: Data) {
 ```
 
 ---
+
+## Quantization Noise and Error
+
+Quantization replaces a continuous value with the nearest discrete level. The difference is **quantization noise**, which behaves like additive noise when the input spans many bins.
+
+**Uniform quantization error model:**
+$$
+\varepsilon \sim \mathcal{U}\left(-\frac{\Delta}{2}, \frac{\Delta}{2}\right)
+$$
+Variance is $\Delta^2/12$. For INT8, $\Delta$ depends on the chosen scale and calibration range.
+
+**Signal‑to‑Quantization‑Noise Ratio (SQNR):**
+$$
+	ext{SQNR} = 10\log_{10}\left(\frac{\sigma_x^2}{\Delta^2/12}\right)
+$$
+Higher SQNR means smaller accuracy drop.
+
+**Calibration matters:**
+- **Min/Max** calibration is simple but sensitive to outliers.
+- **Percentile** or **KL‑divergence** calibration reduces the influence of rare extremes.
 
 ## Mathematical Foundations
 

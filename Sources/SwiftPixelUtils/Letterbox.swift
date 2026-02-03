@@ -146,7 +146,7 @@ public enum Letterbox {
     public static func apply(
         to source: ImageSource,
         options: LetterboxOptions
-    ) async throws -> LetterboxExtendedResult {
+    ) throws -> LetterboxExtendedResult {
         try applySync(to: source, options: options)
     }
     
@@ -356,7 +356,7 @@ public enum Letterbox {
         from source: ImageSource,
         letterboxOptions: LetterboxOptions,
         pixelOptions: PixelDataOptions = PixelDataOptions()
-    ) async throws -> (pixels: PixelDataResult, letterbox: LetterboxExtendedResult) {
+    ) throws -> (pixels: PixelDataResult, letterbox: LetterboxExtendedResult) {
         // First apply letterbox
         let letterboxed = try applySync(to: source, options: letterboxOptions)
         
@@ -364,7 +364,7 @@ public enum Letterbox {
         var adjustedOptions = pixelOptions
         adjustedOptions.resize = nil // Already resized by letterbox
         
-        let pixels = try await PixelExtractor.getPixelData(
+        let pixels = try PixelExtractor.getPixelData(
             source: .cgImage(letterboxed.cgImage),
             options: adjustedOptions
         )
@@ -398,7 +398,13 @@ public enum Letterbox {
             }
             return image
             
-        case .url(let url), .file(let url):
+        case .file(let url):
+            // Check if this is a remote URL
+            if URLUtilities.isRemoteURL(url) {
+                throw PixelUtilsError.loadFailed(
+                    URLUtilities.remoteURLErrorMessage(example: "let result = try Letterbox.apply(to: .data(data), options: options)")
+                )
+            }
             guard let data = try? Data(contentsOf: url) else {
                 throw PixelUtilsError.loadFailed("Cannot load file at \(url)")
             }

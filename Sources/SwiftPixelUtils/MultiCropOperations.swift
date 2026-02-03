@@ -249,7 +249,7 @@ public enum MultiCropOperations {
     public static func fiveCrop(
         from source: ImageSource,
         options: CropOptions
-    ) async throws -> MultiCropResult {
+    ) throws -> MultiCropResult {
         let startTime = CFAbsoluteTimeGetCurrent()
         
         // Load source image
@@ -283,7 +283,7 @@ public enum MultiCropOperations {
         
         for (x, y) in positions {
             let cropped = try cropImage(cgImage, x: x, y: y, width: options.width, height: options.height)
-            let result = try await PixelExtractor.getPixelData(source: .cgImage(cropped), options: pixelOptions)
+            let result = try PixelExtractor.getPixelData(source: .cgImage(cropped), options: pixelOptions)
             results.append(result)
             cropPositions.append(CropPosition(
                 x: x, y: y,
@@ -313,7 +313,7 @@ public enum MultiCropOperations {
     public static func tenCrop(
         from source: ImageSource,
         options: CropOptions
-    ) async throws -> MultiCropResult {
+    ) throws -> MultiCropResult {
         let startTime = CFAbsoluteTimeGetCurrent()
         
         // Load source image
@@ -348,7 +348,7 @@ public enum MultiCropOperations {
         // Original crops
         for (x, y) in positions {
             let cropped = try cropImage(cgImage, x: x, y: y, width: options.width, height: options.height)
-            let result = try await PixelExtractor.getPixelData(source: .cgImage(cropped), options: pixelOptions)
+            let result = try PixelExtractor.getPixelData(source: .cgImage(cropped), options: pixelOptions)
             results.append(result)
             cropPositions.append(CropPosition(
                 x: x, y: y,
@@ -361,7 +361,7 @@ public enum MultiCropOperations {
         for (x, y) in positions {
             let cropped = try cropImage(cgImage, x: x, y: y, width: options.width, height: options.height)
             let flipped = try flipImageHorizontally(cropped)
-            let result = try await PixelExtractor.getPixelData(source: .cgImage(flipped), options: pixelOptions)
+            let result = try PixelExtractor.getPixelData(source: .cgImage(flipped), options: pixelOptions)
             results.append(result)
             cropPositions.append(CropPosition(
                 x: x, y: y,
@@ -391,7 +391,7 @@ public enum MultiCropOperations {
     public static func extractGrid(
         from source: ImageSource,
         options: GridOptions
-    ) async throws -> GridExtractionResult {
+    ) throws -> GridExtractionResult {
         let startTime = CFAbsoluteTimeGetCurrent()
         
         // Load source image
@@ -424,7 +424,7 @@ public enum MultiCropOperations {
                 let actualHeight = min(patchHeight, imageHeight - y)
                 
                 let cropped = try cropImage(cgImage, x: x, y: y, width: actualWidth, height: actualHeight)
-                let result = try await PixelExtractor.getPixelData(source: .cgImage(cropped), options: pixelOptions)
+                let result = try PixelExtractor.getPixelData(source: .cgImage(cropped), options: pixelOptions)
                 
                 patches.append(GridPatch(
                     pixelData: result,
@@ -457,7 +457,7 @@ public enum MultiCropOperations {
     public static func randomCrop(
         from source: ImageSource,
         options: RandomCropOptions
-    ) async throws -> RandomCropResult {
+    ) throws -> RandomCropResult {
         let startTime = CFAbsoluteTimeGetCurrent()
         
         // Load source image
@@ -495,7 +495,7 @@ public enum MultiCropOperations {
             let y = Int.random(in: 0...maxY, using: &generator)
             
             let cropped = try cropImage(cgImage, x: x, y: y, width: options.width, height: options.height)
-            let result = try await PixelExtractor.getPixelData(source: .cgImage(cropped), options: pixelOptions)
+            let result = try PixelExtractor.getPixelData(source: .cgImage(cropped), options: pixelOptions)
             
             crops.append(RandomCrop(
                 pixelData: result,
@@ -538,7 +538,13 @@ public enum MultiCropOperations {
             }
             return image
             
-        case .url(let url), .file(let url):
+        case .file(let url):
+            // Check if this is a remote URL
+            if URLUtilities.isRemoteURL(url) {
+                throw PixelUtilsError.loadFailed(
+                    URLUtilities.remoteURLErrorMessage(example: "let result = try MultiCropOperations.fiveCrop(from: .data(data), options: options)")
+                )
+            }
             guard let data = try? Data(contentsOf: url) else {
                 throw PixelUtilsError.loadFailed("Cannot load file at \(url)")
             }

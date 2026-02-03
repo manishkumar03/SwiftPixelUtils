@@ -119,11 +119,11 @@ public enum ImageAugmentor {
     public static func applyAugmentations(
         to source: ImageSource,
         options: AugmentationOptions
-    ) async throws -> PlatformImage {
+    ) throws -> PlatformImage {
         let startTime = CFAbsoluteTimeGetCurrent()
         
         // Load the source image
-        var ciImage = try await loadCIImage(from: source)
+        var ciImage = try loadCIImage(from: source)
         
         // Apply rotation
         if let rotation = options.rotation, rotation != 0 {
@@ -196,7 +196,7 @@ public enum ImageAugmentor {
     public static func colorJitter(
         source: ImageSource,
         options: ColorJitterOptions
-    ) async throws -> ColorJitterResult {
+    ) throws -> ColorJitterResult {
         let startTime = CFAbsoluteTimeGetCurrent()
         
         // Initialize random number generator
@@ -210,7 +210,7 @@ public enum ImageAugmentor {
         let appliedHue = sampleUniform(range: options.hue, using: &rng)
         
         // Load and process image
-        var ciImage = try await loadCIImage(from: source)
+        var ciImage = try loadCIImage(from: source)
         
         // Apply adjustments in order: brightness, contrast, saturation, hue
         if appliedBrightness != 0 {
@@ -279,7 +279,7 @@ public enum ImageAugmentor {
     public static func cutout(
         source: ImageSource,
         options: CutoutOptions
-    ) async throws -> PlatformImage {
+    ) throws -> PlatformImage {
         let startTime = CFAbsoluteTimeGetCurrent()
         
         // Check probability
@@ -288,11 +288,11 @@ public enum ImageAugmentor {
         
         if Float.random(in: 0...1, using: &rng) > options.probability {
             // Don't apply cutout, return original
-            return try await loadPlatformImage(from: source)
+            return try loadPlatformImage(from: source)
         }
         
         // Load image as CGImage for pixel manipulation
-        let cgImage = try await loadCGImage(from: source)
+        let cgImage = try loadCGImage(from: source)
         let width = cgImage.width
         let height = cgImage.height
         let imageArea = Float(width * height)
@@ -392,8 +392,8 @@ public enum ImageAugmentor {
     public static func rotate(
         source: ImageSource,
         degrees: Float
-    ) async throws -> PlatformImage {
-        var ciImage = try await loadCIImage(from: source)
+    ) throws -> PlatformImage {
+        var ciImage = try loadCIImage(from: source)
         ciImage = applyRotation(to: ciImage, degrees: degrees)
         return try renderToPlatformImage(ciImage)
     }
@@ -405,8 +405,8 @@ public enum ImageAugmentor {
     /// - Parameter source: Image source to flip
     /// - Returns: Horizontally flipped platform image
     /// - Throws: ``PixelUtilsError`` if flip fails
-    public static func flipHorizontal(source: ImageSource) async throws -> PlatformImage {
-        var ciImage = try await loadCIImage(from: source)
+    public static func flipHorizontal(source: ImageSource) throws -> PlatformImage {
+        var ciImage = try loadCIImage(from: source)
         ciImage = applyHorizontalFlip(to: ciImage)
         return try renderToPlatformImage(ciImage)
     }
@@ -418,8 +418,8 @@ public enum ImageAugmentor {
     /// - Parameter source: Image source to flip
     /// - Returns: Vertically flipped platform image
     /// - Throws: ``PixelUtilsError`` if flip fails
-    public static func flipVertical(source: ImageSource) async throws -> PlatformImage {
-        var ciImage = try await loadCIImage(from: source)
+    public static func flipVertical(source: ImageSource) throws -> PlatformImage {
+        var ciImage = try loadCIImage(from: source)
         ciImage = applyVerticalFlip(to: ciImage)
         return try renderToPlatformImage(ciImage)
     }
@@ -434,8 +434,8 @@ public enum ImageAugmentor {
     public static func adjustBrightness(
         source: ImageSource,
         value: Float
-    ) async throws -> PlatformImage {
-        var ciImage = try await loadCIImage(from: source)
+    ) throws -> PlatformImage {
+        var ciImage = try loadCIImage(from: source)
         ciImage = applyBrightness(to: ciImage, value: value)
         return try renderToPlatformImage(ciImage)
     }
@@ -450,8 +450,8 @@ public enum ImageAugmentor {
     public static func adjustContrast(
         source: ImageSource,
         value: Float
-    ) async throws -> PlatformImage {
-        var ciImage = try await loadCIImage(from: source)
+    ) throws -> PlatformImage {
+        var ciImage = try loadCIImage(from: source)
         ciImage = applyContrast(to: ciImage, value: value)
         return try renderToPlatformImage(ciImage)
     }
@@ -466,8 +466,8 @@ public enum ImageAugmentor {
     public static func adjustSaturation(
         source: ImageSource,
         value: Float
-    ) async throws -> PlatformImage {
-        var ciImage = try await loadCIImage(from: source)
+    ) throws -> PlatformImage {
+        var ciImage = try loadCIImage(from: source)
         ciImage = applySaturation(to: ciImage, value: value)
         return try renderToPlatformImage(ciImage)
     }
@@ -482,15 +482,15 @@ public enum ImageAugmentor {
     public static func blur(
         source: ImageSource,
         radius: Float
-    ) async throws -> PlatformImage {
-        var ciImage = try await loadCIImage(from: source)
+    ) throws -> PlatformImage {
+        var ciImage = try loadCIImage(from: source)
         ciImage = applyBlur(to: ciImage, options: BlurOptions(type: .gaussian, radius: radius))
         return try renderToPlatformImage(ciImage)
     }
     
     // MARK: - Private Helpers - Image Loading
     
-    private static func loadCIImage(from source: ImageSource) async throws -> CIImage {
+    private static func loadCIImage(from source: ImageSource) throws -> CIImage {
         switch source {
         case .cgImage(let cgImage):
             return CIImage(cgImage: cgImage)
@@ -501,9 +501,15 @@ public enum ImageAugmentor {
             }
             return ciImage
             
-        case .url(let url), .file(let url):
+        case .file(let url):
+            // Check if URL is remote and throw a friendly error
+            if URLUtilities.isRemoteURL(url) {
+                throw PixelUtilsError.invalidSource(
+                    URLUtilities.remoteURLErrorMessage(example: "let result = try ImageAugmentor.rotate(source: .data(data), degrees: 45)")
+                )
+            }
             guard let ciImage = CIImage(contentsOf: url) else {
-                throw PixelUtilsError.loadFailed("Failed to load image from URL: \(url)")
+                throw PixelUtilsError.loadFailed("Failed to load image from file: \(url)")
             }
             return ciImage
             
@@ -532,7 +538,7 @@ public enum ImageAugmentor {
         }
     }
     
-    private static func loadCGImage(from source: ImageSource) async throws -> CGImage {
+    private static func loadCGImage(from source: ImageSource) throws -> CGImage {
         switch source {
         case .cgImage(let cgImage):
             return cgImage
@@ -551,7 +557,7 @@ public enum ImageAugmentor {
                     intent: .defaultIntent
                   ) else {
                 // Fallback: try via CIImage
-                let ciImage = try await loadCIImage(from: source)
+                let ciImage = try loadCIImage(from: source)
                 guard let cgImage = ciContext.createCGImage(ciImage, from: ciImage.extent) else {
                     throw PixelUtilsError.loadFailed("Failed to create CGImage from data")
                 }
@@ -559,7 +565,13 @@ public enum ImageAugmentor {
             }
             return cgImage
             
-        case .url(let url), .file(let url):
+        case .file(let url):
+            // Check if URL is remote and throw a friendly error
+            if URLUtilities.isRemoteURL(url) {
+                throw PixelUtilsError.invalidSource(
+                    URLUtilities.remoteURLErrorMessage(example: "let result = try ImageAugmentor.rotate(source: .data(data), degrees: 45)")
+                )
+            }
             guard let provider = CGDataProvider(url: url as CFURL),
                   let cgImage = CGImage(
                     pngDataProviderSource: provider,
@@ -572,9 +584,9 @@ public enum ImageAugmentor {
                     shouldInterpolate: true,
                     intent: .defaultIntent
                   ) else {
-                let ciImage = try await loadCIImage(from: source)
+                let ciImage = try loadCIImage(from: source)
                 guard let cgImage = ciContext.createCGImage(ciImage, from: ciImage.extent) else {
-                    throw PixelUtilsError.loadFailed("Failed to load image from URL")
+                    throw PixelUtilsError.loadFailed("Failed to load image from file")
                 }
                 return cgImage
             }
@@ -584,7 +596,7 @@ public enum ImageAugmentor {
             guard let data = Data(base64Encoded: base64String) else {
                 throw PixelUtilsError.loadFailed("Invalid base64 string")
             }
-            return try await loadCGImage(from: .data(data))
+            return try loadCGImage(from: .data(data))
             
         #if canImport(UIKit)
         case .uiImage(let uiImage):
@@ -604,8 +616,8 @@ public enum ImageAugmentor {
         }
     }
     
-    private static func loadPlatformImage(from source: ImageSource) async throws -> PlatformImage {
-        let cgImage = try await loadCGImage(from: source)
+    private static func loadPlatformImage(from source: ImageSource) throws -> PlatformImage {
+        let cgImage = try loadCGImage(from: source)
         #if canImport(UIKit)
         return UIImage(cgImage: cgImage)
         #else

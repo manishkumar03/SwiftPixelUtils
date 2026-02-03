@@ -59,7 +59,7 @@ public enum ONNXHelper {
     public static func createTensorData(
         from source: ImageSource,
         config: ONNXModelConfig
-    ) async throws -> ONNXTensorInput {
+    ) throws -> ONNXTensorInput {
         // Determine size from config shape (assumes NCHW: [batch, channels, height, width])
         guard config.inputShape.count >= 4 else {
             throw PixelUtilsError.invalidOptions("ONNX config shape must have at least 4 dimensions")
@@ -69,7 +69,7 @@ public enum ONNXHelper {
         let width = config.inputShape[3]
         
         // Get model input using the framework preset
-        let result = try await PixelExtractor.getModelInput(
+        let result = try PixelExtractor.getModelInput(
             source: source,
             framework: config.framework,
             width: width,
@@ -102,8 +102,8 @@ public enum ONNXHelper {
         height: Int,
         framework: MLFramework = .onnx,
         dataType: ONNXDataType = .float32
-    ) async throws -> ONNXTensorInput {
-        let result = try await PixelExtractor.getModelInput(
+    ) throws -> ONNXTensorInput {
+        let result = try PixelExtractor.getModelInput(
             source: source,
             framework: framework,
             width: width,
@@ -127,7 +127,7 @@ public enum ONNXHelper {
     public static func createBatchTensorData(
         from sources: [ImageSource],
         config: ONNXModelConfig
-    ) async throws -> ONNXTensorInput {
+    ) throws -> ONNXTensorInput {
         guard !sources.isEmpty else {
             throw PixelUtilsError.emptyBatch("Cannot create batch tensor from empty source array")
         }
@@ -142,7 +142,7 @@ public enum ONNXHelper {
         // Process all images
         var allData = Data()
         for source in sources {
-            let result = try await PixelExtractor.getModelInput(
+            let result = try PixelExtractor.getModelInput(
                 source: source,
                 framework: config.framework,
                 width: width,

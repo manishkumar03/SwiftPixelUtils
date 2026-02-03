@@ -375,7 +375,7 @@ public enum VideoFrameExtractor {
             normalization: normalization,
             dataLayout: dataLayout
         )
-        return try await PixelExtractor.getPixelData(
+        return try PixelExtractor.getPixelData(
             source: .cgImage(cgImage),
             options: pixelOptions
         )

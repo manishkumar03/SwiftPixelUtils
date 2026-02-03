@@ -97,7 +97,7 @@ public enum PixelExtractor {
     ///
     /// ## Processing Pipeline
     ///
-    /// 1. Load image from source (async for URLs)
+    /// 1. Load image from source
     /// 2. Apply ROI cropping if specified
     /// 3. Resize using the specified strategy
     /// 4. Extract RGBA pixels via CoreGraphics bitmap context
@@ -106,18 +106,18 @@ public enum PixelExtractor {
     /// 7. Transform to target memory layout
     ///
     /// - Parameters:
-    ///   - source: The image source (URL, file, Data, base64, CGImage, UIImage, or NSImage)
+    ///   - source: The image source (file, Data, base64, CGImage, UIImage, or NSImage)
     ///   - options: Processing configuration including color format, resize, normalization, and layout
     /// - Returns: A ``PixelDataResult`` containing the preprocessed pixel array and metadata
     /// - Throws: ``PixelUtilsError`` if loading or processing fails
     public static func getPixelData(
         source: ImageSource,
         options: PixelDataOptions = PixelDataOptions()
-    ) async throws -> PixelDataResult {
+    ) throws -> PixelDataResult {
         let startTime = CFAbsoluteTimeGetCurrent()
         
         // Load CGImage from source, optionally normalizing orientation
-        let cgImage = try await loadCGImage(from: source, normalizeOrientation: options.normalizeOrientation)
+        let cgImage = try loadCGImage(from: source, normalizeOrientation: options.normalizeOrientation)
         
         // Track original size for letterbox info
         let originalSize = CGSize(width: cgImage.width, height: cgImage.height)
@@ -254,7 +254,7 @@ public enum PixelExtractor {
     /// // input.data contains UInt8 bytes in NHWC layout, ready for TFLite
     ///
     /// // For PyTorch model
-    /// let input = try await PixelExtractor.getModelInput(
+    /// let input = try PixelExtractor.getModelInput(
     ///     source: .uiImage(image),
     ///     framework: .pytorch,
     ///     width: 224,
@@ -264,7 +264,7 @@ public enum PixelExtractor {
     /// ```
     ///
     /// - Parameters:
-    ///   - source: Image source (URL, file, UIImage, etc.)
+    ///   - source: Image source (file, UIImage, etc.)
     ///   - framework: Target ML framework that determines all preprocessing settings
     ///   - width: Target width for the model input
     ///   - height: Target height for the model input
@@ -277,7 +277,7 @@ public enum PixelExtractor {
         width: Int,
         height: Int,
         resizeStrategy: ResizeStrategy = .cover
-    ) async throws -> ModelInputResult {
+    ) throws -> ModelInputResult {
         let startTime = CFAbsoluteTimeGetCurrent()
         
         // Get base options from framework and add resize
@@ -285,7 +285,7 @@ public enum PixelExtractor {
         options.resize = ResizeOptions(width: width, height: height, strategy: resizeStrategy)
         
         // Extract pixel data
-        let result = try await getPixelData(source: source, options: options)
+        let result = try getPixelData(source: source, options: options)
         
         // Convert to raw Data based on output format
         let outputData: Data
@@ -338,40 +338,21 @@ public enum PixelExtractor {
         )
     }
     
-    /// Process multiple images with concurrency control
+    /// Process multiple images sequentially
     /// - Parameters:
     ///   - sources: Array of image sources
     ///   - options: Processing options
-    ///   - concurrency: Maximum concurrent operations
     /// - Returns: Array of pixel data results
     public static func batchGetPixelData(
         sources: [ImageSource],
-        options: PixelDataOptions = PixelDataOptions(),
-        concurrency: Int = 4
-    ) async throws -> [PixelDataResult] {
-        let startTime = CFAbsoluteTimeGetCurrent()
-        
+        options: PixelDataOptions = PixelDataOptions()
+    ) throws -> [PixelDataResult] {
         var results: [PixelDataResult] = []
         results.reserveCapacity(sources.count)
         
-        // Process in batches based on concurrency
-        for batch in sources.chunked(into: concurrency) {
-            let batchResults = try await withThrowingTaskGroup(
-                of: PixelDataResult.self
-            ) { group in
-                for source in batch {
-                    group.addTask {
-                        try await getPixelData(source: source, options: options)
-                    }
-                }
-                
-                var collected: [PixelDataResult] = []
-                for try await result in group {
-                    collected.append(result)
-                }
-                return collected
-            }
-            results.append(contentsOf: batchResults)
+        for source in sources {
+            let result = try getPixelData(source: source, options: options)
+            results.append(result)
         }
         
         return results
@@ -379,12 +360,15 @@ public enum PixelExtractor {
     
     // MARK: - Image Loading
     
-    private static func loadCGImage(from source: ImageSource, normalizeOrientation: Bool = false) async throws -> CGImage {
+    private static func loadCGImage(from source: ImageSource, normalizeOrientation: Bool = false) throws -> CGImage {
         switch source {
-        case .url(let url):
-            return try await loadFromURL(url)
-            
         case .file(let url):
+            // Check if URL is remote and throw a friendly error
+            if URLUtilities.isRemoteURL(url) {
+                throw PixelUtilsError.invalidSource(
+                    URLUtilities.remoteURLErrorMessage(example: "let result = try PixelExtractor.getPixelData(source: .data(data), options: options)")
+                )
+            }
             return try loadFromFile(url)
             
         case .data(let data):
@@ -436,11 +420,6 @@ public enum PixelExtractor {
         return UIGraphicsGetImageFromCurrentImageContext() ?? image
     }
     #endif
-    
-    private static func loadFromURL(_ url: URL) async throws -> CGImage {
-        let (data, _) = try await URLSession.shared.data(from: url)
-        return try loadFromData(data)
-    }
     
     private static func loadFromFile(_ url: URL) throws -> CGImage {
         guard let provider = CGDataProvider(url: url as CFURL) else {

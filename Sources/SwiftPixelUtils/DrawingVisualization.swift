@@ -699,7 +699,13 @@ public enum Drawing {
             }
             return image
             
-        case .url(let url), .file(let url):
+        case .file(let url):
+            // Check if this is a remote URL
+            if URLUtilities.isRemoteURL(url) {
+                throw PixelUtilsError.loadFailed(
+                    URLUtilities.remoteURLErrorMessage(example: "let result = try DrawingVisualization.drawBoundingBoxes(on: .data(data), boxes: boxes)")
+                )
+            }
             guard let data = try? Data(contentsOf: url) else {
                 throw PixelUtilsError.loadFailed("Cannot load file at \(url)")
             }

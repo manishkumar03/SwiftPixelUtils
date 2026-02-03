@@ -127,7 +127,7 @@ public enum TensorToImage {
         width: Int,
         height: Int,
         options: TensorToImageOptions = TensorToImageOptions()
-    ) async throws -> TensorToImageResult {
+    ) throws -> TensorToImageResult {
         try convertSync(data: data, width: width, height: height, options: options)
     }
     
@@ -206,7 +206,7 @@ public enum TensorToImage {
     public static func convert(
         result: PixelDataResult,
         normalization: Normalization = .imagenet
-    ) async throws -> TensorToImageResult {
+    ) throws -> TensorToImageResult {
         var options = TensorToImageOptions()
         options.channels = result.channels
         options.dataLayout = result.dataLayout
@@ -240,7 +240,7 @@ public enum TensorToImage {
             }
         }
         
-        return try await convert(
+        return try convert(
             data: result.data,
             width: result.width,
             height: result.height,

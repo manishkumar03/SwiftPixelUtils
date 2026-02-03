@@ -100,8 +100,7 @@ final class SwiftPixelUtilsTests: XCTestCase {
         
         let results = try await PixelExtractor.batchGetPixelData(
             sources: sources,
-            options: PixelDataOptions(),
-            concurrency: 2
+            options: PixelDataOptions()
         )
         
         XCTAssertEqual(results.count, 3)

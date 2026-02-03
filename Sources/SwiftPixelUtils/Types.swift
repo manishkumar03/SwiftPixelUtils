@@ -43,9 +43,12 @@ import AppKit
 
 // MARK: - Image Source
 
-/// Image source specification
+/// Image source specification.
+///
+/// Use `.file(URL)` for local file URLs only. Remote URLs are not supported.
+/// For images from the network, download them first and use `.data(Data)` instead.
 public enum ImageSource {
-    case url(URL)
+    /// Local file URL (remote URLs are not supported)
     case file(URL)
     case data(Data)
     case base64(String)

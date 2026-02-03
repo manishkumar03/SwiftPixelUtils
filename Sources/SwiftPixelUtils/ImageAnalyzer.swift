@@ -114,11 +114,11 @@ public enum ImageAnalyzer {
         source: ImageSource,
         threshold: Float = 100.0,
         downsampleSize: Int = 500
-    ) async throws -> BlurDetectionResult {
+    ) throws -> BlurDetectionResult {
         let startTime = CFAbsoluteTimeGetCurrent()
         
         // Load and optionally downsample
-        var cgImage = try await loadCGImage(from: source)
+        var cgImage = try loadCGImage(from: source)
         
         let maxDim = max(cgImage.width, cgImage.height)
         if maxDim > downsampleSize {
@@ -188,8 +188,8 @@ public enum ImageAnalyzer {
     /// - Parameter source: Image source to analyze
     /// - Returns: ``ImageStatistics`` with per-channel statistics and histograms
     /// - Throws: ``PixelUtilsError`` if analysis fails
-    public static func getStatistics(source: ImageSource) async throws -> ImageStatistics {
-        let cgImage = try await loadCGImage(from: source)
+    public static func getStatistics(source: ImageSource) throws -> ImageStatistics {
+        let cgImage = try loadCGImage(from: source)
         
         // Extract RGBA pixel data
         let width = cgImage.width
@@ -270,8 +270,8 @@ public enum ImageAnalyzer {
     /// - Parameter source: Image source to analyze
     /// - Returns: ``ImageMetadata`` with image properties
     /// - Throws: ``PixelUtilsError`` if metadata extraction fails
-    public static func getMetadata(source: ImageSource) async throws -> ImageMetadata {
-        let cgImage = try await loadCGImage(from: source)
+    public static func getMetadata(source: ImageSource) throws -> ImageMetadata {
+        let cgImage = try loadCGImage(from: source)
         
         let width = cgImage.width
         let height = cgImage.height
@@ -325,8 +325,8 @@ public enum ImageAnalyzer {
     public static func validate(
         source: ImageSource,
         options: ValidationOptions
-    ) async throws -> ValidationResult {
-        let metadata = try await getMetadata(source: source)
+    ) throws -> ValidationResult {
+        let metadata = try getMetadata(source: source)
         var issues: [String] = []
         
         // Check minimum dimensions
@@ -362,7 +362,7 @@ public enum ImageAnalyzer {
     
     // MARK: - Private Helpers - Image Loading
     
-    private static func loadCGImage(from source: ImageSource) async throws -> CGImage {
+    private static func loadCGImage(from source: ImageSource) throws -> CGImage {
         switch source {
         case .cgImage(let cgImage):
             return cgImage
@@ -374,10 +374,16 @@ public enum ImageAnalyzer {
             }
             return cgImage
             
-        case .url(let url), .file(let url):
+        case .file(let url):
+            // Check if URL is remote and throw a friendly error
+            if URLUtilities.isRemoteURL(url) {
+                throw PixelUtilsError.invalidSource(
+                    URLUtilities.remoteURLErrorMessage(example: "let result = try ImageAnalyzer.getStatistics(from: .data(data))")
+                )
+            }
             guard let ciImage = CIImage(contentsOf: url),
                   let cgImage = ciContext.createCGImage(ciImage, from: ciImage.extent) else {
-                throw PixelUtilsError.loadFailed("Failed to load image from URL: \(url)")
+                throw PixelUtilsError.loadFailed("Failed to load image from file: \(url)")
             }
             return cgImage
             
@@ -385,7 +391,7 @@ public enum ImageAnalyzer {
             guard let data = Data(base64Encoded: base64String) else {
                 throw PixelUtilsError.loadFailed("Invalid base64 string")
             }
-            return try await loadCGImage(from: .data(data))
+            return try loadCGImage(from: .data(data))
             
         #if canImport(UIKit)
         case .uiImage(let uiImage):

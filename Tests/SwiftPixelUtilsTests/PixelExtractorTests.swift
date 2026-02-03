@@ -564,8 +564,7 @@ final class PixelExtractorTests: XCTestCase {
         
         let results = try await PixelExtractor.batchGetPixelData(
             sources: sources,
-            options: PixelDataOptions(),
-            concurrency: 4
+            options: PixelDataOptions()
         )
         
         XCTAssertEqual(results.count, 10)
@@ -700,8 +699,7 @@ final class PixelExtractorTests: XCTestCase {
             Task {
                 _ = try? await PixelExtractor.batchGetPixelData(
                     sources: sources,
-                    options: PixelDataOptions(),
-                    concurrency: 4
+                    options: PixelDataOptions()
                 )
                 expectation.fulfill()
             }

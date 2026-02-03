@@ -16,11 +16,11 @@ public class ExampleUsage {
     
     // MARK: - Basic Pixel Extraction
     
-    public static func basicExample() async throws {
-        // Load image from URL
-        let url = URL(string: "https://example.com/image.jpg")!
-        let result = try await PixelExtractor.getPixelData(
-            source: .url(url),
+    public static func basicExample() throws {
+        // Load image from local file
+        let fileURL = URL(fileURLWithPath: "/path/to/image.jpg")
+        let result = try PixelExtractor.getPixelData(
+            source: .file(fileURL),
             options: PixelDataOptions()
         )
         
@@ -32,11 +32,11 @@ public class ExampleUsage {
     
     // MARK: - Model Preset Example
     
-    public static func modelPresetExample() async throws {
+    public static func modelPresetExample() throws {
         let fileURL = URL(fileURLWithPath: "/path/to/image.jpg")
         
         // Use YOLO preset
-        let yoloResult = try await PixelExtractor.getPixelData(
+        let yoloResult = try PixelExtractor.getPixelData(
             source: .file(fileURL),
             options: ModelPresets.yolov8
         )
@@ -46,7 +46,7 @@ public class ExampleUsage {
         print("Layout: \(yoloResult.dataLayout)") // NCHW
         
         // Use MobileNet preset
-        let mobileNetResult = try await PixelExtractor.getPixelData(
+        let mobileNetResult = try PixelExtractor.getPixelData(
             source: .file(fileURL),
             options: ModelPresets.mobilenet
         )
@@ -57,7 +57,7 @@ public class ExampleUsage {
     
     // MARK: - Custom Options Example
     
-    public static func customOptionsExample() async throws {
+    public static func customOptionsExample() throws {
         let fileURL = URL(fileURLWithPath: "/path/to/image.jpg")
         
         let options = PixelDataOptions(
@@ -73,7 +73,7 @@ public class ExampleUsage {
             outputFormat: .float32Array
         )
         
-        let result = try await PixelExtractor.getPixelData(
+        let result = try PixelExtractor.getPixelData(
             source: .file(fileURL),
             options: options
         )
@@ -84,17 +84,16 @@ public class ExampleUsage {
     
     // MARK: - Batch Processing Example
     
-    public static func batchProcessingExample() async throws {
+    public static func batchProcessingExample() throws {
         let sources: [ImageSource] = [
-            .url(URL(string: "https://example.com/1.jpg")!),
-            .url(URL(string: "https://example.com/2.jpg")!),
-            .url(URL(string: "https://example.com/3.jpg")!)
+            .file(URL(fileURLWithPath: "/path/to/1.jpg")),
+            .file(URL(fileURLWithPath: "/path/to/2.jpg")),
+            .file(URL(fileURLWithPath: "/path/to/3.jpg"))
         ]
         
-        let results = try await PixelExtractor.batchGetPixelData(
+        let results = try PixelExtractor.batchGetPixelData(
             sources: sources,
-            options: ModelPresets.mobilenet,
-            concurrency: 2
+            options: ModelPresets.mobilenet
         )
         
         print("Processed \(results.count) images")

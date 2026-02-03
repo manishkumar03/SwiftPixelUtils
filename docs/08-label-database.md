@@ -37,6 +37,7 @@ A comprehensive reference of class labels for popular machine learning models in
   - [Label Mapping](#label-mapping)
   - [Custom Label Sets](#custom-label-sets)
 - [Decision Guide: Picking Label Sets](#decision-guide-picking-label-sets)
+- [Long-Tail Distributions](#long-tail-distributions)
 - [SwiftPixelUtils Label API](#swiftpixelutils-label-api)
 - [Label Taxonomy and Ontologies](#label-taxonomy-and-ontologies)
 - [Cross-Dataset Mapping](#cross-dataset-mapping)
@@ -50,6 +51,34 @@ Machine learning models output class indices that need to be mapped to human-rea
 ---
 
 ## ImageNet Labels
+
+### Taxonomy & Ontologies (Background Theory)
+
+A standard list of strings is insufficient for robust AI. We need **Taxonomies**.
+
+#### 1. WordNet Hierarchy (ImageNet)
+ImageNet classes are nodes in the WordNet graph.
+- **Synsets**: "n02115641" (dingo). It has a unique ID, not just a name.
+- **Hypernyms**: A "dingo" is-a "wild dog" is-a "canine" is-a "carnivore".
+- **Implication**: If a model predicts "dingo" with 40% and "wild dog" with 40%, the model is actually 80% sure it's a wild dog. Naive top-1 accuracy misses this.
+
+#### 2. Long-Tail Distributions
+Real-world data is not balanced.
+- **Head Classes**: "Person", "Car", "Dog". (Millions of examples).
+- **Tail Classes**: "Okapi", "Rickshaw". (Few examples).
+- **Impact**: Models are biased towards head classes. A blurry "wolf" is often misclassified as a "dog" because the prior probability of dog is higher.
+
+#### 3. Object Detection Index Mapping (The Background Class)
+- **Problem**: Does index 0 mean "Person" or "Background"?
+- **PyTorch/TF Models**: Often trained with `[background, class1, class2...]`.
+- **COCO Standard**: 80 classes. IDs are 1-90 (some gaps).
+    - *Example*: ID 1 is Person. ID 11 is Stop Sign. ID 12 is Parking Meter.
+    - *Gap*: There is no ID 12 in the 80-class subset, but the original dataset had 91 IDs.
+    - **Crucial**: Always map your model outputs (0-79) to the correct display labels. Do not assume index $i$ corresponds to line $i$ in a text file.
+
+#### 4. Supercategories (Hierarchical Grouping)
+COCO defines supercategories like "Vehicle" (containing bicycle, car, motorcycle, airplane, bus, train, truck, boat).
+- **Usage**: When filtering notifications, use supercategories. "Alert me if any *Vehicle* is in the driveway" is more robust than listing 8 classes.
 
 ### ImageNet-1K (1000 Classes)
 
@@ -1476,6 +1505,17 @@ struct CustomLabelSet {
 - **Kinetics**: action recognition and video tasks.
 
 Match your label set to the training dataset; mismatched labels are the most common cause of “correct class, wrong label” errors.
+
+---
+
+## Long-Tail Distributions
+
+Many datasets follow a **long‑tail**: a few frequent classes and many rare ones. This affects both evaluation and product behavior.
+
+- Rare classes may never appear in top‑K without class‑balanced sampling.
+- Accuracy can look high while rare classes perform poorly.
+
+If rare classes matter, consider class‑weighted metrics or re‑sampling during training.
 
 ## SwiftPixelUtils Label API
 

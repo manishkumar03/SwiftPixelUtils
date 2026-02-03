@@ -8,11 +8,17 @@ A focused theory reference covering the foundations behind image preprocessing, 
   - [Table of Contents](#table-of-contents)
   - [Sampling and Quantization](#sampling-and-quantization)
   - [Filtering and Convolution](#filtering-and-convolution)
+  - [Optics, PSF, and MTF](#optics-psf-and-mtf)
   - [Frequency Domain Intuition](#frequency-domain-intuition)
   - [Aliasing and Anti‑Aliasing](#aliasing-and-antialiasing)
   - [Noise Models](#noise-models)
+  - [Dynamic Range and Tone Mapping](#dynamic-range-and-tone-mapping)
   - [Color and Perception](#color-and-perception)
+  - [Edges, Gradients, and Feature Detectors](#edges-gradients-and-feature-detectors)
+  - [Morphological Operations](#morphological-operations)
+  - [Histogram Operations](#histogram-operations)
   - [Geometric Transforms](#geometric-transforms)
+  - [Compression Artifacts](#compression-artifacts)
   - [Evaluation Metrics](#evaluation-metrics)
   - [Decision Guide: What to Review](#decision-guide-what-to-review)
 
@@ -44,6 +50,21 @@ $$
 - **Low‑pass filters** smooth noise but blur edges.
 - **High‑pass filters** sharpen edges but amplify noise.
 - **Separable kernels** (e.g., Gaussian) reduce cost from $O(k^2)$ to $O(2k)$.
+
+---
+
+## Optics, PSF, and MTF
+
+Real cameras blur images due to optics and sensor integration. This blur is modeled by the **Point Spread Function (PSF)**, which describes how a point light source spreads on the sensor.
+
+- **PSF** in spatial domain ↔ **Optical Transfer Function (OTF)** in frequency domain.
+- The **Modulation Transfer Function (MTF)** is the magnitude of the OTF and summarizes how contrast is preserved at different spatial frequencies.
+
+**Why it matters:**
+- Small objects can vanish if the PSF is large.
+- Super‑resolution and deblurring attempt to invert PSF effects.
+
+---
 
 ---
 
@@ -86,6 +107,22 @@ $$
 
 ---
 
+## Dynamic Range and Tone Mapping
+
+**Dynamic range** is the ratio between the darkest and brightest representable intensities. Sensors often capture more range than displays can show.
+
+- **HDR** merges multiple exposures or uses high‑bit sensors.
+- **Tone mapping** compresses HDR into displayable range while preserving contrast.
+
+Common tone‑mapping curve (log):
+$$
+I_{out} = \frac{\log(1 + \alpha I_{in})}{\log(1 + \alpha)}
+$$
+
+Use tone mapping before ML only if the model was trained on tone‑mapped images.
+
+---
+
 ## Color and Perception
 
 Human vision is more sensitive to **luminance** than **chrominance**, enabling YUV/YCbCr subsampling. Perceptual uniform spaces (CIELAB) help quantify color differences.
@@ -94,6 +131,42 @@ Color difference (Delta‑E, simplified):
 $$
 \Delta E_{ab} = \sqrt{(\Delta L^*)^2 + (\Delta a^*)^2 + (\Delta b^*)^2}
 $$
+
+---
+
+## Edges, Gradients, and Feature Detectors
+
+Edges are locations of rapid intensity change and often correspond to object boundaries.
+
+- **Gradient magnitude**: $|\nabla I| = \sqrt{I_x^2 + I_y^2}$
+- **Sobel/Scharr** filters estimate gradients.
+- **Canny** adds non‑maximum suppression and hysteresis for clean edges.
+
+Feature detectors (Harris, FAST, DoG) rely on gradient structure. When inputs are overly blurred or aliased, edge‑based features degrade.
+
+---
+
+## Morphological Operations
+
+Morphology modifies shapes using a structuring element:
+
+- **Erosion** removes small bright regions.
+- **Dilation** expands bright regions.
+- **Opening** (erosion→dilation) removes small noise.
+- **Closing** (dilation→erosion) fills small holes.
+
+These are useful for post‑processing segmentation masks.
+
+---
+
+## Histogram Operations
+
+Histograms summarize intensity distributions.
+
+- **Histogram equalization** improves contrast globally.
+- **CLAHE** improves contrast locally while limiting noise amplification.
+
+Use histogram operations cautiously; they can alter model‑expected statistics.
 
 ---
 
@@ -116,6 +189,17 @@ $$
 - **Perspective** models pinhole cameras.
 
 Interpolation (nearest, bilinear, bicubic) determines how resampled pixels are computed.
+
+---
+
+## Compression Artifacts
+
+Lossy compression (JPEG, H.264) introduces blockiness, ringing, and color shifts.
+
+- **Blocking artifacts** occur at 8×8 boundaries.
+- **Ringing** appears near sharp edges.
+
+Compression artifacts can confuse detectors; if your inputs are heavily compressed, consider light denoising or train with similar compression levels.
 
 ---
 

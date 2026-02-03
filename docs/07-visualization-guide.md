@@ -9,6 +9,7 @@ A comprehensive reference for visualizing machine learning outputs including bou
   - [Color Theory for ML Visualization](#color-theory-for-ml-visualization)
   - [Perceptual Considerations](#perceptual-considerations)
   - [Accessibility Guidelines](#accessibility-guidelines)
+- [Preattentive Features and Clutter](#preattentive-features-and-clutter)
 - [Drawing Bounding Boxes](#drawing-bounding-boxes)
   - [Box Formats and Coordinates](#box-formats-and-coordinates)
   - [Style Options](#style-options)
@@ -168,58 +169,66 @@ let colorblindSafe: [UIColor] = [
 
 ## Drawing Bounding Boxes
 
-### Box Formats and Coordinates
+### Color Theory in Visualization
 
-**Common formats:**
-```
-(x1, y1, x2, y2) - Corners       (cx, cy, w, h) - Center
-┌─────────────────────┐          ┌─────────────────────┐
-│(x1,y1)              │          │                     │
-│ ●───────────────┐   │          │     (cx,cy)         │
-│ │               │   │          │       ●─────w/2─────│
-│ │    Object     │   │          │       │             │
-│ │               │   │          │       h/2           │
-│ └───────────────● (x2,y2)      │                     │
-│                     │          │                     │
-└─────────────────────┘          └─────────────────────┘
+When visualizing ML outputs, color choice is functional, not just aesthetic.
 
-Normalized (0-1)                 Pixel coordinates
-x, y ∈ [0, 1]                    x, y ∈ [0, width/height]
-```
+#### 1. Categorical Colormaps
+Used for **Semantic Segmentation** (masks) or **Bounding Boxes**.
+- **Requirement**: Each class color must be maximally distinct from others and the background.
+- **Golden Rule**: Do NOT use random RGB values. You will end up with 3 slightly different greens.
+- **Algorithm**: Use "Kelly's Colors" or sample equidistantly from HSV space with alternating brightness.
 
-**Coordinate conversion:**
+#### 2. Sequential & Diverging Colormaps
+Used for **Heatmaps**, **Depth Maps**, or **Confidence Scores**.
+- **Perceptual Uniformity**: The change in color should look linear to the human eye.
+    - *Bad*: Jet (Rainbow). It induces false boundaries (yellow/cyan stripes) in smooth data.
+    - *Good*: Viridis, Plasma, Magma (Standard in Matplotlib).
+    - *Diverging*: Red-White-Blue. Good for showing deviations from a mean (zero).
+
+#### 3. Preattentive Features
+Human vision detects certain features (color, orientation, size) in <200ms without conscious scan.
+- **Pop-out Effect**: To make a "Danger" warning visible, use a complementary color to the dominant scene color.
+- **Clutter Management**: If showing 50 detections, decrease opacity of low-confidence boxes to avoid "visual soup".
+
+---
+
+## Drawing Bounding Boxes & Render Theory
+
+### Rendering Pipeline
+Rendering a box `[x,y,w,h]` seems simple, but details implementation matters.
+
+#### 1. Coordinate Systems
+- **Pixel Center**: In some frameworks, pixel (0,0) is a square from 0.0 to 1.0. The center is 0.5.
+- **Line Alignment**:
+    - *Inside Stroke*: The border is drawn *inside* the box bounds.
+    - *Center Stroke*: The border straddles the edge. (Default in CoreGraphics).
+    - *Impact*: For a 1px box with 2px width, center stroke might draw 0.5px outside.
+
+#### 2. Anti-Aliasing (AA)
+- **Problem**: Drawing diagonal lines or curves on a pixel grid creates "jaggies".
+- **Solution**: Native APIs (CoreGraphics) handle AA automatically using supersampling or coverage masks.
+- **Performance**: High-quality AA is expensive. If drawing 1000 boxes at 60fps, consider disabling AA or using simple rects.
+
+#### 3. Text Rendering (Labels)
+Legibility is hard on dynamic backgrounds.
+- **Halo/Outline**: Draw white text with a black stroke (or vice versa). Solves contrast on *any* image.
+- ** Background Badge**: Draw a filled rectangle behind the text.
+    - *Tip*: Draw the badge *inside* or *above* the top-left corner. If the box is at $y=0$, flip the badge to draw *inside* to avoid clipping.
+
+### Coordinate Conversion Formulas
 ```swift
 struct BoundingBox {
-    var x1, y1, x2, y2: Float
+    var x1, y1, x2, y2: Float // Normalized [0-1]
     
-    // Convert to center format
-    var center: (cx: Float, cy: Float, w: Float, h: Float) {
-        return (
-            cx: (x1 + x2) / 2,
-            cy: (y1 + y2) / 2,
-            w: x2 - x1,
-            h: y2 - y1
-        )
-    }
-    
-    // Convert to CGRect for drawing
-    func toCGRect(imageSize: CGSize) -> CGRect {
-        return CGRect(
-            x: CGFloat(x1),
-            y: CGFloat(y1),
-            width: CGFloat(x2 - x1),
-            height: CGFloat(y2 - y1)
-        )
-    }
-    
-    // Scale from normalized to pixel
-    func scaled(to size: CGSize) -> BoundingBox {
-        return BoundingBox(
-            x1: x1 * Float(size.width),
-            y1: y1 * Float(size.height),
-            x2: x2 * Float(size.width),
-            y2: y2 * Float(size.height)
-        )
+    // Convert to pixel coordinates
+    func toCGRect(imageW: CGFloat, imageH: CGFloat) -> CGRect {
+        // Clamp to edges to prevent drawing outside context
+        let x = max(0, x1 * Float(imageW))
+        let y = max(0, y1 * Float(imageH))
+        let w = min(Float(imageW) - x, (x2 - x1) * Float(imageW))
+        let h = min(Float(imageH) - y, (y2 - y1) * Float(imageH))
+        return CGRect(x: CGFloat(x), y: CGFloat(y), width: CGFloat(w), height: CGFloat(h))
     }
 }
 ```
@@ -1179,6 +1188,18 @@ class FadeTransitionRenderer {
 - **Offline/debug**: detailed labels, confidence bars, overlays.
 
 If users misinterpret heatmaps, switch to monotonic luminance colormaps and add a legend.
+
+---
+
+## Preattentive Features and Clutter
+
+Preattentive cues (color, size, orientation, motion) are detected instantly by viewers.
+
+- Use **color** for categorical labels.
+- Use **size/opacity** for confidence or importance.
+- Avoid mixing too many channels; it creates clutter and slows interpretation.
+
+If a scene is busy, reduce overlay density or use interactive filtering.
 
 ## SwiftPixelUtils Visualization API
 

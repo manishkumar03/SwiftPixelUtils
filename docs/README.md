@@ -6,19 +6,19 @@ Comprehensive guides and references for machine learning on iOS and macOS.
 
 ### Core Guides
 
-| Guide | Description | Topics |
+| Guide | Description | Key Theory & Decisions |
 |-------|-------------|--------|
-| [01 - Image Preprocessing](01-image-preprocessing-fundamentals.md) | Complete guide to preparing images for ML models | Pixel extraction, resizing, normalization, data layouts, batch processing |
-| [02 - Quantization](02-quantization-guide.md) | Understanding quantized models | INT8, UINT8, FP16, INT4, scale/zero-point, per-channel |
-| [03 - Classification](03-classification-output.md) | Image classification reference | Softmax, top-K, architectures, ImageNet labels |
-| [04 - Detection](04-detection-output.md) | Object detection with YOLO | Bounding boxes, NMS, IoU, COCO labels |
-| [05 - Segmentation](05-segmentation-output.md) | Semantic segmentation guide | DeepLab, masks, color maps, VOC labels |
-| [06 - Augmentation](06-image-augmentation.md) | Data augmentation techniques | Geometric, photometric, MixUp, AutoAugment |
-| [07 - Visualization](07-visualization-guide.md) | Drawing ML results | Boxes, masks, heatmaps, debugging |
-| [08 - Label Database](08-label-database.md) | Complete class label reference | ImageNet, COCO, VOC, Open Images, LVIS, Kinetics |
-| [09 - Depth Estimation](09-depth-estimation.md) | Monocular depth estimation | MiDaS, DPT, ZoeDepth, Depth Anything, colormaps, Float16 utilities |
-| [10 - ONNX Runtime](10-onnx-runtime-integration.md) | ONNX Runtime integration | Tensor creation, output parsing, YOLOv8, RT-DETR, batch inference |
-| [11 - Image Processing Theory](11-image-processing-theory.md) | Core image processing theory | Sampling, filtering, color, noise, frequency domain |
+| [01 - Image Preprocessing](01-image-preprocessing-fundamentals.md) | **Start Here**. The complete pipeline. | Gamma correction, Sampling theory, Layouts (NCHW), Mismatch Checklist |
+| [02 - Quantization](02-quantization-guide.md) | Understanding quantized models. | INT8 vs FP16, Calibration (KL Div vs MinMax), Rounding math |
+| [03 - Classification](03-classification-output.md) | Processing classification heads. | Softmax dynamics, Temperature scaling, Calibration metrics |
+| [04 - Detection](04-detection-output.md) | Object detection (YOLO, etc). | Box regression losses, NMS variants (Soft/Hard), Anchor theory |
+| [05 - Segmentation](05-segmentation-output.md) | Pixel-wise prediction. | Dice coefficient, Class imbalance, Mask filtering strategies |
+| [06 - Augmentation](06-image-augmentation.md) | Improving model generalization. | Invariance vs Equivariance, MixUp/CutMix math |
+| [07 - Visualization](07-visualization-guide.md) | Debugging & Presentation. | Perceptual colormaps, Preattentive processing |
+| [08 - Label Database](08-label-database.md) | Class ontologies. | Taxonomy design, Long-tail distributions |
+| [09 - Depth Estimation](09-depth-estimation.md) | Monocular depth. | **Ill-posedness**, Inverse depth, Metric alignment, Failure modes |
+| [10 - ONNX Runtime](10-onnx-runtime-integration.md) | Running ONNX models. | **Execution Providers** (CPU vs CoreML), Threading, Opsets |
+| [11 - Theory Reference](11-image-processing-theory.md) | The Physics & Math. | DSP basics, Optics (PSF/MTF), Color Science, Noise models |
 
 ## 🚀 Quick Start
 

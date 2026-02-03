@@ -55,6 +55,7 @@ A comprehensive reference for data augmentation techniques, their theory, implem
   - [Detection Augmentation](#detection-augmentation)
   - [Segmentation Augmentation](#segmentation-augmentation)
   - [Medical Imaging](#medical-imaging)
+- [Invariance vs Equivariance](#invariance-vs-equivariance)
 - [Augmentation Policies](#augmentation-policies)
   - [Random Application](#random-application)
   - [Sequential Pipelines](#sequential-pipelines)
@@ -196,27 +197,53 @@ Original     Bright      Contrast    Saturate    Hue Shift
 ```
 
 **Types:**
-| Transform | Effect | Parameters |
-|-----------|--------|------------|
-| Brightness | Lighter/darker | factor |
-| Contrast | More/less difference | factor |
-| Saturation | Color intensity | factor |
-| Hue | Color shift | degrees |
-| Gamma | Non-linear brightness | gamma |
+### Geometric Transformations and Affine Theory
 
-### Noise and Blur
+Geometric augmentations map pixels from source $(x, y)$ to target $(x', y')$. Most can be represented as a $3 \times 3$ **Affine Matrix**:
 
-Simulate real-world imperfections:
+$$
+\begin{bmatrix} x' \\ y' \\ 1 \end{bmatrix} =
+\begin{bmatrix} a & b & t_x \\ c & d & t_y \\ 0 & 0 & 1 \end{bmatrix}
+\begin{bmatrix} x \\ y \\ 1 \end{bmatrix}
+$$
 
-```
-Clean        Gaussian     Salt&Pepper  Motion Blur  Defocus
-┌──────┐    ┌──────┐    ┌──────┐    ┌──────┐    ┌──────┐
-│ ████ │    │ ░▓█▒ │    │ ●□█○ │    │ ═══▶ │    │ ▒▓█▓ │
-│ ████ │ →  │ ▒██░ │    │ █●□█ │    │ ═══▶ │    │ ▓███ │
-└──────┘    └──────┘    └──────┘    └──────┘    └──────┘
-            random      random      directional  uniform
-            noise       black/white blur         blur
-```
+- **Translation**: $a=1, d=1, b=c=0$.
+- **Scaling**: $a=s_x, d=s_y$.
+- **Rotation**: $a=\cos\theta, b=-\sin\theta, c=\sin\theta, d=\cos\theta$.
+- **Shearing**: $b=\tan\phi_x$ or $c=\tan\phi_y$.
+
+**Interpolation Artifacts**:
+When rotating by $45^\circ$, old integer coordinates $(10, 10)$ might land on $(14.14, 14.14)$.
+- **Nearest Neighbor**: Fast, but creates jagged "staircase" edges (aliasing). Bad for training unless labels are masks.
+- **Bilinear**: Weighted average of 4 pixels. Standard.
+- **Bicubic**: Weighted average of 16 pixels. sharper, but slower.
+
+**Boundary Conditions**:
+What happens when pixels move "out of frame"?
+- **Zero/Constant**: Pad with black. (Easy, but creates sharp edges which valid convolutions detect).
+- **Reflect/Mirror**: Mirrors the image content. (Natural, avoids edge artifacts).
+- **Replicate/Clamp**: Repeats the edge pixel.
+
+### Photometric Theory & Invariance
+
+Unlike geometric transforms, photometric transforms change pixel *values*, not positions.
+
+**Invariance vs Equivariance**:
+- **Invariant**: The label should NOT change.
+    - Example: *Color Jitter* on a Car. A red car is still a car.
+- **Equivariant**: The label SHOULD change (or is invalid).
+    - Example: *Vertical Flip* on a "Stop Sign". An upside-down stop sign is not a standard road sign (or implies an accident).
+    - Example: *Hue Shift* on "Orange" vs "Apple". If you shift hue too much, an orange looks like a lime.
+
+### Decision Guide: Choosing Augmentations
+
+| Pipeline Type | Safe Augmentations | Risk / Dangers |
+| :--- | :--- | :--- |
+| **Natural Scenes** (ImageNet, COCO) | Horizontal Flip, Crop, Color Jitter, MixUp, CutMix. | Vertical Flip (gravity matters). Inverting colors (skies aren't green). |
+| **Faces** (Identification) | Slight Rotation ($\pm 10^\circ$), Brightness. | Shearing (distorts features), Occlusion (hides identity keypoints). |
+| **Medical Imaging** (X-Ray/CT) | Rotation ($90^\circ$ steps), Flip, Elastic Deform. | **Contrast/Brightness** (density is clinically significant!). Non-rigid warping (creates fake tumors). |
+| **Documents / OCR** | Perspective Transform, Blur, Noise, Binarization. | Flipping (mirror text is unreadable). Heavy rotation (text direction). |
+| **Satellite / Aerial** | Rotation ($0-360^\circ$), Flip (H+V). | Perspective (view is always nadir). |
 
 ### Occlusion Methods
 
@@ -1102,6 +1129,17 @@ let someAugs = SomeOf([
 - **Medical/industrial**: conservative changes; avoid heavy color shifts.
 
 If the model overfits, increase augmentation strength; if it underfits or loses small details, reduce geometric distortions.
+
+---
+
+## Invariance vs Equivariance
+
+Augmentations teach the model to be **invariant** (output unchanged) or **equivariant** (output changes predictably).
+
+- **Classification** aims for invariance to flips/crops.
+- **Detection/Segmentation** require equivariance: boxes/masks must transform with the image.
+
+If labels are not transformed consistently, training will degrade even if augmentation looks correct.
 
 ## SwiftPixelUtils Augmentation API
 

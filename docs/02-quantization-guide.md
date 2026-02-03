@@ -21,6 +21,8 @@ A comprehensive reference for model quantization theory, implementation, and usa
   - [Symmetric vs Asymmetric Quantization](#symmetric-vs-asymmetric-quantization)
   - [Per-Tensor vs Per-Channel Quantization](#per-tensor-vs-per-channel-quantization)
   - [Dynamic Range Analysis](#dynamic-range-analysis)
+    - [Calibration Strategies](#calibration-strategies)
+    - [Rounding, Clipping, and Saturation](#rounding-clipping-and-saturation)
 - [Quantization Schemes](#quantization-schemes)
   - [Post-Training Quantization (PTQ)](#post-training-quantization-ptq)
   - [Quantization-Aware Training (QAT)](#quantization-aware-training-qat)
@@ -343,13 +345,44 @@ To determine optimal quantization parameters, we need to analyze the range of va
 - Record activation statistics for each layer
 - Determine scale/zero_point from collected statistics
 
-```
-Calibration methods:
-1. MinMax: Use observed min/max values
-2. Entropy: Minimize KL divergence between float and quantized distributions
-3. MSE: Minimize mean squared error
-4. Percentile: Use Nth percentile to clip outliers
-```
+### Calibration Strategies and Algorithms
+
+Choosing how to determine the `min` and `max` range for activations (Calibration) is the single most critical factor in INT8 accuracy.
+
+#### 1. MinMax (Absolute Maximum)
+Simply uses the observed `[min, max]` range of the activation tensor.
+*   **Pros**: No clipping error (all values within range).
+*   **Cons**: extremely sensitive to outliers. If a single value is `100.0` while 99% of valid data is in `[0, 1.0]`, the quantization grid will stretch to cover `100.0`, destroying precision for the useful data.
+*   **Best For**: Tensors with bounded constrained ranges (e.g., Sigmoid outputs, Image inputs).
+
+#### 2. Entropy (KL Divergence)
+Used by TensorRT. The algorithm iteratively searches for a clipping threshold $T$ that minimizes the **Kullback-Leibler (KL) Divergence** between the original float distribution ($P$) and the quantized distribution ($Q$).
+$$ D_{KL}(P || Q) = \sum P(x) \log \left( \frac{P(x)}{Q(x)} \right) $$
+*   **Pros**: Balances clipping noise (cutting off tails) vs quantization noise (step size). Smartest allocation of bits.
+*   **Cons**: Slower to compute during conversion.
+*   **Best For**: ReLU activations with long tails (e.g., ResNet/MobileNet intermediate layers).
+
+#### 3. Percentile (Quantile)
+Sets the range to cover a fixed percentile (e.g., 99.9%) of the data, treating the top 0.1% as outliers to be clipped.
+*   **Pros**: Simple and robust against single-value outliers.
+*   **Cons**: Need to tune the percentile value.
+*   **Best For**: Noisy activation histograms.
+
+#### 4. MSE (Mean Squared Error)
+Optimizes the range to minimize the L2 difference between input $X$ and dequantized $\hat{X}$.
+*   **Best For**: General purpose, often similar performance to Entropy.
+
+### Practical Calibration Tips
+- **Representative Data**: Do **not** use random noise or a single image for calibration. Use 100-500 images drawn from the *actual* deployment domain (e.g., if deploying for night vision, calibrate with dark images).
+- **Batch Norm Folding**: Ensure Batch Normalization layers are "folded" into Convolutions *before* calibration. Calibrating an unfolded model usually results in poor accuracy.
+
+### Rounding, Clipping, and Saturation
+
+Quantization requires rounding to integers and clipping to the valid range. Poor rounding or excessive clipping reduces accuracy.
+
+- **Round‑to‑nearest** minimizes expected error.
+- **Stochastic rounding** can reduce bias during training.
+- **Saturation** occurs when values exceed range; reduce by expanding range or using per‑channel scales.
 
 ---
 

@@ -50,6 +50,9 @@ A comprehensive reference for image classification concepts, neural network arch
   - [The Overconfidence Problem](#the-overconfidence-problem)
   - [Temperature Scaling for Calibration](#temperature-scaling-for-calibration)
   - [Expected Calibration Error](#expected-calibration-error)
+- [Evaluation Metrics](#evaluation-metrics)
+    - [Confusion Matrix](#confusion-matrix)
+    - [ROC and PR Curves](#roc-and-pr-curves)
 - [Decision Guide: Choosing Classification Outputs](#decision-guide-choosing-classification-outputs)
 - [SwiftPixelUtils Classification API](#swiftpixelutils-classification-api)
   - [Basic Usage](#basic-usage)
@@ -403,19 +406,22 @@ $$\text{softmax}(z - c)_i = \frac{e^{z_i - c}}{\sum_j e^{z_j - c}} = \frac{e^{z_
 
 The constant $c$ cancels out.
 
-### Temperature Scaling
+### Temperature Scaling and Calibration
 
-Temperature controls "sharpness" of the distribution:
+Temperature ($T$) controls the entropy of the output distribution:
 
 $$\text{softmax}(z/T)_i = \frac{e^{z_i/T}}{\sum_j e^{z_j/T}}$$
 
 | Temperature | Effect | Use Case |
 |-------------|--------|----------|
-| T < 1 | Sharper (more confident) | Knowledge distillation |
-| T = 1 | Standard | Normal inference |
-| T > 1 | Softer (less confident) | Calibration, exploration |
-| T → 0 | argmax (one-hot) | Hard predictions |
-| T → ∞ | Uniform | Maximum entropy |
+| **T < 1** (e.g., 0.5) | **Sharpening**: Pushes distribution towards argmax (one-hot). | "Hard" pseudo-labeling in semi-supervised learning. |
+| **T = 1** | **Standard**: Default model training. | Normal inference. |
+| **T > 1** (e.g., 2.0) | **Softening**: Flattens distribution towards uniform. | **Knowledge Distillation** (teaching student models) and **Probability Calibration**. |
+
+**Why adjust temperature?**
+Modern Neural Networks are often **miscalibrated** (overconfident). A ResNet might predict "Dog: 99.9%" when it's only 80% sure.
+*   **Post-Hoc Calibration**: Finding a scalar $T$ (usually $>1$) on a validation set such that accuracy matches confidence (Expected Calibration Error is minimized).
+*   **Logic**: If the model is overconfident ($P_{max} \approx 1$), increasing $T$ lowers $P_{max}$ without changing the rank order.
 
 **Visual example:**
 ```
@@ -423,7 +429,7 @@ Logits: [2.0, 1.0, 0.5]
 
 T=0.5:  [0.84, 0.12, 0.04]  ← Very confident
 T=1.0:  [0.66, 0.24, 0.10]  ← Standard
-T=2.0:  [0.46, 0.32, 0.22]  ← Less confident
+T=2.0:  [0.46, 0.32, 0.22]  ← Less confident (Calibrated?)
 T=10:   [0.36, 0.33, 0.31]  ← Nearly uniform
 ```
 
@@ -437,11 +443,42 @@ func softmaxWithTemperature(_ logits: [Float], temperature: Float) -> [Float] {
 
 ### Softmax Properties
 
-1. **Monotonic:** If $z_i > z_j$, then $\text{softmax}(z)_i > \text{softmax}(z)_j$
-2. **Translation invariant:** $\text{softmax}(z + c) = \text{softmax}(z)$
-3. **Range:** Each output in $(0, 1)$
-4. **Sum:** $\sum_i \text{softmax}(z)_i = 1$
-5. **Limit:** $\lim_{z_i \to \infty} \text{softmax}(z)_i = 1$
+1. **Monotonic:** If $z_i > z_j$, then $p_i > p_j$. Rank order is preserved.
+2. **Translation Invariant:** Adding a constant bias $C$ directly to logits *does not change probabilities*.
+    $$ \frac{e^{z_i + C}}{\sum e^{z_j + C}} = \frac{e^{z_i}}{\sum e^{z_j}} $$
+    *Implication: You can subtract `max(logits)` for numerical stability without affecting the result.*
+3. **Not "True" Probability**: Softmax forces the sum to 1. If a model sees an OOD (Out of Distribution) image (e.g., noise), it *must* assign probability mass somewhere, often resulting in high confidence on arbitrary classes. **This is why thresholding is unsafe.**
+
+---
+
+## Top-K Predictions and Decision Thresholds
+
+### Why Top-K?
+In fine-grained classification (Top-1 vs Top-5), the correct answer is often in the "top few".
+- **Top-1 Accuracy**: Strict correctness.
+- **Top-5 Accuracy**: Used in ImageNet to account for label ambiguity (e.g., "Malamute" vs "Husky").
+
+### Efficient Top-K Algorithms
+Sorting is $O(N \log N)$. For inference, we only need the top $K$ (where $K \ll N$).
+1.  **Heap Select (Min-Heap)**: Maintain a heap of size $K$. $O(N \log K)$. Best for small $K$ (e.g., Top-5 on 1000 classes).
+2.  **QuickSelect (IntroSelect)**: $O(N)$ on average. Finds the $K$-th element and partitions.
+3.  **Argpartition**: Faster but returns top $K$ unsorted.
+
+### Confidence Thresholds Strategies
+Instead of `if score > 0.5`, use robust decision logic:
+
+1.  **Absolute Threshold**: `score > 0.7`. (Fragile for hard classes).
+2.  **Relative Margin**: `(top1_score - top2_score) > margin`.
+    *   *Logic*: If the model is confused (0.45 vs 0.40), don't trust it, even if 0.45 is "best".
+3.  **Entropy Threshold**: Calculate $H(p) = -\sum p_i \log p_i$. Reject high entropy (flat) predictions. This detects OOD inputs better than max probability.
+
+```swift
+let result = try ClassificationOutput.process(
+    outputData: output,
+    threshold: 0.5,  // Absolute threshold
+    margin: 0.1      // Relative margin (top1 - top2)
+)
+```
 
 ---
 
@@ -963,6 +1000,21 @@ Where $B_m$ are bins of predictions grouped by confidence.
 - **Calibrated probabilities**: when you threshold decisions or compare across models.
 
 If user‑facing confidence matters, apply temperature scaling and validate with calibration metrics.
+
+---
+
+## Evaluation Metrics
+
+### Confusion Matrix
+
+A confusion matrix counts correct vs incorrect predictions per class. It highlights which classes are confused and is essential for debugging fine‑grained datasets.
+
+### ROC and PR Curves
+
+- **ROC** is useful for balanced datasets.
+- **PR** (precision‑recall) is more informative when positives are rare.
+
+If your dataset is imbalanced, prioritize PR curves and class‑weighted metrics.
 
 ## SwiftPixelUtils Classification API
 

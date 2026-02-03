@@ -35,6 +35,7 @@ A comprehensive reference for semantic segmentation concepts, DeepLabV3 architec
   - [Upsampling Methods](#upsampling-methods)
   - [CRF Refinement](#crf-refinement)
   - [Boundary Refinement](#boundary-refinement)
+- [Class Imbalance Strategies](#class-imbalance-strategies)
 - [Popular Segmentation Models](#popular-segmentation-models)
   - [FCN (Fully Convolutional Networks)](#fcn-fully-convolutional-networks)
   - [U-Net](#u-net)
@@ -241,11 +242,41 @@ but lost 32× spatial resolution!
 For segmentation, need full resolution output.
 ```
 
-**Solutions:**
-1. **Upsampling/Deconvolution:** Learn to upsample
-2. **Skip connections:** Bring back early features
-3. **Dilated convolutions:** Avoid downsampling
-4. **Feature pyramid:** Multi-scale fusion
+### The Resolution Challenge & Interpolation Theory
+
+**Problem:** Classification backbones (ResNet, MobileNet) gain semantic strength by reducing spatial resolution (typically $1/32$ of input).
+- Input: $512 \times 512$
+- Feature map: $16 \times 16$
+
+To get a dense mask back at $512 \times 512$, we must bridge this gap. This introduces specific artifacts:
+1.  **Aliasing**: "Staircase" edges when upsampling via Nearest Neighbor.
+2.  **Blurring**: "Fuzzy" edges when upsampling via Bilinear/Bicubic.
+
+**Upsampling Mechanisms:**
+1.  **Deconvolution (Transposed Conv)**: A learnable upsampling filter.
+    - *Pros*: Can learn edge recovery.
+    - *Cons*: Checkerboard artifacts if stride/kernel size are not carefully tuned.
+2.  **Pixel Shuffle (Sub-Pixel Conv)**: Reshapes channels into space ($H \times W \times C \cdot r^2 \rightarrow rH \times rW \times C$). High quality, efficient.
+3.  **Bilinear + 1x1 Conv**: Cheap and effective. Used in lightweight models (DeepLabV3+ mobile).
+
+### Evaluation Metrics (Dice vs IoU)
+
+How do we measure if a mask is "good"? Pixel accuracy is misleading (background is usually 90% of image).
+
+#### 1. Jaccard Index (IoU)
+The standard metric.
+$$ \text{IoU} = \frac{|A \cap B|}{|A \cup B|} = \frac{TP}{TP + FP + FN} $$
+- **Strict penalty**: If prediction is slightly offset, IoU drops fast.
+
+#### 2. Dice Coefficient (F1 Score)
+Harmonic mean of Precision and Recall.
+$$ \text{Dice} = \frac{2 |A \cap B|}{|A| + |B|} = \frac{2 TP}{2 TP + FP + FN} $$
+- **Relation to IoU**: $\text{Dice} = \frac{2 \cdot \text{IoU}}{1 + \text{IoU}}$.
+- **Behavior**: Dice is always $\ge$ IoU.
+- **Loss Function**: `DiceLoss = 1 - Dice` is standard for handling class imbalance (small objects). Soft-Dice uses continuous probabilities (sigmoid output) to make it differentiable.
+
+#### 3. Boundary F1 (BF-Score)
+Measures accuracy only along the *contours* of the mask. Critical for medical imaging or rotoscoping where exact edges matter more than fill.
 
 ### Skip Connections
 
@@ -1120,6 +1151,18 @@ func createOverlay(
 - **Upsampling**: use bilinear for speed, bicubic for smoother boundaries.
 
 If your output is blocky, increase output resolution or apply edge‑aware refinement; if it is noisy, apply small morphological smoothing.
+
+---
+
+## Class Imbalance Strategies
+
+Segmentation often suffers from dominant background classes.
+
+- **Loss weighting**: up‑weight rare classes.
+- **Focal/Dice losses**: focus on hard or small regions.
+- **Patch sampling**: oversample tiles containing rare classes.
+
+If a class never appears in output, check label mapping and consider re‑balancing.
 
 ## SwiftPixelUtils Segmentation API
 

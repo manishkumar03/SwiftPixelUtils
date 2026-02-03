@@ -83,6 +83,7 @@ A comprehensive reference for image preprocessing concepts, techniques, and impl
     - [Visual Debugging](#visual-debugging)
     - [Print Tensor Statistics](#print-tensor-statistics)
     - [Decision Guide: Choosing Preprocessing](#decision-guide-choosing-preprocessing)
+    - [Train/Inference Mismatch Checklist](#traininference-mismatch-checklist)
   - [SwiftPixelUtils API Reference](#swiftpixelutils-api-reference)
     - [PixelExtractor](#pixelextractor)
     - [ImageSource](#imagesource)
@@ -284,6 +285,30 @@ Used in ProRes, HEVC HDR
 256× more levels than 8-bit
 Scientific imaging, RAW photos
 ```
+
+### Gamma and Transfer Functions (Theory)
+
+Pixel values are not linear measurements of light intensity.
+- **Linear Representation**: $0.5$ means "half the photons". (Used in rendering, physics simulations).
+- **sRGB (Gamma Corrected)**: $0.5$ means "half the perceived brightness" (approx $0.5^{2.2} \approx 0.21$ light).
+
+**Why it matters for ML:**
+Most models (ResNet, YOLO) are trained on **sRGB** images (JPEGs from the internet).
+If you feed raw **linear** sensor data (from a RAW camera capture) into a model, performance drops significantly because the distribution of values is skwed towards the darks.
+*   **Rule**: Always convert RAW camera data to sRGB before inference, unless the model was explicitly trained on linear data.
+
+### Chroma Subsampling Theory (YUV)
+JPEGs and Video (CVPixelBuffers) often use YUV 4:2:0 to save space.
+- **Y (Luma)**: Full resolution. Black & White detail.
+- **UV (Chroma)**: Half resolution (or quarter). Color info.
+- **Human Vision**: We are more sensitive to brightness detail than color detail.
+- **Artifacts**: When converting 4:2:0 YUV to RGB for ML, sharp red/blue edges might look blocky. This is a source of error for OCR or fine-line detection.
+
+### White Balance and Color Temperature
+- **Standard**: ML models expect "White" (255,255,255) to be neutral daylight (D65, ~6500K).
+- **Issue**: Indoor photos (Warm/3000K) look yellow.
+- **Implication**: A "Snow Clasifier" might fail on indoor photos of snow because the yellow tint looks like "sand".
+- **Augmentation**: This is why Color Jitter (shifting Hue/Temp) is crucial during training.
 
 ### Alpha Channel Handling
 
@@ -1502,6 +1527,16 @@ Use this quick guide to pick the right preprocessing strategy for your model and
 - **Layout**
     - **NCHW**: PyTorch/ONNX.
     - **NHWC**: TensorFlow/TFLite.
+
+## Train/Inference Mismatch Checklist
+
+Small mismatches between training and inference preprocessing are the most common cause of poor accuracy.
+
+- **Resize strategy** matches training (letterbox vs crop vs stretch).
+- **Normalization** uses the same mean/std and scaling.
+- **Color format** matches (RGB vs BGR).
+- **Orientation** handling is consistent (EXIF vs raw).
+- **Quantization** parameters match model expectations.
 
 ## SwiftPixelUtils API Reference
 

@@ -17,7 +17,8 @@ SwiftPixelUtils provides comprehensive support for ONNX Runtime integration, mak
 9. [Batch Inference](#batch-inference)
 10. [Graph Optimization and Opsets](#graph-optimization-and-opsets)
 11. [Decision Guide: ONNX Deployment Choices](#decision-guide-onnx-deployment-choices)
-12. [Complete Example](#complete-example)
+12. [Execution Providers and Threading](#execution-providers-and-threading)
+13. [Complete Example](#complete-example)
 
 ## Overview
 
@@ -297,24 +298,65 @@ print("Batch shape: \(batchTensor.shape)")  // [N, 3, 640, 640]
 
 ## Graph Optimization and Opsets
 
-ONNX models specify an **opset** version that defines operator semantics. Runtime compatibility depends on matching opset support.
+## Graph Optimization and Opsets
 
-**Key points:**
-- Newer opsets may introduce behavior changes or new operators.
-- Exporting with a lower opset can improve compatibility but may limit performance.
+ONNX Runtime includes a powerful graph optimizer that rewrites your model graph at runtime for better performance.
 
-ONNX Runtime performs **graph optimizations** (constant folding, fusion, layout optimizations) to improve speed. These are usually safe, but if you see mismatches:
+### Optimization Levels
+When configuring `ORTSessionOptions`, you can choose the optimization strategy:
 
-- Disable specific optimizations in runtime settings
-- Validate outputs against a reference implementation
+1.  **Basic (`.basic`)**: Performs "safe" transformations like constant folding (calculating fixed values once), redundant node elimination, and identity removal. **Always enable this.**
+2.  **Extended (`.extended`)**: Enables operator fusion (e.g., fusing `Conv` + `BatchNormalization` + `Relu` into a single kernel). This drastically reduces memory bandwidth usage.
+3.  **All (`.all`)**: Enables hardware-specific optimizations, such as NCHWc memory layout transformations. This often yields the best performance but can increase initialization time.
+
+### Opset Compatibility
+The ONNX **Opset** version defines the available operators and their behavior.
+- **Opset 11**: Considered the "stable" baseline. Most compatible with mobile frameworks.
+- **Opset 17+**: Required for modern Transformer features (e.g., `LayerNormalization` specifics).
+- **Pitfall**: Attempting to run a model exported with Opset 19 on an older ONNX Runtime version (e.g., 1.14) will fail. Always match your runtime library version to your export opset.
 
 ## Decision Guide: ONNX Deployment Choices
 
-- **onnx (Float32)**: safest, highest accuracy.
-- **onnxFloat16**: better speed/memory with small accuracy trade‑off.
-- **onnxQuantizedUInt8/Int8**: best for mobile CPU and memory limits.
+When should you use ONNX Runtime vs CoreML (Apple's native format)?
 
-If you are memory‑bound, prefer Float16 or INT8; if you are accuracy‑bound, use Float32 and optimize preprocessing.
+| Feature | Core ML (`.mlpackage`) | ONNX Runtime (`.onnx`) |
+| :--- | :--- | :--- |
+| **Hardware** | **Apple Neural Engine (ANE)**, GPU, CPU | Mostly CPU (on iOS), limited CoreML EP |
+| **Power** | extremely Efficient | High (CPU usage) |
+| **Workflow** | Requires conversion (`coremltools`) | Direct export from PyTorch (`torch.onnx.export`) |
+| **Flexibility** | Rigid versions | Flexible, custom ops easier via C++ |
+
+### Recommendation
+1.  **Production iOS Apps**: Convert to **Core ML**. The power savings and ANE speedup (5x-10x) are critical for battery life.
+2.  **Prototyping / Research**: Use **ONNX Runtime**. It allows you to test models immediately without fighting conversion errors.
+3.  **Cross-Platform**: If you share code with Android/Windows, **ONNX Runtime** allows a single model file and unified preprocessing logic.
+
+### Quantization Strategy
+- **Float32**: Default. Best accuracy, largest size.
+- **Dynamic Quantization (Weights)**: Compress weights to Int8, keep activations Float32. Great for LSTMs/Transformers. 2-4x smaller model.
+- **Static Quantization**: Compress weights and activations. Requires a calibration dataset. Best for ConvNets on CPU.
+
+## Execution Providers and Threading
+
+ONNX Runtime abstracts hardware via **Execution Providers (EPs)**.
+
+### The CPU Provider (Default)
+Most efficient for general use on iOS if ANE is not accessible. Performance is sensitive to threading:
+
+*   **`intra_op_num_threads`**: Controls parallelism *within* a single operator (e.g., splitting a large Matrix-Matrix multiplication across cores).
+    *   *Tuning*: Set this to the number of **P-cores** (Performance cores) on the device. Setting it higher than physical cores causes context-switching thrashing and slows down inference.
+    *   *Default*: ORT tries to guess, but often oversubscribes on iOS.
+*   **`inter_op_num_threads`**: Controls parallelism of *independent* graph branches.
+    *   *Tuning*: For sequential vision models (ResNet, YOLO), set to **1**. Higher values only help if the graph has many parallel paths.
+
+### CoreML Execution Provider
+You can force ONNX Runtime to delegate to Core ML:
+```swift
+let options = try ORTSessionOptions()
+try options.appendExecutionProvider("CoreML") // Requires onnxruntime-c or similar
+```
+*   **Pros**: Access to ANE.
+*   **Cons**: Compilation overhead on first run; "Silent Fallback" (if CoreML doesn't support an op, it falls back to CPU, causing expensive data copying).
 
 ## Complete Example
 

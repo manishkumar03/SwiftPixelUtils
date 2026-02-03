@@ -14,7 +14,8 @@ Process depth estimation model outputs from MiDaS, DPT, ZoeDepth, Depth Anything
 8. [Colormaps](#colormaps)
 9. [Float16 Conversion Utilities](#float16-conversion-utilities)
 10. [Scale Ambiguity and Metrics](#scale-ambiguity-and-metrics)
-11. [Complete Example](#complete-example)
+11. [Depth Cues and Failure Modes](#depth-cues-and-failure-modes)
+12. [Complete Example](#complete-example)
 
 ## Overview
 
@@ -424,12 +425,52 @@ The Float16 conversion handles IEEE 754 special values correctly:
 
 ## Scale Ambiguity and Metrics
 
-Monocular depth has **scale ambiguity**: multiple depth scales can explain the same image. Models like MiDaS output **relative inverse depth**, not metric units.
+Monocular depth estimation is mathematically **ill-posed**: a single 2D image is an infinite projection of possible 3D scenes. Without reference objects or stereo baseline, a neural network can only estimate *relative* depth (order of layers) or *up-to-scale* metric depth.
 
-**Common evaluation metrics:**
-- **AbsRel**: $\frac{1}{N}\sum |d_{pred}-d_{gt}|/d_{gt}$
-- **RMSE**: $\sqrt{\frac{1}{N}\sum (d_{pred}-d_{gt})^2}$
-- **$\delta$ accuracy**: percentage of pixels within a threshold (e.g., $\delta < 1.25$)
+### The Inverse Depth Representation
+Most modern architectures (like MiDaS, DPT) regress **inverse depth** ($d = 1/z$) rather than metric distance ($z$), for two key reasons:
+1.  **Numerical Stability**: Distant points (sky, horizon) approach $z=\infty$, which is hard to regress. In inverse space, they approach $d=0$, which is stable.
+2.  **Error Distribution**: Depth estimation error naturally scales with distance (uncertainty increases as objects get further). Regressing inverse depth equalizes the error contribution across the scene.
+
+### Scale Alignment
+To convert relative depth to metric depth for AR:
+1.  **Least Squares Alignment**: If you have sparse metric points (e.g., from LiDAR), solve for scale $s$ and shift $t$:
+    $$ D_{metric} = s \cdot D_{pred} + t $$
+2.  **Two-Point Calibration**: User taps two points on the floor at known distances.
+
+### Common Evaluation Metrics
+When comparing models, check these standard metrics:
+- **AbsRel (Absolute Relative Error)**: $\frac{1}{N}\sum \frac{|d_{pred}-d_{gt}|}{d_{gt}}$ (Lower is better)
+- **RMSE (Root Mean Square Error)**: Sensitive to outliers.
+- **$\delta$ Accuracy**: Percentage of pixels where $\max(\frac{d_{pred}}{d_{gt}}, \frac{d_{gt}}{d_{pred}}) < 1.25$. (Higher is better, usually > 0.85 for good models).
+
+## Depth Cues and Failure Modes
+
+Monocular models mimic human vision by learning sophisticated **monocular cues**. Understanding these helps predict when the model will fail.
+
+### Primary Depth Cues
+1.  **Linear Perspective**: Parallel lines converging at a vanishing point (roads, hallways) are the strongest cue.
+    *   *Reliability*: Very High.
+2.  **Texture Gradient**: Texture elements (bricks, grass) appear denser and smaller as they recede.
+    *   *Reliability*: High, but fails on textureless surfaces.
+3.  **Occlusion**: T-junctions where one object blocks another. Determining *ordering* is easier than determining *distance*.
+    *   *Reliability*: High for relative depth.
+4.  **Height in Plane**: Objects higher in the image are usually further away (assuming a ground plane).
+    *   *Reliability*: Medium (fails with flying objects or non-ground scenes).
+5.  **Atmospheric Haze**: Lower contrast/saturation for distant mountains.
+    *   *Reliability*: Low (confused by fog or dirty lenses).
+
+### Common Failure Modes & Troubleshooting
+
+| Scenario | Symptom | Theory/Cause | Mitigation |
+|----------|---------|--------------|------------|
+| **Mirrors / Reflections** | "Phantom Room" | Models detect the *reflected* room depth, not the mirror surface. | Use segmentation to mask mirrors or use stereo/LiDAR if available. |
+| **Glass / Transparencies** | Punch-through | Models often see *through* glass or predict it as background. | None (intrinsic limitation of RGB). |
+| **Textureless Walls** | Wobbly/Noisy Depth | Lack of texture gradient cues leads to low confidence/noise. | Use temporal smoothing or stronger priors (Plane fitting). |
+| **Rotated Images** | Incorrect Depth | "Height in Plane" cue is violated. | **Always** rotate images to "up" orientation before inference. |
+| **Digital Art / Cartoons** | Domain Gap | Trained on realistic photos (ScanNet/MegaDepth), fails on non-photorealistic. | Use models fine-tuned on anime/art if available. |
+
+If outputs are unstable (temporal flicker), standard per-frame inference is the cause. Apply a **Weighted Moving Average** filter or use a Recurrent Neural Network (RNN) based video depth model.
 
 **Practical tip:** If you need metric depth, use models explicitly trained with scale (e.g., ZoeDepth) or perform scale alignment with known reference distances.
 

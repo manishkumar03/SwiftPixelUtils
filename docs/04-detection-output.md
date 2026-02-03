@@ -57,6 +57,7 @@ A comprehensive reference for object detection concepts, YOLO architecture, outp
   - [DETR (Transformer-based)](#detr-transformer-based)
   - [Model Comparison](#model-comparison)
 - [Label Databases for Detection](#label-databases-for-detection)
+- [Box Regression Losses](#box-regression-losses)
   - [COCO (80 Classes)](#coco-80-classes)
   - [Pascal VOC (20 Classes)](#pascal-voc-20-classes)
   - [Open Images](#open-images)
@@ -296,7 +297,32 @@ Input: 640×640×3
    (8400 boxes × 84 values for COCO)
 ```
 
-### Detection Heads
+### Detection Heads & Loss Functions (Theory)
+
+Modern detectors like YOLOv8 use **Decoupled Heads**:
+- **Regression Branch**: Predicts box coordinates ($x,y,w,h$).
+    - *Loss*: Uses **CIoU (Complete IoU)** or **DFL (Distribution Focal Loss)** instead of L2/MSE. CIoU accounts for overlap, center distance, and aspect ratio, unlike simple coordinate regression.
+- **Classification Branch**: Predicts class probabilities.
+    - *Loss*: **BCE (Binary Cross Entropy)**. Why not Softmax? YOLO treats multi-class as multi-label (independent probabilities) to allow overlapping labels (e.g. "Person" and "Man").
+
+**Anchor-Free Theory:**
+Older YOLOs (v2-v5, v7) used **Anchors** (predefined boxes like [10,13], [16,30]...).
+- **Pros**: Easy to learn offsets.
+- **Cons**: Need to cluster anchors for new datasets.
+- **YOLOv8/10**: Predict *distance to 4 sides* from the center pixel directly. This simplifies learning and generalizes better to new aspect ratios.
+
+#### Output Shape Mathematics
+For a 640x640 input, the model produces predictions at 3 distinct scales (strides):
+1.  **Stride 8 (P3)**: $640/8 = 80 \times 80$ grid. Detects **small objects**.
+    - $80 \times 80 = 6400$ anchors.
+2.  **Stride 16 (P4)**: $640/16 = 40 \times 40$ grid. Detects **medium objects**.
+    - $40 \times 40 = 1600$ anchors.
+3.  **Stride 32 (P5)**: $640/32 = 20 \times 20$ grid. Detects **large objects**.
+    - $20 \times 20 = 400$ anchors.
+
+**Total Predictions**: $6400 + 1600 + 400 = 8400$ candidate boxes.
+Each box has: `[cx, cy, w, h]` + 80 classes = 84 floats.
+Final Tensor: `[1, 84, 8400]`. (Note: YOLOv8 exports often transpose this).
 
 **Coupled Head (older YOLOs):**
 ```
@@ -569,9 +595,56 @@ Box E: 60% (IoU with D = 0.6) → Suppressed
 Result: Box A, Box D
 ```
 
-### IoU Calculation
+### IoU Calculation and Mathematics
 
-**Intersection over Union:**
+**Intersection over Union (IoU)**, also known as the **Jaccard Index**, computes overlap.
+
+$$ \text{IoU} = \frac{\text{Area}(Intersection)}{\text{Area}(Union)} = \frac{I}{A_1 + A_2 - I} $$
+
+**Computation Logic:**
+Given two boxes $B_1=[x1,y1,x2,y2]$ and $B_2=[X1,Y1,X2,Y2]$:
+1.  **Intersection**:
+    - $x_{left} = \max(x1, X1)$, $y_{top} = \max(y1, Y1)$
+    - $x_{right} = \min(x2, X2)$, $y_{bottom} = \min(y2, Y2)$
+    - $W_I = \max(0, x_{right} - x_{left})$
+    - $H_I = \max(0, y_{bottom} - y_{top})$
+    - $Area_{int} = W_I \times H_I$
+2.  **Union**:
+    - $Area_{union} = Area(B_1) + Area(B_2) - Area_{int}$
+    - **Note**: If $Area_{union} == 0$ (degenerate boxes), return 0.
+
+### NMS Variants (Decision Guide)
+
+Depending on your density and speed requirements:
+
+#### 1. Standard (Hard) NMS (Greedy)
+The classic algorithm described above.
+- **Pros**: Simple, fast ($O(N \log N)$ due to sorting).
+- **Cons**: "Occlusion Problem". If two valid objects overlap heavily (e.g., people in a crowd), one gets deleted because IoU > threshold.
+
+#### 2. Soft-NMS (Gaussian Decay)
+Instead of deleting overlapping boxes, it decays their score.
+$$ s_i = s_i e^{-\frac{IoU^2}{\sigma}} $$
+- **Pros**: Keeps occluded objects but with lower confidence.
+- **Cons**: Requires re-tuning confidence threshold.
+
+#### 3. Class-Agnostic vs Class-Specific
+- **Class-Specific**: Dog boxes only suppress Dog boxes. A Cat box overlapping a Dog box is kept.
+    - *Use Case*: Standard COCO detection.
+- **Class-Agnostic**: Any high-confidence box suppresses all overlapping boxes regardless of class.
+    - *Use Case*: "General Objectness" detection, or when you know objects cannot physically overlap (e.g., counting pills on a flat conveyor belt).
+
+#### 4. Fast NMS (Matrix Operations)
+Computes IoU matrix for all pairs at once.
+- **Pros**: Fully parallelizable on GPU.
+- **Cons**: Can over-suppress; slightly less accurate than greedy NMS.
+
+### Classification of Difficulty (mAP Theory)
+COCO metrics use **mAP@50:95**. What does this mean?
+- **@50**: "Lenient". IoU > 0.5 counts as a hit.
+- **@95**: "Strict". IoU > 0.95 counts as a hit.
+- **mAP**: Average of Precision across all recall levels and all IoU thresholds.
+*Implication tailored for you*: If your app needs to precisely measure an object's width, tune your model for mAP@75+. If you just need to count objects, mAP@50 is fine.
 
 $$IoU = \frac{\text{Area of Intersection}}{\text{Area of Union}}$$
 
@@ -1079,6 +1152,17 @@ let result = try DetectionOutput.process(
 - **Class‑specific NMS**: when overlaps of different classes are valid (person + backpack).
 
 If detections are missing small objects, lower confidence and increase max detections; if results are noisy, increase confidence and reduce IoU.
+
+---
+
+## Box Regression Losses
+
+Detectors learn to regress bounding boxes using specialized losses:
+
+- **L1 / Smooth‑L1**: simple, stable, but less geometry‑aware.
+- **GIoU/DIoU/CIoU**: account for overlap, center distance, and aspect ratio.
+
+If boxes are consistently mis‑aligned, prefer models trained with IoU‑based losses.
 
 ## SwiftPixelUtils Detection API
 

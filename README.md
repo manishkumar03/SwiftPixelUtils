@@ -1310,3 +1310,9 @@ MIT License - see LICENSE file for details
 ---
 
 Made with ❤️ for iOS/macOS ML developers
+
+---
+
+## ℹ️ AI Transparency
+
+This project was built with AI assistance.

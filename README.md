@@ -127,7 +127,7 @@ Or add it via Xcode:
 
 ## 🚀 Quick Start
 
-> **⚠️ Important:** SwiftPixelUtils functions are **synchronous** and use `throws` (not `async throws`). Remote URLs (http, https) are **not supported** - download images first and use `.data(Data)` instead.
+> **⚠️ Important:** SwiftPixelUtils functions are **synchronous** and use `throws` (not `async throws`). Remote URLs (http, https) are **not supported** - download images first and use `.data(Data)` or `.file(URL)` instead.
 
 ### Raw Pixel Data Extraction
 
@@ -1306,10 +1306,6 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 ## 📄 License
 
 MIT License - see LICENSE file for details
-
----
-
-Made with ❤️ for iOS/macOS ML developers
 
 ---
 
